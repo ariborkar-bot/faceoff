@@ -136,6 +136,26 @@ input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
 #tabs button{flex:1 1 0;min-width:0;font-size:17px;padding:10px 2px}
 @media(max-width:480px){#tabs button{font-size:14px;letter-spacing:0;padding:10px 0}}
 @media(max-width:360px){#tabs button{font-size:12.5px}}
+.acct-btn{min-height:38px;padding:6px 12px;font-weight:700;max-width:44vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct-btn.in{background:var(--panel2);color:var(--lime);border-color:#3a4d18}
+.acct-name{font-family:var(--disp);font-weight:800;font-size:22px;color:var(--lime);padding:8px 0}
+.auth{width:100%;max-width:420px}
+.auth h3{margin:0 0 4px}
+.auth .why{color:var(--mute);font-size:14px;margin:0 0 12px}
+.auth .tabs2{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-bottom:14px}
+.auth .tabs2 button{flex:1;border:0;background:none;border-radius:9px;padding:9px;font-weight:700;color:var(--mute)}
+.auth .tabs2 button[aria-pressed=true]{background:var(--ink);color:#0a0e12}
+.auth label{display:block;margin:10px 0 4px;font-size:14px;color:var(--mute)}
+.auth input{width:100%;box-sizing:border-box;color:var(--ink);font-size:16px}
+.auth input:focus,input[type=text]:focus{outline:2px solid var(--lime);outline-offset:1px}
+.auth .hint{font-size:12.5px;margin-top:4px;color:var(--mute);min-height:1em}
+.auth .hint.ok{color:var(--lime)}.auth .hint.bad,.auth .err{color:var(--red)}
+.auth .err{font-size:14px;margin-top:10px;min-height:1.2em}
+.auth .go{width:100%;margin-top:14px}
+.auth .link{background:none;border:0;color:var(--blue);padding:8px 0;font-size:14px;text-decoration:underline}
+.auth .pw{position:relative}.auth .pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--mute);font-size:13px;padding:6px}
+.acct-card .who{font-family:var(--disp);font-weight:800;font-size:26px;text-transform:none}
+.modal.auth-modal{align-items:center}
 /* opening screen: the logo, then the sticks fly out, the circle opens and the app appears */
 @property --hole{syntax:'<length>';inherits:false;initial-value:0px}
 #splash{position:fixed;inset:0;z-index:100;background:#000;display:grid;place-items:center;--hole:0px;
@@ -212,7 +232,7 @@ input[type=range]{width:100%;accent-color:var(--lime);margin:10px 0 2px}
 .warn{color:var(--amber)}
 .err{color:var(--red)}
 label{display:block;font-size:14px;color:var(--mute);margin-bottom:4px}
-input[type=text],select{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 12px}
+input[type=text],input[type=email],input[type=password],input:not([type]),select{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 12px}
 .bar{height:10px;background:var(--panel2);border-radius:6px;overflow:hidden;margin-top:10px}
 .bar>i{display:block;height:100%;width:0;background:var(--lime);transition:width .2s}
 .camstage{position:relative;margin:12px auto 0;background:#000;border-radius:12px;overflow:hidden;width:100%;aspect-ratio:16/9}
@@ -367,7 +387,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
 <div class="wrap">
   <header>
     <div class="brand"><img class="brand-em" src="brand/emblem-sm.png" alt=""><img class="brand-wm" src="brand/wordmark.png" alt="FO &amp; GO"></div>
-    <div class="hdr-r"><div class="muted small" id="whoami"></div><button class="btn-install" id="btnInstall" hidden>Install</button></div>
+    <div class="hdr-r"><div class="muted small" id="whoami"></div><button class="btn acct-btn" id="btnAcct" hidden>Sign in</button><button class="btn-install" id="btnInstall" hidden>Install</button></div>
   </header>
 
   <nav role="tablist" id="tabs">
@@ -459,7 +479,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
 
       <div id="postBox" style="margin-top:14px" hidden>
         <div class="row stretch">
-          <div><label for="handle">Name on the board</label><input type="text" id="handle" maxlength="20" placeholder="e.g. Ari B."></div>
+          <div id="handleBox"><label>Name on the board</label><div class="acct-name" id="postAs">–</div></div>
           <div><label for="club">School / club (optional)</label><input type="text" id="club" maxlength="30" placeholder="e.g. Bishop's"></div>
         </div>
         <div class="small muted" style="margin-top:8px">The rep clip (a few seconds around the whistle) is saved and shown publicly.</div>
@@ -537,6 +557,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
 
   <!-- MINE -->
   <section id="v-me" hidden>
+    <div class="card acct-card" id="acctCard"></div>
     <div class="stats">
       <div class="stat"><b id="mBest">–</b><span>My best (s)</span></div>
       <div class="stat"><b id="mRank">–</b><span>My rank</span></div>
@@ -571,8 +592,63 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   let linked = []; try { linked = JSON.parse(localStorage.getItem('fo-linked') || '[]').filter(x => typeof x === 'string'); } catch {}
   const allSecrets = () => [secret, ...linked.filter(x => x !== secret)];
   const myHash = sha(secret);
+  // ----- accounts (email + username + password) -----
+  let session = null; try { session = JSON.parse(localStorage.getItem('fo-session') || 'null'); } catch {}
+  const saveSession = s => { session = s && s.access_token ? { access_token: s.access_token, refresh_token: s.refresh_token, expires_at: s.expires_at || (Date.now() / 1000 + (s.expires_in || 3600)), user: s.user } : null; try { session ? localStorage.setItem('fo-session', JSON.stringify(session)) : localStorage.removeItem('fo-session'); } catch {} };
+  const authFetch = (path, body, extra = {}) => fetch(SB_URL + '/auth/v1/' + path, { method: extra.method || 'POST', headers: { ...H, 'Content-Type': 'application/json', ...(extra.token ? { Authorization: 'Bearer ' + extra.token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const authErr = async r => { let j = {}; try { j = await r.json(); } catch {} const m = j.msg || j.error_description || j.message || j.error || ('error ' + r.status); return Object.assign(new Error(m), { status: r.status, code: j.error_code || j.code || '' }); };
+  let refreshing = null;
+  async function token() {                                    // a fresh access token, or null when signed out
+    if (!session) return null;
+    if (session.expires_at - 60 > Date.now() / 1000) return session.access_token;
+    if (!refreshing) refreshing = (async () => {
+      const r = await authFetch('token?grant_type=refresh_token', { refresh_token: session.refresh_token });
+      if (r.ok) saveSession(await r.json()); else if (r.status >= 400 && r.status < 500) { saveSession(null); authChanged(); }
+    })().finally(() => { refreshing = null; });
+    await refreshing; return session ? session.access_token : null;
+  }
+  const authSubs = new Set(); const authChanged = () => authSubs.forEach(f => { try { f(); } catch {} });
+  const authH = async () => { const t = await token(); return t ? { Authorization: 'Bearer ' + t } : {}; };
+  async function claimOld() {                                 // reps this device posted before accounts: make them yours
+    const t = await token(); if (!t) return 0; let n = 0;
+    for (const s of allSecrets()) { try { const r = await rest('rpc/claim_docs', { method: 'POST', body: JSON.stringify({ p_secret: s }) }); if (r.ok) n += +(await r.json()) || 0; } catch {} }
+    if (n) cache.forEach((k, c) => refresh(c).catch(() => {}));
+    return n;
+  }
+  const account = {
+    current() { return session && session.user ? { id: session.user.id, email: session.user.email, username: (session.user.user_metadata || {}).username || '' } : null; },
+    onChange(f) { authSubs.add(f); return () => authSubs.delete(f); },
+    async usernameFree(u) { try { const r = await rest('rpc/username_free', { method: 'POST', body: JSON.stringify({ p_username: u }) }); return r.ok ? await r.json() : true; } catch { return true; } },
+    async signUp(email, password, username) {
+      const r = await authFetch('signup?redirect_to=' + encodeURIComponent(location.origin + location.pathname), { email, password, data: { username } });
+      if (!r.ok) throw await authErr(r);
+      const j = await r.json();
+      if (j.access_token) { saveSession(j); await claimOld(); authChanged(); return { signedIn: true }; }
+      return { signedIn: false, confirm: true };                // the project asks people to confirm their email first
+    },
+    async signIn(email, password) {
+      const r = await authFetch('token?grant_type=password', { email, password });
+      if (!r.ok) throw await authErr(r);
+      saveSession(await r.json()); const n = await claimOld(); authChanged(); return { claimed: n };
+    },
+    async signOut() { const t = session && session.access_token; saveSession(null); authChanged(); if (t) authFetch('logout', null, { token: t }).catch(() => {}); },
+    async resetPassword(email) { const r = await authFetch('recover?redirect_to=' + encodeURIComponent(location.origin + location.pathname), { email }); if (!r.ok) throw await authErr(r); },
+    async setPassword(password) { const t = await token(); const r = await authFetch('user', { password }, { method: 'PUT', token: t }); if (!r.ok) throw await authErr(r); },
+    recovering: false
+  };
+  // coming back from an email link (confirm sign-up, or reset password): the session is in the address
+  try {
+    const hp = new URLSearchParams(location.hash.slice(1));
+    if (hp.get('access_token')) {
+      const at = hp.get('access_token');
+      saveSession({ access_token: at, refresh_token: hp.get('refresh_token'), expires_in: +hp.get('expires_in') || 3600 });
+      account.recovering = hp.get('type') === 'recovery';
+      history.replaceState(null, '', location.pathname + location.search);
+      fetch(SB_URL + '/auth/v1/user', { headers: { ...H, Authorization: 'Bearer ' + at } }).then(r => r.ok ? r.json() : null).then(u => { if (u && session) { session.user = u; saveSession(session); claimOld(); authChanged(); } });
+    } else if (hp.get('error_description')) { account.linkError = hp.get('error_description'); history.replaceState(null, '', location.pathname + location.search); }
+  } catch {}
   const fail = async (r, what) => { let m = ''; try { m = (await r.json()).message || ''; } catch {} const e = new Error(what + ' failed (' + r.status + (m ? ': ' + m : '') + ')'); e.code = r.status === 413 ? 'too_large' : r.status >= 500 ? 'unavailable' : 'invalid_argument'; throw e; };
-  const rest = (path, opt = {}) => fetch(SB_URL + '/rest/v1/' + path, { ...opt, headers: { ...H, 'Content-Type': 'application/json', ...(opt.headers || {}) } });
+  const rest = async (path, opt = {}) => fetch(SB_URL + '/rest/v1/' + path, { ...opt, headers: { ...H, ...(await authH()), 'Content-Type': 'application/json', ...(opt.headers || {}) } });
 
   const cache = new Map();          // collection -> { rows: [{id,data,owner_hash}], subs: Set<fn>, loaded }
   const col = c => { if (!cache.has(c)) cache.set(c, { rows: [], subs: new Set(), loaded: false }); return cache.get(c); };
@@ -611,15 +687,20 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       id, path: c + '/' + id,
       async get() { const k = col(c); if (!k.loaded) await refresh(c); const row = k.rows.find(x => x.id === id); return row ? snap(row) : { id, exists: false, data: () => undefined, metadata: {} }; },
       async set(d) {
-        const owner_hash = await myHash;
-        const r = await rest('docs', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ collection: c, id, data: d, owner_hash }) });
+        const me = account.current();
+        if (!me) throw Object.assign(new Error('Sign in to save'), { code: 'unauthenticated' });
+        const r = await rest('docs', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ collection: c, id, data: { ...d, uid: me.id }, user_id: me.id }) });
         if (!r.ok && r.status !== 409) await fail(r, 'Saving');
         await refresh(c);
       },
       async update(d) { throw Object.assign(new Error('not supported'), { code: 'invalid_argument' }); },
       async delete() {
         let ok = false;
-        for (const s of allSecrets()) {                          // whichever of your devices posted it
+        if (account.current()) {                                  // your account's post
+          const r = await rest('docs?collection=eq.' + encodeURIComponent(c) + '&id=eq.' + encodeURIComponent(id), { method: 'DELETE', headers: { Prefer: 'return=representation' } });
+          if (r.ok && (await r.json()).length) ok = true;
+        }
+        if (!ok) for (const s of allSecrets()) {                          // whichever of your devices posted it
           const r = await rest('rpc/delete_doc', { method: 'POST', body: JSON.stringify({ p_collection: c, p_id: id, p_secret: s }) });
           if (!r.ok) await fail(r, 'Deleting');
           if (await r.json() === true) { ok = true; break; }
@@ -631,8 +712,8 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   }
   const db = { collection: c => query(c), doc: p => { const i = p.lastIndexOf('/'); return docRef(p.slice(0, i), p.slice(i + 1)); } };
   const user = {
-    id: () => myHash, can: () => true, canEdit: () => false, isOwner: () => false,
-    ids: () => Promise.all(allSecrets().map(sha)),             // every identity that's yours
+    id: async () => { const me = account.current(); return me ? me.id : null; }, can: () => true, account, canEdit: () => false, isOwner: () => false,
+    ids: async () => [...(account.current() ? [account.current().id] : []), ...await Promise.all(allSecrets().map(sha))],   // every identity that's yours
     deviceCode: () => secret.match(/.{1,8}/g).join('-'),       // share this to link another device
     link(code) {                                               // a code from your other device: post as that player from now on
       const c = String(code || '').toLowerCase().replace(/[^0-9a-f]/g, '');
@@ -645,7 +726,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   const assets = {
     async upload(blob, opt = {}) {
       const type = (opt.type || blob.type || 'video/mp4').split(';')[0], path = rid() + rid() + (type === 'video/webm' ? '.webm' : '.mp4');
-      const r = await fetch(SB_URL + '/storage/v1/object/clips/' + path, { method: 'POST', headers: { ...H, 'Content-Type': type, 'x-upsert': 'false', 'cache-control': '31536000' }, body: blob });
+      const r = await fetch(SB_URL + '/storage/v1/object/clips/' + path, { method: 'POST', headers: { ...H, ...(await authH()), 'Content-Type': type, 'x-upsert': 'false', 'cache-control': '31536000' }, body: blob });
       if (!r.ok) await fail(r, 'Uploading the clip');
       return { id: path, url: window.assetUrl(path), sizeBytes: blob.size, contentType: type };
     },
@@ -2179,12 +2260,13 @@ async function post() {
   const ms = S.ms;
   const msg = $('#postMsg'); msg.className = 'small muted';
   if (ms == null || S.beep == null || S.control == null) { msg.textContent = 'This rep has no time to post.'; msg.classList.add('err'); return; }
-  const handle = $('#handle').value.trim(), club = $('#club').value.trim();
-  if (handle.length < 2) { msg.textContent = 'Pick a name (2–20 characters) for the board.'; msg.classList.add('err'); return; }
+  const me = acct(), club = $('#club').value.trim();
+  if (!me && P.user && P.user.account) { openAccount('signup', 'Create a free account to save this rep to the leaderboard.', () => post()); return; }
+  const handle = me ? me.username : (lsGet('fo-handle') || 'Player');
   if (!P.db || !P.uid) { msg.textContent = 'Sign in to post to the leaderboard.'; msg.classList.add('err'); return; }
   if (P.canWrite === false) { msg.textContent = 'Your access to this page is view-only, so you can’t post. Ask the owner for Contributor access.'; msg.classList.add('err'); return; }
   if (!P.assets) { msg.textContent = 'Video uploads aren’t available for your account on this page.'; msg.classList.add('err'); return; }
-  lsSet('fo-handle', handle); lsSet('fo-club', club);
+  lsSet('fo-club', club);
   S.busy = true; $('#btnPost').disabled = true; $('#barWrap').hidden = false;
   const bar = $('#bar'); const setBar = f => bar.style.width = Math.round(f * 100) + '%';
   try {
@@ -2373,10 +2455,10 @@ async function rxStart(e) {
   const me = ++RX.run, alive = () => me === RX.run && RX.state !== 'idle';
   RX.state = 'down'; rxShow('DOWN', 'Keep holding…', 'holding');
   await speakDone('Down'); if (!alive()) return;
-  await sleep(350); if (!alive()) return;
+  await sleep(300 + Math.random() * 700); if (!alive()) return;          // a little variety before Set too
   RX.state = 'set'; rxShow('SET', 'Wait for the whistle…', 'holding set');
   await speakDone('Set'); if (!alive()) return;
-  await sleep(SET_MIN + Math.random() * SET_RANGE); if (!alive()) return;
+  await sleep(400 + Math.random() * 2600); if (!alive()) return;         // practice: 0.4–3 s to the whistle (face-off stays 0.5–2 s)
   RX.goPerf = ctxToPerf(playWhistle()); RX.state = 'go';
   setTimeout(() => { if (me === RX.run && RX.state === 'go') rxShow('GO', 'Let go!', 'holding go'); }, Math.max(0, RX.goPerf - performance.now()));
   setTimeout(() => { if (me === RX.run && RX.state === 'go') { RX.state = 'idle'; rxShow('TOO SLOW', 'Hold to try again', 'fs'); } }, 3000);
@@ -2407,6 +2489,114 @@ function rxRelease(e) {
   pad.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') rxRelease(e); });
   $('#rxClear').onclick = () => { RX.times = []; RX.fs = 0; rxStats(); $('#rxHist').replaceChildren(); rxCancel(); rxShow('HOLD', 'Press and hold here'); };
 }
+/* ---------- accounts: email, username, password ---------- */
+const acct = () => (P.user && P.user.account && P.user.account.current()) || null;
+function renderAccount() {
+  const me = acct(), b = $('#btnAcct'), has = !!(P.user && P.user.account);
+  b.hidden = !has; b.textContent = me ? '@' + me.username : 'Sign in'; b.classList.toggle('in', !!me);
+  $('#postAs').textContent = me ? me.username : 'Sign in to post';
+  $('#btnPost').textContent = me ? 'Post to leaderboard' : 'Sign up to save this rep';
+  const c = $('#acctCard'); c.replaceChildren(); c.hidden = !has;
+  if (!has) return;
+  if (me) c.append(h('div', { class: 'row', style: 'justify-content:space-between;flex-wrap:nowrap;gap:10px' },
+      h('div', {}, h('div', { class: 'who', text: '@' + me.username }), h('div', { class: 'muted small', text: me.email || '' })),
+      h('button', { class: 'btn', text: 'Sign out', onclick: async () => { await P.user.account.signOut(); toast('Signed out'); } })));
+  else c.append(h('h2', { text: 'Save your reps' }), h('div', { class: 'muted', text: 'Make a free account with your email, a username and a password. Your reps are saved to it and show up on any device you sign in on.' }),
+      h('div', { class: 'row stretch', style: 'margin-top:12px' }, h('button', { class: 'btn primary', text: 'Sign up', onclick: () => openAccount('signup') }), h('button', { class: 'btn', text: 'Sign in', onclick: () => openAccount('signin') })));
+  $('#linkCard').hidden = true;
+}
+async function onAccountChanged() {
+  try { P.uid = await P.user.id(); } catch { P.uid = null; }
+  try { P.uids = new Set(await P.user.ids()); } catch {}
+  renderAccount(); animRows = false; renderBoard();
+}
+function openAccount(mode = 'signup', why = '', after = null) {
+  const A = P.user && P.user.account; if (!A) return;
+  let m = mode;
+  const sheet = h('div', { class: 'sheet auth' }), modal = h('div', { class: 'modal auth-modal', onclick: e => { if (e.target === modal) close(); } }, sheet);
+  const close = () => { modal.remove(); document.removeEventListener('keydown', esc); };
+  const esc = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', esc);
+  const field = (label, attrs) => { const i = h('input', attrs); return [h('label', { for: attrs.id, text: label }), i]; };
+  const draw = () => {
+    sheet.replaceChildren();
+    const head = h('div', { class: 'row', style: 'justify-content:space-between;flex-wrap:nowrap' },
+      h('h3', { text: m === 'signup' ? 'Create account' : m === 'signin' ? 'Sign in' : m === 'forgot' ? 'Reset password' : m === 'newpw' ? 'New password' : 'Check your email' }),
+      h('button', { class: 'btn', text: '✕', 'aria-label': 'Close', onclick: close }));
+    sheet.append(head);
+    if (why && (m === 'signup' || m === 'signin')) sheet.append(h('p', { class: 'why', text: why }));
+    if (m === 'signup' || m === 'signin') {
+      const t1 = h('button', { 'aria-pressed': m === 'signup' ? 'true' : 'false', text: 'Sign up', onclick: () => { m = 'signup'; draw(); } });
+      const t2 = h('button', { 'aria-pressed': m === 'signin' ? 'true' : 'false', text: 'Sign in', onclick: () => { m = 'signin'; draw(); } });
+      sheet.append(h('div', { class: 'tabs2' }, t1, t2));
+    }
+    const err = h('div', { class: 'err', role: 'alert' });
+    const form = h('form', { novalidate: true });
+    if (m === 'check') {
+      sheet.append(h('p', { text: 'We sent a link to your email. Tap it to finish signing up, then come back here and sign in.' }), h('button', { class: 'btn primary go', text: 'OK', onclick: () => { m = 'signin'; draw(); } }));
+      return;
+    }
+    let email, user, pw, uhint;
+    if (m !== 'newpw') { const [l, i] = field('Email', { id: 'auEmail', type: 'email', autocomplete: 'email', required: true, inputmode: 'email', placeholder: 'you@example.com' }); email = i; form.append(l, i); }
+    if (m === 'signup') {
+      const [l, i] = field('Username (shown on the board)', { id: 'auUser', autocomplete: 'username', maxlength: '20', placeholder: 'e.g. ari_fo' }); user = i; uhint = h('div', { class: 'hint', text: '3–20 letters, numbers, _ or .' });
+      form.append(l, i, uhint);
+      let tm = 0;
+      i.addEventListener('input', () => {
+        clearTimeout(tm); const u = i.value.trim();
+        if (!/^[A-Za-z0-9_.]{3,20}$/.test(u)) { uhint.className = 'hint' + (u ? ' bad' : ''); uhint.textContent = '3–20 letters, numbers, _ or .'; return; }
+        uhint.className = 'hint'; uhint.textContent = 'Checking…';
+        tm = setTimeout(async () => { const ok = await A.usernameFree(u); if (i.value.trim() !== u) return; uhint.className = 'hint ' + (ok ? 'ok' : 'bad'); uhint.textContent = ok ? '✓ Available' : 'That username is taken'; }, 350);
+      });
+    }
+    if (m !== 'forgot') {
+      const [l, i] = field(m === 'newpw' ? 'New password' : 'Password', { id: 'auPw', type: 'password', autocomplete: m === 'signin' ? 'current-password' : 'new-password', placeholder: m === 'signin' ? '' : 'At least 8 characters' }); pw = i;
+      const show = h('button', { type: 'button', text: 'Show', onclick: () => { pw.type = pw.type === 'password' ? 'text' : 'password'; show.textContent = pw.type === 'password' ? 'Show' : 'Hide'; } });
+      form.append(l, h('div', { class: 'pw' }, i, show));
+    }
+    const go = h('button', { class: 'btn primary go', type: 'submit', text: m === 'signup' ? 'Create account' : m === 'signin' ? 'Sign in' : m === 'forgot' ? 'Send reset link' : 'Save password' });
+    form.append(err, go);
+    form.onsubmit = async e => {
+      e.preventDefault(); err.textContent = '';
+      const em = email && email.value.trim(), p = pw && pw.value, u = user && user.value.trim();
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { err.textContent = 'Enter a valid email.'; return; }
+      if (m === 'signup' && !/^[A-Za-z0-9_.]{3,20}$/.test(u)) { err.textContent = 'Usernames are 3–20 letters, numbers, _ or .'; return; }
+      if ((m === 'signup' || m === 'newpw') && (!p || p.length < 8)) { err.textContent = 'Use at least 8 characters for your password.'; return; }
+      if (m === 'signin' && !p) { err.textContent = 'Enter your password.'; return; }
+      go.disabled = true; const label = go.textContent; go.textContent = 'One moment…';
+      try {
+        if (m === 'signup') {
+          if (!(await A.usernameFree(u))) throw new Error('That username is taken');
+          const r = await A.signUp(em, p, u);
+          if (!r.signedIn) { m = 'check'; draw(); return; }
+          toast('Welcome, @' + u + '!'); close(); after && after();
+        } else if (m === 'signin') {
+          const r = await A.signIn(em, p);
+          toast('Signed in' + (r.claimed ? ' · ' + r.claimed + ' earlier rep' + (r.claimed > 1 ? 's' : '') + ' added to your account' : '')); close(); after && after();
+        } else if (m === 'forgot') {
+          await A.resetPassword(em); err.style.color = 'var(--lime)'; err.textContent = 'If that email has an account, a reset link is on its way.'; go.textContent = label; go.disabled = false; return;
+        } else if (m === 'newpw') {
+          await A.setPassword(p); toast('Password updated'); close();
+        }
+      } catch (ex) {
+        const msg = String(ex && ex.message || '');
+        err.textContent = /already registered|already exists/i.test(msg) ? 'That email already has an account. Sign in instead.'
+          : /invalid login|invalid_credentials/i.test(msg) ? 'Wrong email or password.'
+          : /not confirmed/i.test(msg) ? 'Confirm your email first: tap the link we sent you.'
+          : /database error saving new user/i.test(msg) ? 'That username is taken'
+          : /rate|too many/i.test(msg) ? 'Too many tries. Wait a minute and try again.'
+          : msg || 'Something went wrong. Check your connection and try again.';
+        go.disabled = false; go.textContent = label;
+      }
+    };
+    sheet.append(form);
+    if (m === 'signin') sheet.append(h('button', { class: 'link', type: 'button', text: 'Forgot your password?', onclick: () => { m = 'forgot'; draw(); } }));
+    if (m === 'forgot') sheet.append(h('button', { class: 'link', type: 'button', text: 'Back to sign in', onclick: () => { m = 'signin'; draw(); } }));
+    setTimeout(() => (email || pw) && (email || pw).focus(), 50);
+  };
+  draw(); document.body.append(modal);
+}
+$('#btnAcct').onclick = () => { if (acct()) switchTab('me'); else openAccount('signin'); };
 /* ---------- run viewer modal ---------- */
 let modalStop = null;
 function closeModal() {
@@ -2462,6 +2652,7 @@ function openRun(id, fromEl) {
 }
 let modalRefresh = null;
 async function toggleDoc(coll, map, aid, btn, okMsg) {
+  if (!acct()) { openAccount('signin', 'Sign in to like or flag reps.'); return; }
   if (!P.db || !P.uid || P.canWrite === false) { toast('Sign in with posting access to do that'); return; }
   const ref = P.db.doc(coll + '/' + aid + '_' + P.uid), has = map.get(aid)?.has(P.uid);
   try {
@@ -2772,7 +2963,7 @@ $('#inCam').onchange = e => loadClip(e.target.files[0]);
 $('#inLib').onchange = e => loadClip(e.target.files[0]);
 $('#btnReset').onclick = () => resetRun();
 $('#btnPost').onclick = post;
-$('#handle').value = lsGet('fo-handle') || ''; $('#club').value = lsGet('fo-club') || '';
+$('#club').value = lsGet('fo-club') || '';
 
 /* ---------- boot ---------- */
 (async function boot() {
@@ -2782,6 +2973,11 @@ $('#handle').value = lsGet('fo-handle') || ''; $('#club').value = lsGet('fo-club
   try { P.uid = user ? await user.id() : null; } catch { P.uid = null; }
   try { P.uids = new Set(user && user.ids ? await user.ids() : [P.uid].filter(Boolean)); } catch { P.uids = new Set([P.uid].filter(Boolean)); }
   renderLink(); movePill();
+  if (user && user.account) {
+    renderAccount(); user.account.onChange(onAccountChanged);
+    if (user.account.recovering) openAccount('newpw');
+    else if (user.account.linkError) toast(user.account.linkError);
+  }
   try { P.canWrite = user ? user.can('data.write') : null; } catch { P.canWrite = null; }
   try { P.canEdit = !!(user && user.canEdit()); } catch {}
   if (!db) { showNotice('The shared leaderboard needs you to be signed in. You can still look around.'); renderBoard(); return; }
