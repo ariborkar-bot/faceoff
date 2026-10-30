@@ -99,7 +99,8 @@ nav.pilled button[aria-selected=true]{background:none}
 @keyframes glowPulse{0%{box-shadow:0 0 0 0 rgba(200,255,46,.65)}100%{box-shadow:0 0 0 16px rgba(200,255,46,0)}}
 @keyframes chosen{0%{transform:scale(.9)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
 @keyframes tick{0%{transform:scale(.6)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
-.tapfx{position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent}
+.tapfx{position:relative;-webkit-tap-highlight-color:transparent}
+.ripwrap{position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none}
 .tapfx .rip{position:absolute;border-radius:50%;pointer-events:none;background:currentColor;animation:ripple .55s ease-out forwards}
 .tapfx.pressing{transform:scale(.92)!important;transition:transform .08s ease!important}
 .tapfx.released{animation:release .36s var(--spring)}
@@ -111,6 +112,30 @@ input[type=checkbox].ticked{animation:tick .35s var(--spring)}
 input[type=range]::-webkit-slider-thumb{transition:transform .15s var(--spring)}
 input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+.rx-pad{position:relative;margin:16px auto 6px;width:min(78vw,320px);aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 40%,#1b2632,#0d141b);border:2px solid var(--line);touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:pointer;
+  transition:transform .18s var(--spring),border-color .2s,background .25s,box-shadow .25s}
+.rx-pad .rx-big{font-family:var(--disp);font-weight:800;font-size:clamp(44px,13vw,72px);letter-spacing:.05em;line-height:1}
+.rx-pad .rx-sub{color:var(--mute);font-size:14px;margin-top:6px;text-align:center;padding:0 18px}
+.rx-pad .rx-ring{position:absolute;inset:-8px;border-radius:50%;border:3px solid transparent;pointer-events:none}
+.rx-pad.holding{transform:scale(.95);border-color:#4a6178}
+.rx-pad.set{border-color:var(--red);box-shadow:0 0 0 6px rgba(255,77,61,.15)}
+.rx-pad.set .rx-big{color:var(--red)}
+.rx-pad.go{background:radial-gradient(circle at 50% 40%,#d9ff6a,#a8de10);border-color:var(--lime);box-shadow:0 0 40px rgba(200,255,46,.5)}
+.rx-pad.go .rx-big,.rx-pad.go .rx-sub{color:#101600}
+.rx-pad.go .rx-ring{border-color:var(--lime);animation:rxRing .6s ease-out}
+.rx-pad.done .rx-big{color:var(--lime)}
+.rx-pad.fs{border-color:var(--red);animation:shake .45s ease}
+.rx-pad.fs .rx-big{color:var(--red);font-size:clamp(34px,10vw,54px)}
+@keyframes rxRing{from{transform:scale(.9);opacity:1}to{transform:scale(1.25);opacity:0}}
+.rx-pad .rx-big.land{animation:land .45s var(--spring)}
+.rx-hist{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
+.rx-hist span{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:13px;font-variant-numeric:tabular-nums;animation:pbIn .35s var(--spring) both}
+.rx-hist span.best{border-color:var(--lime);color:var(--lime)}
+.rx-hist span.fsx{color:var(--red);border-color:#5a2a25}
+#tabs button{flex:1 1 0;min-width:0;font-size:17px;padding:10px 2px}
+@media(max-width:480px){#tabs button{font-size:14px;letter-spacing:0;padding:10px 0}}
+@media(max-width:360px){#tabs button{font-size:12.5px}}
 /* opening screen: the logo, then the sticks fly out, the circle opens and the app appears */
 @property --hole{syntax:'<length>';inherits:false;initial-value:0px}
 #splash{position:fixed;inset:0;z-index:100;background:#000;display:grid;place-items:center;--hole:0px;
@@ -349,6 +374,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
     <button role="tab" data-tab="board" aria-selected="true">Board</button>
     <button role="tab" data-tab="run" aria-selected="false">Face-off</button>
     <button role="tab" data-tab="stats" aria-selected="false">Stats</button>
+    <button role="tab" data-tab="react" aria-selected="false">React</button>
     <button role="tab" data-tab="me" aria-selected="false">Mine</button>
   </nav>
 
@@ -486,6 +512,26 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       </div>
       <div class="card"><h3>Your unusual reps</h3><div class="small muted" style="margin-bottom:8px">Much faster or slower than your usual. Tap one to watch it.</div><div class="list" id="outMe"></div></div>
       <details class="card more"><summary>More stats</summary><div class="statgrid" id="moreMe"></div><div class="small muted" id="moreMeNote"></div></details>
+    </div>
+  </section>
+
+  <!-- REACT: reaction-time practice, nothing saved -->
+  <section id="v-react" hidden>
+    <div class="card rx-card">
+      <h2>Reaction practice</h2>
+      <div class="muted small">Press and hold the pad. You'll hear <b>Down</b>, <b>Set</b>, then the <b>whistle</b>: let go as fast as you can. Let go early and it's a false start. Just practice: nothing is saved or posted.</div>
+      <div class="rx-pad" id="rxPad" role="button" aria-label="Hold, then let go on the whistle" tabindex="0">
+        <div class="rx-ring"></div>
+        <div class="rx-big" id="rxBig">HOLD</div>
+        <div class="rx-sub" id="rxSub">Press and hold here</div>
+      </div>
+      <div class="stats rx-stats">
+        <div class="stat"><b id="rxBest">–</b><span>Best (ms)</span></div>
+        <div class="stat"><b id="rxAvg">–</b><span>Average (ms)</span></div>
+        <div class="stat"><b id="rxN">0</b><span>Tries</span></div>
+      </div>
+      <div class="rx-hist" id="rxHist"></div>
+      <button class="btn" id="rxClear" style="width:100%;margin-top:10px">Clear</button>
     </div>
   </section>
 
@@ -2308,6 +2354,59 @@ $('#btnLink').onclick = () => {
   if (!P.user.link($('#linkIn').value)) { toast('That code doesn’t look right (48 letters and numbers)'); return; }
   toast('Linked. Reloading…'); setTimeout(() => location.reload(), 700);
 };
+/* ---------- reaction practice: hold, Down, Set, whistle, let go (nothing saved) ---------- */
+const RX = { run: 0, state: 'idle', goPerf: 0, times: [], fs: 0 };
+function rxShow(big, sub, cls) {
+  const pad = $('#rxPad'), b = $('#rxBig'); pad.className = 'rx-pad' + (cls ? ' ' + cls : '');
+  b.textContent = big; $('#rxSub').textContent = sub; b.classList.remove('land'); void b.offsetWidth; b.classList.add('land');
+}
+function rxStats() {
+  const t = RX.times;
+  $('#rxBest').textContent = t.length ? Math.min(...t) : '–';
+  $('#rxAvg').textContent = t.length ? Math.round(t.reduce((a, b) => a + b, 0) / t.length) : '–';
+  $('#rxN').textContent = t.length + RX.fs;
+}
+function rxCancel() { if (RX.state === 'idle') return; RX.run++; RX.state = 'idle'; rxShow('HOLD', 'Press and hold here'); }
+async function rxStart(e) {
+  if (RX.state !== 'idle') return;
+  e && e.preventDefault(); unlockAudio(true);
+  const me = ++RX.run, alive = () => me === RX.run && RX.state !== 'idle';
+  RX.state = 'down'; rxShow('DOWN', 'Keep holding…', 'holding');
+  await speakDone('Down'); if (!alive()) return;
+  await sleep(350); if (!alive()) return;
+  RX.state = 'set'; rxShow('SET', 'Wait for the whistle…', 'holding set');
+  await speakDone('Set'); if (!alive()) return;
+  await sleep(SET_MIN + Math.random() * SET_RANGE); if (!alive()) return;
+  RX.goPerf = ctxToPerf(playWhistle()); RX.state = 'go';
+  setTimeout(() => { if (me === RX.run && RX.state === 'go') rxShow('GO', 'Let go!', 'holding go'); }, Math.max(0, RX.goPerf - performance.now()));
+  setTimeout(() => { if (me === RX.run && RX.state === 'go') { RX.state = 'idle'; rxShow('TOO SLOW', 'Hold to try again', 'fs'); } }, 3000);
+}
+function rxRelease(e) {
+  const at = e && e.timeStamp > 1e3 ? e.timeStamp : performance.now();
+  if (RX.state === 'idle') return;
+  RX.run++;
+  if (RX.state === 'go' && at >= RX.goPerf - 5) {
+    const ms = Math.max(0, Math.round(at - RX.goPerf)); RX.state = 'idle';
+    const best = !RX.times.length || ms < Math.min(...RX.times);
+    RX.times.push(ms); rxStats();
+    rxShow(ms + ' ms', best && RX.times.length > 1 ? 'New best! Hold to go again' : 'Hold to go again', 'done');
+    $('#rxHist').prepend(h('span', { class: best ? 'best' : '', text: ms + ' ms' }));
+  } else {
+    RX.state = 'idle'; RX.fs++; rxStats(); speak('False start');
+    rxShow('FALSE START', 'You let go before the whistle', 'fs');
+    $('#rxHist').prepend(h('span', { class: 'fsx', text: 'false start' }));
+  }
+  while ($('#rxHist').children.length > 12) $('#rxHist').lastChild.remove();
+}
+{
+  const pad = $('#rxPad');
+  pad.addEventListener('pointerdown', e => { try { pad.setPointerCapture(e.pointerId); } catch {} rxStart(e); });
+  pad.addEventListener('pointerup', rxRelease); pad.addEventListener('pointercancel', rxRelease);
+  pad.addEventListener('contextmenu', e => e.preventDefault());
+  pad.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) rxStart(e); });
+  pad.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') rxRelease(e); });
+  $('#rxClear').onclick = () => { RX.times = []; RX.fs = 0; rxStats(); $('#rxHist').replaceChildren(); rxCancel(); rxShow('HOLD', 'Press and hold here'); };
+}
 /* ---------- run viewer modal ---------- */
 let modalStop = null;
 function closeModal() {
@@ -2627,7 +2726,8 @@ function switchTab(name) {
   $$('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === name));
   movePill();
   if (name !== 'run' && C.stream) closeCam();
-  $('#v-board').hidden = name !== 'board'; $('#v-run').hidden = name !== 'run'; $('#v-me').hidden = name !== 'me'; $('#v-stats').hidden = name !== 'stats';
+  $('#v-board').hidden = name !== 'board'; $('#v-run').hidden = name !== 'run'; $('#v-me').hidden = name !== 'me'; $('#v-stats').hidden = name !== 'stats'; $('#v-react').hidden = name !== 'react';
+  if (name !== 'react') rxCancel();
   if (name === 'stats') renderStats();
   if (prev !== name) {
     const v = $('#v-' + name); if (v) { v.classList.remove('view-in'); void v.offsetWidth; v.classList.add('view-in'); }
@@ -2706,7 +2806,7 @@ $('#handle').value = lsGet('fo-handle') || ''; $('#club').value = lsGet('fo-club
     const r = b.getBoundingClientRect(), d = Math.hypot(r.width, r.height) * 2;
     const rip = document.createElement('span'); rip.className = 'rip';
     rip.style.cssText = `left:${e.clientX - r.left}px;top:${e.clientY - r.top}px;width:${d}px;height:${d}px`;
-    b.append(rip); setTimeout(() => rip.remove(), 600);
+    const w = document.createElement('span'); w.className = 'ripwrap'; w.append(rip); b.append(w); setTimeout(() => w.remove(), 600);
     if (navigator.vibrate && e.pointerType === 'touch') try { navigator.vibrate(8); } catch {}
   }, { passive: true });
   const up = () => $$('.pressing').forEach(b => { b.classList.remove('pressing'); void b.offsetWidth; b.classList.add('released'); setTimeout(() => b.classList.remove('released'), 650); });
