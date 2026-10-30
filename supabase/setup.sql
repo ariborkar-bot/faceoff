@@ -1,4 +1,4 @@
--- Face-Off Clock: shared leaderboard setup. Paste all of this into Supabase → SQL Editor → Run.
+-- FO & GO: shared leaderboard setup. Paste all of this into Supabase → SQL Editor → Run.
 
 -- 1. One table holds every posted run, like and flag.
 create table if not exists public.docs (
