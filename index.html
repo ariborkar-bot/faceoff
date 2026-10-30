@@ -708,15 +708,32 @@ function medianColor(px, idx) {
   for (const p of idx) { const i = p * 4; ch[0].push(px[i]); ch[1].push(px[i + 1]); ch[2].push(px[i + 2]); }
   return ch.map(a => { a.sort((x, y) => x - y); return a[a.length >> 1]; });
 }
-function headPath(x, hd) {
-  // horizontal head: scoop on one end, throat on the other, back of the head facing the ball
-  const { cx, cy, rx, ry, dir } = hd, sc = cx - dir * rx, th = cx + dir * rx;
+/* Outline of a lacrosse stick lying flat: wide scoop at one end, pinched sidewalls, narrow throat,
+   then the shaft running off to the side. dir = which way the shaft goes. */
+function stickPath(x, hd, dir) {
+  const { cx, cy, rx, ry } = hd, X = u => cx + dir * u * rx, Y = v => cy + v * ry;
+  const sw = 0.2, L = 3.0;                                   // shaft half-width (× head height), length (× half head length)
   x.beginPath();
-  x.moveTo(th, cy - ry * 0.28);
-  x.bezierCurveTo(cx + dir * rx * 0.35, cy - ry * 0.5, cx - dir * rx * 0.1, cy - ry * 1.05, cx - dir * rx * 0.55, cy - ry * 0.98);
-  x.bezierCurveTo(sc, cy - ry * 0.9, sc - dir * rx * 0.08, cy - ry * 0.2, sc, cy);
-  x.bezierCurveTo(sc - dir * rx * 0.08, cy + ry * 0.2, sc, cy + ry * 0.9, cx - dir * rx * 0.55, cy + ry * 0.98);
-  x.bezierCurveTo(cx - dir * rx * 0.1, cy + ry * 1.05, cx + dir * rx * 0.35, cy + ry * 0.5, th, cy + ry * 0.28);
+  x.moveTo(X(0.95), Y(-sw));
+  x.lineTo(X(0.95 + L), Y(-sw));
+  x.quadraticCurveTo(X(0.95 + L + 0.14), Y(0), X(0.95 + L), Y(sw));        // butt end of the shaft
+  x.lineTo(X(0.95), Y(sw));
+  x.bezierCurveTo(X(0.72), Y(0.3), X(0.45), Y(0.52), X(0.12), Y(0.6));     // throat → pinch
+  x.bezierCurveTo(X(-0.25), Y(0.68), X(-0.55), Y(1.06), X(-0.83), Y(0.94)); // pinch → scoop
+  x.bezierCurveTo(X(-1.1), Y(0.72), X(-1.1), Y(-0.72), X(-0.83), Y(-0.94));  // smooth rounded scoop
+  x.bezierCurveTo(X(-0.55), Y(-1.06), X(-0.25), Y(-0.68), X(0.12), Y(-0.6));
+  x.bezierCurveTo(X(0.45), Y(-0.52), X(0.72), Y(-0.3), X(0.95), Y(-sw));
+  x.closePath();
+}
+/* the pocket inside the head (drawn faintly so it reads as a stick head) */
+function pocketPath(x, hd, dir) {
+  const { cx, cy, rx, ry } = hd, X = u => cx + dir * u * rx, Y = v => cy + v * ry;
+  x.beginPath();
+  x.moveTo(X(0.6), Y(0));
+  x.bezierCurveTo(X(0.45), Y(0.3), X(0.1), Y(0.42), X(-0.2), Y(0.5));
+  x.bezierCurveTo(X(-0.5), Y(0.8), X(-0.92), Y(0.62), X(-0.88), Y(0));
+  x.bezierCurveTo(X(-0.92), Y(-0.62), X(-0.5), Y(-0.8), X(-0.2), Y(-0.5));
+  x.bezierCurveTo(X(0.1), Y(-0.42), X(0.45), Y(-0.3), X(0.6), Y(0));
   x.closePath();
 }
 function drawOverlay() {
@@ -726,35 +743,31 @@ function drawOverlay() {
   const go = C.state === 'seq' || C.state === 'track' || C.aligned;
   const partial = C.occ.headL >= HEAD_MIN || C.occ.headR >= HEAD_MIN;
   const style = (ok, part) => {
-    x.strokeStyle = go ? '#c8ff2e' : ok ? '#c8ff2e' : part ? '#ffb020' : 'rgba(255,255,255,.9)';
-    x.setLineDash(go || ok ? [] : [lw * 3, lw * 2]);
+    x.strokeStyle = go ? '#c8ff2e' : ok ? '#c8ff2e' : part ? '#ffb020' : 'rgba(255,255,255,.85)';
+    x.setLineDash([]);                                   // solid so the stick and ball shapes read clearly
   };
   x.lineWidth = lw; x.lineJoin = 'round';
-  const drawHead = (hd, ok, part) => {
+  const drawStick = (hd, dir, ok, part, showOther) => {
     style(ok, part); x.fillStyle = 'rgba(0,0,0,.18)';
-    x.beginPath(); x.ellipse(hd.cx, hd.cy, hd.rx, hd.ry, 0, 0, Math.PI * 2); x.fill(); x.stroke();
-    // shaft guide: both sides until a shaft is found, then just that side
-    const sides = ok && C.stickInfo ? [C.stickInfo.dir] : [1, -1];
-    x.setLineDash([lw * 1.5, lw * 1.5]); x.globalAlpha = ok ? 0.9 : 0.45;
-    for (const d of sides) { x.beginPath(); x.moveTo(hd.cx + d * hd.rx, hd.cy); x.lineTo(hd.cx + d * hd.rx * 3.2, hd.cy); x.stroke(); }
-    x.globalAlpha = 1;
+    stickPath(x, hd, dir); x.fill(); x.stroke();
+    const dash = x.getLineDash(), w0 = x.lineWidth;
+    x.lineWidth = w0 * 0.6; x.globalAlpha = 0.55; pocketPath(x, hd, dir); x.stroke();
+    // until a shaft is found it can go either way: hint the other side faintly
+    if (showOther) {
+      x.setLineDash([lw * 1.5, lw * 2]); x.globalAlpha = 0.35;
+      x.beginPath(); x.moveTo(hd.cx - dir * hd.rx * 1.1, hd.cy); x.lineTo(hd.cx - dir * hd.rx * 3.9, hd.cy); x.stroke();
+    }
+    x.globalAlpha = 1; x.lineWidth = w0; x.setLineDash(dash);
   };
   const sc = W / (C.dw || W), hf = C.headFit;
   const headShown = C.headIn && hf ? { cx: hf.cx * sc, cy: hf.cy * sc, rx: G.head.rx, ry: G.head.ry, dir: G.head.dir } : G.head;
-  drawHead(headShown, C.headOk, partial || C.headIn);
-  if (G.partner) drawHead(G.partner, C.partnerOk, false);
+  const dir = (C.stickInfo && C.stickInfo.dir) || 1;
+  drawStick(headShown, dir, C.headOk, partial || C.headIn, !C.headOk);
+  if (G.partner) drawStick(G.partner, -dir, C.partnerOk, false, false);
   const b = G.ball;
   style(C.ballOk, !C.ballOk && C.ballInfo && C.ballInfo.reason !== 'empty');
   const bi = C.ballInfo && C.ballInfo.ok ? C.ballInfo : null;
   x.beginPath(); x.arc(bi ? bi.cx * sc : b.cx, bi ? bi.cy * sc : b.cy, bi ? Math.max(bi.r * sc * 1.15, b.r * 0.7) : b.r, 0, Math.PI * 2); x.fillStyle = 'rgba(0,0,0,.18)'; x.fill(); x.stroke();
-  // little arrow: stick goes behind the ball
-  if (!C.headOk && !go) {
-    x.setLineDash([]); x.strokeStyle = 'rgba(255,255,255,.75)'; x.lineWidth = lw * 0.8;
-    const ay = b.cy - b.r - 0.15 * b.r;
-    x.beginPath(); x.moveTo(b.cx, ay); x.lineTo(b.cx, G.head.cy + G.head.ry * 0.2);
-    x.moveTo(b.cx - b.r * 0.35, G.head.cy + G.head.ry * 0.6); x.lineTo(b.cx, G.head.cy + G.head.ry * 0.2); x.lineTo(b.cx + b.r * 0.35, G.head.cy + G.head.ry * 0.6);
-    x.stroke();
-  }
   x.setLineDash([]);
 }
 function sizeStage() {
