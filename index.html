@@ -88,6 +88,7 @@ nav.pilled button[aria-selected=true]{background:none}
 .toast.out{animation:toastOut .25s ease forwards}
 .modal.full{animation:modalIn .22s ease both}
 .modal.full .repview{animation:sheetIn .38s var(--ease) both}
+.modal.full.flip,.modal.full.flip .repview{animation:none}
 .modal.full.closing{animation:modalIn .2s ease reverse both}
 .modal.full.closing .repview{animation:sheetIn .2s ease reverse both}
 .seg button[aria-pressed=true]{transition:background-color .25s ease,color .25s ease,transform .14s var(--ease)}
@@ -224,7 +225,16 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
 .pl-scrub::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:7px;border-radius:50%;background:#fff;border:3px solid var(--lime);box-shadow:0 1px 4px rgba(0,0,0,.5)}
 .pl-scrub::-moz-range-track{background:transparent}
 .pl-scrub::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--lime)}
-.pl-time{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums;padding:0 4px}
+.pl-time{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums;padding:2px 4px 0}
+.pl-chips{display:flex;gap:6px}
+.pl-chip{border:0;border-radius:999px;padding:5px 11px 5px 9px;font-size:13px;font-weight:700;background:var(--panel2);color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+.pl-chip::before{content:'';width:9px;height:9px;border-radius:50%;background:var(--red)}
+.pl-chip.ct::before{background:var(--lime)}
+.pl-simple{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin-top:10px}
+.pl-simple .btn{min-height:50px;font-weight:700}
+.pl-simple .pl-play{width:64px;height:64px;min-height:64px;border-radius:50%;background:var(--lime);color:#101600;border-color:var(--lime);font-size:22px;padding:0}
+.pl-slow[aria-pressed=true]{background:var(--ink);color:#0a0e12;border-color:var(--ink)}
+.pl-snd{position:absolute;right:10px;top:10px;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:rgba(5,8,12,.7);font-size:17px;z-index:2}
 .pl-legend{display:flex;gap:12px;font-size:12px;color:var(--mute);padding:2px 4px 0}
 .pl-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 .pl-ctl{display:grid;grid-template-columns:1.1fr .8fr 1fr .8fr 1.1fr;gap:6px;margin-top:8px}
@@ -1800,27 +1810,24 @@ function makePlayer(root, o) {
   v.muted = true;
   const clock = h('div', { class: 'clock' }, h('div', { class: 't', text: '0.000' }), h('div', { class: 's', text: '–' }));
   const big = h('button', { class: 'pl-big', 'aria-label': 'Play', text: '▶' });
-  const stage = h('div', { class: 'stage pl-stage' }, v, clock, big);
+  const bSnd = h('button', { class: 'pl-snd', 'aria-label': 'Sound on or off', title: 'Sound', text: '🔇', onclick: e => { e.stopPropagation(); v.muted = !v.muted; bSnd.textContent = v.muted ? '🔇' : '🔊'; } });
+  const stage = h('div', { class: 'stage pl-stage' }, v, clock, big, bSnd);
   const fill = h('div', { class: 'pl-fill' }), span = h('div', { class: 'pl-span' });
   const mb = h('div', { class: 'pl-mark beep' }), mc = h('div', { class: 'pl-mark ctl' });
   const scrub = h('input', { type: 'range', class: 'pl-scrub', min: '0', max: '1', step: '0.001', value: '0', 'aria-label': 'Slide through the video' });
   const bar = h('div', { class: 'pl-bar' }, h('div', { class: 'pl-track' }, fill, span, mb, mc), scrub);
   const tCur = h('span'), tRel = h('span');
-  const btn = (txt, label, fn) => h('button', { class: 'btn', 'aria-label': label, title: label, text: txt, onclick: fn });
-  const bPlay = btn('▶', 'Play or pause', () => toggle());
-  const speeds = [['1×', 1], ['½×', 0.5], ['¼×', 0.25]].map(([t, r]) => {
-    const b = btn(t, 'Speed ' + t, () => { rate = r; v.playbackRate = r; speeds.forEach(x => x.setAttribute('aria-pressed', x === b)); });
-    b.setAttribute('aria-pressed', r === 1); return b;
-  });
-  const bSnd = btn('🔇', 'Sound on or off', () => { v.muted = !v.muted; bSnd.textContent = v.muted ? '🔇' : '🔊'; });
+  const btn = (txt, label, fn, cls = '') => h('button', { class: 'btn ' + cls, 'aria-label': label, title: label, text: txt, onclick: fn });
+  const bPlay = btn('▶', 'Play or pause', () => toggle(), 'pl-play');
+  const bSlow = btn('🐢 Slow-mo', 'Slow motion on or off', () => { rate = rate === 1 ? 0.25 : 1; v.playbackRate = rate; bSlow.setAttribute('aria-pressed', rate !== 1); }, 'pl-slow');
+  bSlow.setAttribute('aria-pressed', 'false');
+  // the two moments in the rep, as chips you can tap to jump straight there
+  const cGo = h('button', { class: 'pl-chip go', text: 'Whistle', onclick: () => jump(m().b) });
+  const cCt = h('button', { class: 'pl-chip ct', text: 'In pocket', onclick: () => jump(m().c) });
   root.append(stage, bar,
-    h('div', { class: 'pl-time' }, tCur, tRel),
-    h('div', { class: 'pl-legend' }, h('span', {}, h('i', { style: 'background:var(--red)' }), 'go'), h('span', {}, h('i', { style: 'background:var(--lime)' }), 'ball in pocket')),
-    h('div', { class: 'pl-ctl' },
-      btn('⏮ Go', 'Jump to Go', () => jump(m().b)), btn('−1', 'Back one frame', () => step(-1)), bPlay,
-      btn('+1', 'Forward one frame', () => step(1)), btn('Catch ⏭', 'Jump to the ball in the pocket', () => jump(m().c))),
-    h('div', { class: 'pl-ctl2' }, h('div', { class: 'pl-speed' }, speeds), bSnd,
-      btn('↺ Replay', 'Replay the rep', () => playFrom(Math.max(0, (m().b ?? 0.6) - 0.6)))));
+    h('div', { class: 'pl-time' }, h('div', { class: 'pl-chips' }, cGo, cCt), tRel),
+    h('div', { class: 'pl-simple' },
+      btn('↺ Replay', 'Watch the rep again', () => playFrom(Math.max(0, (m().b ?? 0.6) - 0.6)), 'pl-rep'), bPlay, bSlow));
   let dur = o.dur || 0, dead = false, dragging = false, stopAt = null, wantPlay = false, rate = 1;
   const m = () => o.getMarks();
   Promise.resolve(o.src).then(u => { if (!dead && u) v.src = u; });
@@ -1868,6 +1875,7 @@ function makePlayer(root, o) {
     tCur.textContent = t.toFixed(2) + ' s';
     tRel.textContent = b == null ? '' : (t >= b ? 'Go + ' : 'Go − ') + Math.abs(t - b).toFixed(3) + ' s';
     bPlay.textContent = v.paused ? '▶' : '❚❚'; big.hidden = !v.paused;
+    { const { b: bb, c: cc } = m(); cGo.hidden = bb == null; cCt.hidden = cc == null; }
     if (stopAt != null && !v.paused && t >= stopAt) { v.pause(); stopAt = null; wantPlay = false; }
     requestAnimationFrame(ui);
   };
@@ -2211,7 +2219,7 @@ function rowEl(a, rank) {
 }
 function rowItem(a, rank) {
   const mine = isMine(a), lk = likes.get(a.id)?.size || 0;
-  const item = h('button', { 'data-id': a.id, class: 'item' + (mine ? ' me' : '') + (rank <= 3 && !isDisputed(a) ? ' r' + rank : '') + (isDisputed(a) ? ' dim' : ''), onclick: () => openRun(a.id) },
+  const item = h('button', { 'data-id': a.id, class: 'item' + (mine ? ' me' : '') + (rank <= 3 && !isDisputed(a) ? ' r' + rank : '') + (isDisputed(a) ? ' dim' : ''), onclick: e => openRun(a.id, e.currentTarget) },
     h('div', { class: 'rank', text: isDisputed(a) ? '–' : rank }),
     h('div', { class: 'who' }, h('b', { text: a.handle || 'Player' }, ),
       h('small', { text: [a.club, ago(a.createdAt || Date.now()), lk ? '♥ ' + lk : ''].filter(Boolean).join(' · ') })),
@@ -2294,10 +2302,22 @@ $('#btnLink').onclick = () => {
 };
 /* ---------- run viewer modal ---------- */
 let modalStop = null;
-function closeModal() { if (modalStop) modalStop(); modalStop = null; const m = $('#modalRoot .modal'); if (m && !m.classList.contains('closing') && !matchMedia('(prefers-reduced-motion: reduce)').matches) { m.classList.add('closing'); setTimeout(() => { if (m.isConnected) m.remove(); }, 200); } else $('#modalRoot').replaceChildren(); document.body.style.overflow = ''; document.removeEventListener('keydown', escClose); }
+function closeModal() {
+  const mm = $('#modalRoot .modal'), sh = mm && $('.repview', mm), el = openFromEl; openFromEl = null;
+  if (mm && sh && el && el.isConnected && sh.animate && !mm.classList.contains('closing') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (modalStop) modalStop(); modalStop = null; mm.classList.add('closing-flip');
+    const r = el.getBoundingClientRect(), W = innerWidth, H = innerHeight;
+    sh.animate([{ clipPath: 'inset(0px 0px 0px 0px round 0px)', opacity: 1 }, { clipPath: `inset(${r.top}px ${W - r.right}px ${H - r.bottom}px ${r.left}px round 14px)`, opacity: .4 }], { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+    mm.animate([{ backgroundColor: 'rgba(5,8,11,1)' }, { backgroundColor: 'rgba(5,8,11,0)' }], { duration: 340, fill: 'forwards' });
+    el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.03)' }, { transform: 'scale(1)' }], { duration: 300, delay: 300 });
+    setTimeout(() => { if (mm.isConnected) mm.remove(); }, 340);
+    document.body.style.overflow = ''; document.removeEventListener('keydown', escClose); return;
+  }
+  if (modalStop) modalStop(); modalStop = null; const m = $('#modalRoot .modal'); if (m && !m.classList.contains('closing') && !matchMedia('(prefers-reduced-motion: reduce)').matches) { m.classList.add('closing'); setTimeout(() => { if (m.isConnected) m.remove(); }, 200); } else $('#modalRoot').replaceChildren(); document.body.style.overflow = ''; document.removeEventListener('keydown', escClose); }
 function escClose(e) { if (e.key === 'Escape') closeModal(); }
 let openId = null;
-function openRun(id) {
+let openFromEl = null;
+function openRun(id, fromEl) {
   const a = attempts.find(x => x.id === id); if (!a) return;
   openId = id;
   const likeBtn = h('button', { class: 'btn' }), flagBtn = h('button', { class: 'btn' });
@@ -2317,8 +2337,16 @@ function openRun(id) {
       h('button', { class: 'btn', text: '✕ Close', onclick: closeModal })),
     h('div', { class: 'rv-body' }, pRoot),
     h('div', { class: 'rv-foot' }, likeBtn, flagBtn, del));
-  const root = $('#modalRoot'); root.replaceChildren(h('div', { class: 'modal full' }, sheet));
+  const root = $('#modalRoot'); const modal = h('div', { class: 'modal full' }, sheet); root.replaceChildren(modal);
   document.body.style.overflow = 'hidden';
+  openFromEl = fromEl || null;
+  if (fromEl && fromEl.isConnected && sheet.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    modal.classList.add('flip');
+    const r = fromEl.getBoundingClientRect(), W = innerWidth, H = innerHeight, ease = 'cubic-bezier(.2,.85,.25,1)';
+    sheet.animate([{ clipPath: `inset(${r.top}px ${W - r.right}px ${H - r.bottom}px ${r.left}px round 14px)` }, { clipPath: 'inset(0px 0px 0px 0px round 0px)' }], { duration: 520, easing: ease });
+    [...sheet.children].forEach((c, i) => c.animate([{ opacity: 0, transform: 'translateY(22px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 460, delay: 200 + i * 90, easing: ease, fill: 'backwards' }));
+    const t = $('#mtitle', sheet); if (t) t.animate([{ letterSpacing: '.3em', opacity: 0 }, { letterSpacing: '.04em', opacity: 1 }], { duration: 600, delay: 220, easing: ease, fill: 'backwards' });
+  }
   document.addEventListener('keydown', escClose);
   const player = makePlayer(pRoot, { src: assetUrl(a.asset), getMarks: () => ({ b: a.beepAt, c: a.controlAt }) });
   player.playFrom(Math.max(0, a.beepAt - 0.6));
@@ -2498,7 +2526,7 @@ function unusualList(box, runs, sm, emptyText) {
   if (!outs.length) { box.append(h('div', { class: 'nodata', text: sm.n >= 4 ? emptyText : 'Needs at least 4 reps.' })); return; }
   outs.forEach(a => {
     const d = a.timeMs - sm.median, fast = d < 0;
-    box.append(h('button', { class: 'item', onclick: () => openRun(a.id) },
+    box.append(h('button', { class: 'item', onclick: e => openRun(a.id, e.currentTarget) },
       h('div', { class: 'rank', text: fast ? '⚡' : '🐢', style: 'font-size:22px' }),
       h('div', { class: 'who' }, h('b', { text: a.handle || 'Player' }), h('small', { text: fmtS(Math.abs(d)) + ' s ' + (fast ? 'faster' : 'slower') + ' than usual · ' + ago(a.createdAt || Date.now()) })),
       h('div', { class: 'time', text: fmtS(a.timeMs) }), h('div', { class: 'play', text: '▶' })));
