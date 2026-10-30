@@ -232,7 +232,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   <section id="v-run" hidden>
     <div class="card" id="cCam">
       <h2>Face-off cam</h2>
-      <div class="muted small">Prop your phone up low, facing you (front camera, so you can see the screen). Press <b>Start</b>. When it says <b>Down</b>, put the ball in the circle with your stick head <b>on the ground right behind it</b>. Once you're in position it says <b>Set</b>, then <b>Go</b>. Hold still between Set and Go or it's a false start. The app times you from Go to the moment the ball is in your pocket.</div>
+      <div class="muted small">Prop your phone up low, facing you (front camera, so you can see the screen). Press <b>Start</b>. When it says <b>Down</b>, put the ball in the circle with your stick head <b>on the ground right behind it</b>. Once you're in position you get <b>3 seconds</b> to settle, then it says <b>Set</b>, then <b>Go</b>. After “Set”, hold still until “Go” or it's a false start. The app times you from Go to the moment the ball is in your pocket.</div>
       <div id="camOff">
         <button class="btn primary" id="btnCamOn" style="width:100%;margin-top:12px">Start camera</button>
       </div>
@@ -515,6 +515,22 @@ function ctxToPerf(t) {
   return performance.now() + (t - actx.currentTime) * 1000 + ((actx.outputLatency || actx.baseLatency || 0) * 1000);
 }
 /* same voice as the first version: the phone's built-in voice, a little slower and lower */
+/* say a word and resolve once it has been said (end event, or a time limit if the phone doesn't report it) */
+function speakDone(word, maxMs = 1000) {
+  return new Promise(res => {
+    const t0 = performance.now(); let done = false;
+    const fin = () => { if (done) return; done = true; const wait = Math.max(0, 250 - (performance.now() - t0)); setTimeout(res, wait); };
+    try {
+      const ss = window.speechSynthesis;
+      if (!ss) return fin();
+      const u = new SpeechSynthesisUtterance(word);
+      u.rate = 0.9; u.pitch = 0.8; u.volume = 1;
+      u.onend = fin; u.onerror = fin;
+      ss.resume(); ss.speak(u);
+    } catch { fin(); }
+    setTimeout(fin, maxMs);
+  });
+}
 function speak(word) {
   try {
     const ss = window.speechSynthesis; if (!ss) return;
@@ -525,7 +541,7 @@ function speak(word) {
 }
 /* the start call: 3 s to get set, Down, 1–3 s, Set, 0.5–2.5 s, then the beep (GO) */
 /* Start → "Down" → wait until in position → 0.5–2 s → "Set" → 0.5–2 s → "Go" */
-const POS_MIN = 500, POS_RANGE = 1500, SET_MIN = 500, SET_RANGE = 1500, SCAN_TIMEOUT = 90000;
+const SETTLE_MS = 3000, SET_MIN = 500, SET_RANGE = 1500, SCAN_TIMEOUT = 90000;   // 3 s to get set, then Set, then 0.5–2 s to Go
 /* Listens to the microphone for the moment "Go" is actually heard (the true start of the clock).
    Returns the performance-clock time (ms) of the first sound after arm(). */
 function makeOnsetDetector(stream) {
@@ -593,7 +609,7 @@ function sayGo(det) {
   });
 }
 /* the second-device station still beeps with "Go" so an uploaded clip can be timed from its audio */
-const COUNT_S = 3, DOWN_MIN = 1000, DOWN_RANGE = 2000;
+const COUNT_S = 3;
 
 /* ---------- second-device beep station (fallback) ---------- */
 let beepRun = 0;
@@ -604,9 +620,10 @@ async function runStation() {
   const me = ++beepRun; btn.dataset.running = '1'; btn.textContent = 'Cancel';
   const live = () => me === beepRun;
   for (let i = COUNT_S; i > 0; i--) { st.className = 'station'; big.textContent = String(i); sub.textContent = 'Get in position'; await sleep(1000); if (!live()) return; }
-  big.textContent = 'Down'; sub.textContent = ''; speak('Down');
-  await sleep(DOWN_MIN + Math.random() * DOWN_RANGE); if (!live()) return;
-  st.className = 'station set'; big.textContent = 'Set'; sub.textContent = 'Wait for it…'; speak('Set');
+  big.textContent = 'Down'; sub.textContent = 'Get set'; speak('Down');
+  await sleep(SETTLE_MS); if (!live()) return;
+  st.className = 'station set'; big.textContent = 'Set'; sub.textContent = 'Wait for it…';
+  await speakDone('Set'); if (!live()) return;
   await sleep(SET_MIN + Math.random() * SET_RANGE); if (!live()) return;
   speak('Go'); playBeep(); st.className = 'station go'; big.textContent = 'GO'; sub.textContent = '';
   await sleep(1500); if (!live()) return;
@@ -817,13 +834,17 @@ function camTick() {
   else if (C.state === 'scan') setStatus(C.aligned ? 'In position…' : 'Get in position: ' + statusHint().toLowerCase());
   else if (C.state === 'seq' && C.phase === 'set' && C.fs && C.setSnap && C.cur && C.setSnap.length === C.cur.length) {
     // false start: anything moves inside the outline after "Set" (an overall brightness change is ignored)
-    const a = C.cur, b = C.setSnap, n = a.length; let mean = 0, d = 0;
-    for (let k = 0; k < n; k++) mean += a[k] - b[k]; mean /= n;
-    for (let k = 0; k < n; k++) d += Math.abs(a[k] - b[k] - mean); d /= n;
-    C.fsHits = d > FALSE_MOVE ? C.fsHits + 1 : 0;
+    C.fsHits = setChange() > FALSE_MOVE ? C.fsHits + 1 : 0;
     if (C.fsHits >= 2) falseStart();
   }
   drawOverlay();
+}
+function setChange() {
+  const a = C.cur, b = C.setSnap; if (!a || !b || a.length !== b.length) return 0;
+  const n = a.length; let mean = 0, d = 0;
+  for (let k = 0; k < n; k++) mean += a[k] - b[k]; mean /= n;
+  for (let k = 0; k < n; k++) d += Math.abs(a[k] - b[k] - mean); d /= n;
+  return d;
 }
 const gcv = document.createElement('canvas'), gctx = gcv.getContext('2d', { willReadFrequently: true });
 function grabLive() {
@@ -898,28 +919,39 @@ async function camSequence() {
   C.recSettings = curSettings(); C.fsHits = 0; C.phase = 'down'; C.state = 'scan';
   setCue('Down'); speak('Down');
   const scan0 = performance.now();
-  // 1) wait until you're in position, then hold it for 0.5–2 s (the recording starts here)
-  for (;;) {
+  // 1) wait until you're in position…
+  while (!C.aligned) {
+    await sleep(40); if (!alive()) return;
+    if (performance.now() - scan0 > SCAN_TIMEOUT) return backToWait('Timed out waiting for you to get in position. Press Start again.');
+    if (performance.now() - scan0 > 1200 && $('#cue').textContent === 'Down') setCue('');
+  }
+  // …then 3 s to settle into your set stance (moving is fine here; the recording starts now)
+  C.state = 'inpos'; startRec(); setCue('');
+  const t0 = performance.now(), bar = $('#holdBar');
+  while (performance.now() - t0 < SETTLE_MS) {
+    const left = SETTLE_MS - (performance.now() - t0);
+    bar.style.width = Math.min(100, (performance.now() - t0) / SETTLE_MS * 100) + '%';
+    setStatus('Get set: “Set” in ' + Math.ceil(left / 1000));
+    await sleep(50); if (!alive()) return;
+  }
+  bar.style.width = '0';
+  // must be in position when it says Set; if not, wait until you are
+  if (!C.aligned) {
+    C.state = 'scan';
     while (!C.aligned) {
       await sleep(40); if (!alive()) return;
       if (performance.now() - scan0 > SCAN_TIMEOUT) return backToWait('Timed out waiting for you to get in position. Press Start again.');
-      if (performance.now() - scan0 > 1200 && $('#cue').textContent === 'Down') setCue('');
     }
-    C.state = 'inpos'; startRec(); setCue(''); setStatus('In position…');
-    const hold = POS_MIN + Math.random() * POS_RANGE, t0 = performance.now();
-    let lostSince = 0, broke = false;
-    while (performance.now() - t0 < hold) {
-      await sleep(25); if (!alive()) return;
-      if (!C.aligned) { if (!lostSince) lostSince = performance.now(); else if (performance.now() - lostSince > 200) { broke = true; break; } }
-      else lostSince = 0;
-    }
-    if (!broke && C.aligned) break;                 // must still be in position at the moment it says Set
-    discardRec(); C.state = 'scan';
+    await sleep(200); if (!alive()) return;
   }
-  // 2) Set: from here, any movement in the outline is a false start
+  // 2) Set: false starts only count once "Set" has been said
+  C.state = 'seq'; C.phase = 'setcall'; setCue('Set', 'set'); setStatus('Set');
+  await speakDone('Set'); if (!alive()) return;
   C.setSnap = C.cur ? Float32Array.from(C.cur) : null; C.fsHits = 0;
-  C.state = 'seq'; C.phase = 'set'; setCue('Set', 'set'); speak('Set'); setStatus('Recording');
+  C.phase = 'set'; setStatus('Hold still…');
   await sleep(SET_MIN + Math.random() * SET_RANGE); if (!alive()) return;
+  // last check of the outline right before Go, so a late flinch still counts
+  if (C.fs && C.masks) { dctx.drawImage(lv, 0, 0, C.dw, C.dh); analyze(dctx.getImageData(0, 0, C.dw, C.dh).data); if (setChange() > FALSE_MOVE) return falseStart(); }
   // 3) Go: learn the ball's look, say "Go", follow the ball on the live camera
   const snap = grabLive();
   let model = buildBallModel(snap.px, snap.W, snap.H, { settings: C.recSettings });
