@@ -61,6 +61,10 @@ input[type=range]{width:100%;accent-color:var(--lime);margin:10px 0 2px}
 .mark small{display:block;color:var(--mute)}
 .mark.beep{border-color:#5a2a25}.mark.beep span{color:var(--red)}
 .mark.ctl2{border-color:#2f4a12}.mark.ctl2 span{color:var(--lime)}
+.automsg{margin-top:10px;border-radius:10px;padding:9px 12px;font-size:14px;font-weight:600;background:#13210a;border:1px solid #2f4a12;color:var(--lime)}
+.automsg.work{background:#0d141b;border-color:var(--line);color:var(--mute)}
+.automsg.fail{background:#2a2108;border-color:#5b4710;color:#ffd98a}
+.stage.tap{outline:3px solid var(--amber);cursor:crosshair}
 .result{margin-top:12px;text-align:center;border-radius:14px;background:#0d141b;border:1px dashed var(--line);padding:12px}
 .result .n{font-family:var(--disp);font-weight:800;font-size:60px;line-height:1;font-variant-numeric:tabular-nums}
 .result .n.ok{color:var(--lime)}
@@ -81,9 +85,9 @@ input[type=text],select{width:100%;background:var(--panel2);border:1px solid var
 .recdot{position:absolute;right:10px;top:14px;background:var(--red);color:#fff;font-weight:700;font-size:13px;padding:3px 8px;border-radius:6px;letter-spacing:.08em}
 .holdbar{position:absolute;left:0;right:0;top:0;height:6px;background:rgba(255,255,255,.08)}
 .holdbar i{display:block;height:100%;width:0;background:var(--lime);transition:width .1s linear}
-.ctl2{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
-.ctl2 .btn{padding:10px 6px;font-size:15px}
-.ctl2 .btn.primary{font-size:17px}
+.camctl{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.camctl .btn{padding:10px 6px;font-size:15px}
+.camctl .btn.primary{font-size:17px}
 .setgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:12px}
 .setgrid input[type=range]{margin:4px 0 0}
 .checks{display:flex;flex-direction:column;justify-content:center;gap:6px}
@@ -158,7 +162,7 @@ details.card[open] summary{color:var(--ink)}
   <section id="v-run" hidden>
     <div class="card" id="cCam">
       <h2>Face-off cam</h2>
-      <div class="muted small">Prop your phone up low, facing the draw. The front camera is the default so you can see the screen. Line your ball up in the circle and your stick head in the outline, then hold still. It starts recording and runs <b>Down… Set… BEEP</b> by itself.</div>
+      <div class="muted small">Prop your phone up low, facing you (front camera, so you can see the screen). Put the ball in the circle with your stick head <b>right behind it</b> in the outline and hold still. It starts recording and runs <b>Down… Set… BEEP</b> by itself, then finds the moment the ball is in your pocket.</div>
       <div id="camOff">
         <button class="btn primary" id="btnCamOn" style="width:100%;margin-top:12px">Start camera</button>
       </div>
@@ -171,9 +175,9 @@ details.card[open] summary{color:var(--ink)}
           <div class="cue" id="cue"></div>
           <div class="camstatus" id="camStatus">Starting…</div>
         </div>
-        <div class="ctl2">
+        <div class="camctl">
           <button class="btn primary" id="btnCamGo">Start now</button>
-          <button class="btn" id="btnRescan">Rescan spot</button>
+          <button class="btn" id="btnSound">Test sound</button>
           <button class="btn" id="btnFlip">Flip camera</button>
         </div>
         <div class="setgrid">
@@ -208,8 +212,10 @@ details.card[open] summary{color:var(--ink)}
     </details>
 
     <div class="card" id="cMark" hidden>
-      <h2>Mark the moment</h2>
-      <div class="muted small">Scrub or step frame by frame to the first frame where the ball is fully secured in the pocket, then tap “Control here”. The beep is pre-set if it was heard in the audio.</div>
+      <h2>Your rep</h2>
+      <div class="muted small">The app finds the beep in the audio and tracks the ball to the moment it's picked up in your pocket. If it got a mark wrong, step to the right frame and tap the mark to fix it.</div>
+      <div class="automsg" id="autoMsg" hidden></div>
+      <button class="btn" id="btnTapBall" hidden style="width:100%;margin-top:8px">Tap the ball to find control</button>
       <div class="stage" style="margin-top:10px">
         <video id="rv" playsinline preload="auto"></video>
         <div class="clock" id="rclock"><div class="t">0.000</div><div class="s">–</div></div>
@@ -229,17 +235,17 @@ details.card[open] summary{color:var(--ink)}
         <select id="fps" style="width:auto"><option>24</option><option selected>30</option><option>60</option><option>120</option><option>240</option></select>
       </div>
       <div class="chips">
-        <button class="mark beep" id="setBeep"><b>Beep here</b><span id="vBeep">–</span><small id="beepNote">tap to set at current frame</small></button>
-        <button class="mark ctl2" id="setCtl"><b>Control here</b><span id="vCtl">–</span><small>ball secured in the pocket</small></button>
+        <button class="mark beep" id="setBeep"><b>Beep</b><span id="vBeep">–</span><small id="beepNote">tap to set at current frame</small></button>
+        <button class="mark ctl2" id="setCtl"><b>Control</b><span id="vCtl">–</span><small id="ctlNote">ball secured in the pocket</small></button>
       </div>
       <div class="result"><div class="muted small">Face-off time</div><div class="n" id="vTime">–</div><div class="small" id="vMsg"></div></div>
 
       <div style="margin-top:14px">
         <div class="row stretch">
-          <div><label for="handle">Name on the board</label><input type="text" id="handle" maxlength="20" placeholder="e.g. Ari B."></div>
+          <div><label for="handle">Your name</label><input type="text" id="handle" maxlength="20" placeholder="e.g. Ari B."></div>
           <div><label for="club">School / club (optional)</label><input type="text" id="club" maxlength="30" placeholder="e.g. Bishop's"></div>
         </div>
-        <div class="small muted" style="margin-top:8px">Runs and clips are saved on this device only.</div>
+        <div class="small muted" style="margin-top:8px">Runs and clips are saved on this phone only.</div>
         <div class="row stretch" style="margin-top:10px">
           <button class="btn primary" id="btnPost">Save run</button>
           <button class="btn" id="btnReset">Start over</button>
@@ -394,46 +400,75 @@ function resetStation() {
 }
 
 /* ---------- face-off cam: outline, auto-start, recording ---------- */
-const OCC_T = 75;        // per-pixel colour change (0–765) that counts as "something is here"
-const BALL_MIN = 0.35;   // share of the ball circle that must be filled
-const HEAD_MIN = 0.22;   // share of the stick-head outline that must be filled
-const STILL = 6;         // average frame-to-frame change below which the scene is "still"
-const HOLD = 1000;       // ms of lined-up stillness before it starts
+const T_G = 70;          // colour difference from the ground that counts as "something is here"
+const BALL_MIN = 0.45;   // share of the ball circle that must be filled
+const HEAD_MIN = 0.3;    // share of EACH half of the stick-head outline that must be filled
+const STILL = 6;         // average frame-to-frame change below which the setup is "still"
+const HOLD = 800;        // ms lined up and still before it starts
 const FALSE_MOVE = 14;   // change inside the outline after "Set" that counts as a false start
 const C = {
-  stream: null, facing: 'user', state: 'off', timer: 0, wake: null,
-  ref: null, prev: null, masks: null, dw: 0, dh: 0, scanT0: 0, scanFrames: [],
+  stream: null, facing: 'user', state: 'off', timer: 0, wake: null, masks: null, dw: 0, dh: 0,
   size: +(lsGet('fo-size') || 1.25), y: +(lsGet('fo-y') || 0.66), side: +(lsGet('fo-side') || 1),
   partner: lsGet('fo-partner') === '1', fs: lsGet('fo-fs') !== '0',
-  occ: { ball: 0, heads: [] }, motion: 99, aligned: false, stillSince: 0, phase: '', fsHits: 0
+  occ: { ball: 0, ring: 0, headL: 0, headR: 0, partner: 1 }, ballOk: false, headOk: false, partnerOk: true,
+  motion: 99, aligned: false, stillSince: 0, phase: '', fsHits: 0, prev: null, cur: null, setSnap: null, graceUntil: 0,
+  recStart: 0, beepAt: 0, recSettings: null
 };
 let camRun = 0, liveRec = null, liveChunks = [];
 const lv = $('#lv'), ov = $('#ov');
 const dcv = document.createElement('canvas'), dctx = dcv.getContext('2d', { willReadFrequently: true });
 const setCue = (t, cls) => { const c = $('#cue'); c.textContent = t; c.className = 'cue' + (cls ? ' ' + cls : '') + (String(t).length > 6 ? ' long' : ''); };
 const setStatus = t => { const s = $('#camStatus'); if (s.textContent !== t) s.textContent = t; };
+const curSettings = () => ({ size: C.size, y: C.y, side: C.side, partner: C.partner });
 
-function geom(w, h) {
-  const u = Math.min(w, h), r = 0.055 * u * C.size, cx = w / 2, cy = h * C.y;
-  const rx = 2 * r, ry = 1.15 * r, off = r + 0.35 * r + rx;
-  const heads = [{ cx: cx + C.side * off, cy, rx, ry, dir: C.side }];
-  if (C.partner) heads.push({ cx: cx - C.side * off, cy, rx, ry, dir: -C.side });
-  return { ball: { cx, cy, r }, heads };
+/* Outline geometry in pixels for a w×h frame. The stick head lies directly BEHIND the ball
+   (further from the camera = higher in the picture); a partner's head sits in front of it. */
+function geom(w, h, s = curSettings()) {
+  const u = Math.min(w, h), r = 0.055 * u * s.size, cx = w / 2, cy = h * s.y;
+  const rx = 2 * r, ry = r, gap = 0.25 * r;
+  return {
+    ball: { cx, cy, r },
+    head: { cx, cy: cy - r - gap - ry, rx, ry, dir: s.side },
+    partner: s.partner ? { cx, cy: cy + r + gap + ry, rx, ry, dir: -s.side } : null
+  };
+}
+const inEll = (x, y, e, k = 1) => ((x - e.cx) / (e.rx * k)) ** 2 + ((y - e.cy) / (e.ry * k)) ** 2 <= 1;
+/* pixels that should be plain ground: beside the ball and in front of it */
+function groundIdx(w, h, G, step = 1) {
+  const { cx, cy, r } = G.ball, out = [];
+  const box = (x0, x1, y0, y1) => {
+    x0 = Math.max(0, Math.round(x0)); x1 = Math.min(w - 1, Math.round(x1));
+    y0 = Math.max(0, Math.round(y0)); y1 = Math.min(h - 1, Math.round(y1));
+    for (let y = y0; y <= y1; y += step) for (let x = x0; x <= x1; x += step) out.push(y * w + x);
+  };
+  box(cx - 6 * r, cx - 2.2 * r, cy - 0.8 * r, cy + 1.6 * r);
+  box(cx + 2.2 * r, cx + 6 * r, cy - 0.8 * r, cy + 1.6 * r);
+  if (!G.partner) box(cx - 2 * r, cx + 2 * r, cy + 1.9 * r, cy + 3.6 * r);
+  return out;
 }
 function buildMasks(w, h) {
-  const g = geom(w, h), ball = [], heads = g.heads.map(() => []), inU = new Uint8Array(w * h);
+  const G = geom(w, h), { cx, cy, r } = G.ball;
+  const ball = [], ring = [], headL = [], headR = [], partner = [], union = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const p = y * w + x;
-    if ((x - g.ball.cx) ** 2 + (y - g.ball.cy) ** 2 <= g.ball.r ** 2) { ball.push(p); inU[p] = 1; }
-    g.heads.forEach((hd, i) => { if (((x - hd.cx) / hd.rx) ** 2 + ((y - hd.cy) / hd.ry) ** 2 <= 1) { heads[i].push(p); inU[p] = 1; } });
+    const p = y * w + x, d = Math.hypot(x - cx, y - cy);
+    let u = false;
+    if (d <= 0.85 * r) { ball.push(p); u = true; }
+    else if (d >= 1.3 * r && d <= 1.8 * r && !inEll(x, y, G.head, 1.15) && !(G.partner && inEll(x, y, G.partner, 1.15))) ring.push(p);
+    if (inEll(x, y, G.head)) { (x < G.head.cx ? headL : headR).push(p); u = true; }
+    if (G.partner && inEll(x, y, G.partner)) { partner.push(p); u = true; }
+    if (u || d <= r) union.push(p);
   }
-  const union = [], out = [];
-  for (let p = 0; p < w * h; p++) { if (inU[p]) union.push(p); else if ((p % 3) === 0) out.push(p); }
   C.prev = null;
-  return { ball, heads, union, out };
+  return { ball, ring, headL, headR, partner, union, ground: groundIdx(w, h, G) };
+}
+function medianColor(px, idx) {
+  if (!idx.length) return [0, 0, 0];
+  const ch = [[], [], []];
+  for (const p of idx) { const i = p * 4; ch[0].push(px[i]); ch[1].push(px[i + 1]); ch[2].push(px[i + 2]); }
+  return ch.map(a => { a.sort((x, y) => x - y); return a[a.length >> 1]; });
 }
 function headPath(x, hd) {
-  // scoop end next to the ball, throat on the far side, shaft stub beyond it
+  // horizontal head: scoop on one end, throat on the other, back of the head facing the ball
   const { cx, cy, rx, ry, dir } = hd, sc = cx - dir * rx, th = cx + dir * rx;
   x.beginPath();
   x.moveTo(th, cy - ry * 0.28);
@@ -446,21 +481,32 @@ function headPath(x, hd) {
 function drawOverlay() {
   const W = ov.width, H = ov.height, x = ov.getContext('2d');
   x.clearRect(0, 0, W, H);
-  const g = geom(W, H), lw = Math.max(3, Math.min(W, H) * 0.007);
+  const G = geom(W, H), lw = Math.max(3, Math.min(W, H) * 0.007);
   const go = C.state === 'seq' || (C.aligned && C.stillSince);
-  const col = (o, min) => (!C.ref ? 'rgba(255,255,255,.9)' : go ? '#c8ff2e' : o >= min ? '#ffb020' : 'rgba(255,255,255,.9)');
-  const dash = (o, min) => (C.ref && o >= min) || go ? [] : [lw * 3, lw * 2];
+  const partial = C.occ.headL >= HEAD_MIN || C.occ.headR >= HEAD_MIN;
+  const style = (ok, part) => {
+    x.strokeStyle = go ? '#c8ff2e' : ok ? '#ffb020' : part ? 'rgba(255,176,32,.6)' : 'rgba(255,255,255,.9)';
+    x.setLineDash(go || ok ? [] : [lw * 3, lw * 2]);
+  };
   x.lineWidth = lw; x.lineJoin = 'round';
-  g.heads.forEach((hd, i) => {
-    const o = C.occ.heads[i] || 0;
-    x.strokeStyle = col(o, HEAD_MIN); x.setLineDash(dash(o, HEAD_MIN));
-    x.fillStyle = 'rgba(0,0,0,.18)'; headPath(x, hd); x.fill(); x.stroke();
+  const drawHead = (hd, ok, part) => {
+    style(ok, part); x.fillStyle = 'rgba(0,0,0,.18)'; headPath(x, hd); x.fill(); x.stroke();
     x.setLineDash([lw * 1.5, lw * 1.5]); x.globalAlpha = 0.55; x.beginPath();
     x.moveTo(hd.cx + hd.dir * hd.rx, hd.cy); x.lineTo(hd.cx + hd.dir * hd.rx * 3.2, hd.cy); x.stroke(); x.globalAlpha = 1;
-  });
-  const b = g.ball, ob = C.occ.ball || 0;
-  x.strokeStyle = col(ob, BALL_MIN); x.setLineDash(dash(ob, BALL_MIN));
+  };
+  drawHead(G.head, C.headOk, partial);
+  if (G.partner) drawHead(G.partner, C.partnerOk, false);
+  const b = G.ball;
+  style(C.ballOk, false);
   x.beginPath(); x.arc(b.cx, b.cy, b.r, 0, Math.PI * 2); x.fillStyle = 'rgba(0,0,0,.18)'; x.fill(); x.stroke();
+  // little arrow: stick goes behind the ball
+  if (!C.headOk && !go) {
+    x.setLineDash([]); x.strokeStyle = 'rgba(255,255,255,.75)'; x.lineWidth = lw * 0.8;
+    const ay = b.cy - b.r - 0.15 * b.r;
+    x.beginPath(); x.moveTo(b.cx, ay); x.lineTo(b.cx, G.head.cy + G.head.ry * 0.2);
+    x.moveTo(b.cx - b.r * 0.35, G.head.cy + G.head.ry * 0.6); x.lineTo(b.cx, G.head.cy + G.head.ry * 0.2); x.lineTo(b.cx + b.r * 0.35, G.head.cy + G.head.ry * 0.6);
+    x.stroke();
+  }
   x.setLineDash([]);
 }
 function sizeStage() {
@@ -468,7 +514,7 @@ function sizeStage() {
   st.style.aspectRatio = W + ' / ' + H;
   st.style.width = 'min(100%, calc(66vh * ' + (W / H).toFixed(4) + '))';
   ov.width = W; ov.height = H;
-  C.dw = dcv.width = 160; C.dh = dcv.height = Math.max(40, Math.round(160 * H / W));
+  C.dw = dcv.width = 240; C.dh = dcv.height = Math.max(60, Math.round(240 * H / W));
   C.masks = null;
 }
 async function camOn() {
@@ -492,81 +538,60 @@ async function camOn() {
   $('#camOff').hidden = true; $('#camOn').hidden = false; $('#camMsg').textContent = '';
   try { C.wake = await navigator.wakeLock?.request('screen'); } catch {}
   clearInterval(C.timer); C.timer = setInterval(camTick, 100);
-  startScan();
+  backToWait('Ball in the circle, stick head right behind it, then hold still');
 }
 function closeCam() {
   camRun++; discardRec();
   clearInterval(C.timer); C.timer = 0;
   if (C.stream) C.stream.getTracks().forEach(t => t.stop());
-  C.stream = null; C.state = 'off'; C.ref = null; C.masks = null; C.prev = null; C.phase = '';
+  C.stream = null; C.state = 'off'; C.masks = null; C.prev = null; C.phase = '';
   lv.srcObject = null; $('#camOn').hidden = true; $('#camOff').hidden = false;
   try { C.wake?.release(); } catch {} C.wake = null;
   setCue('');
 }
-function startScan() {
-  camRun++; discardRec();
-  C.state = 'scan'; C.ref = null; C.scanFrames = []; C.scanT0 = performance.now(); C.stillSince = 0; C.phase = '';
-  C.occ = { ball: 0, heads: [] }; C.aligned = false;
-  setStatus('Keep the outline empty for a moment. Scanning the spot…');
-}
 function camActive() { return C.stream && !$('#v-run').hidden && !$('#cCam').hidden && !$('#camOn').hidden; }
 function statusHint() {
-  const ballOk = C.occ.ball >= BALL_MIN, headOk = C.occ.heads.every(o => o >= HEAD_MIN);
-  if (!ballOk && !headOk) return 'Put the ball in the circle and your stick head in the outline';
-  if (!ballOk) return 'Ball isn’t in the circle yet';
-  if (!headOk) return C.partner ? 'Both stick heads need to be in their outlines' : 'Stick head isn’t in the outline yet';
+  const o = C.occ;
+  if (!C.ballOk && !C.headOk) return 'Ball in the circle, stick head right behind it';
+  if (!C.ballOk) return o.ring > 0.5 ? 'Keep hands and feet out from around the ball' : 'Ball isn’t in the circle yet';
+  if (!C.headOk) {
+    if (o.headL < HEAD_MIN && o.headR < HEAD_MIN) return 'Put your stick head right behind the ball';
+    return 'Center your stick head behind the ball';
+  }
+  if (!C.partnerOk) return 'Partner’s stick head goes in front of the ball';
   return 'Lined up. Hold still…';
 }
 function analyze(px) {
-  const M = C.masks, ref = C.ref;
-  const ratios = new Float32Array(M.out.length);
-  for (let k = 0; k < M.out.length; k++) {
-    const i = M.out[k] * 4;
-    ratios[k] = (px[i] + px[i + 1] + px[i + 2] + 12) / (ref[i] + ref[i + 1] + ref[i + 2] + 12);
-  }
-  ratios.sort();
-  const g = ratios.length ? ratios[ratios.length >> 1] : 1;
-  const frac = idx => {
+  const M = C.masks, g = medianColor(px, M.ground);
+  const far = idx => {
     if (!idx.length) return 0;
     let n = 0;
-    for (const p of idx) {
-      const i = p * 4;
-      if (Math.abs(px[i] - g * ref[i]) + Math.abs(px[i + 1] - g * ref[i + 1]) + Math.abs(px[i + 2] - g * ref[i + 2]) > OCC_T) n++;
-    }
+    for (const p of idx) { const i = p * 4; if (Math.abs(px[i] - g[0]) + Math.abs(px[i + 1] - g[1]) + Math.abs(px[i + 2] - g[2]) > T_G) n++; }
     return n / idx.length;
   };
-  C.occ = { ball: frac(M.ball), heads: M.heads.map(frac) };
+  C.occ = { ball: far(M.ball), ring: far(M.ring), headL: far(M.headL), headR: far(M.headR), partner: M.partner.length ? far(M.partner) : 1 };
+  C.ballOk = C.occ.ball >= BALL_MIN && C.occ.ring <= 0.5;
+  C.headOk = C.occ.headL >= HEAD_MIN && C.occ.headR >= HEAD_MIN;
+  C.partnerOk = !C.partner || C.occ.partner >= HEAD_MIN;
+  C.aligned = C.ballOk && C.headOk && C.partnerOk;
   const cur = new Float32Array(M.union.length); let m = 0;
   for (let k = 0; k < M.union.length; k++) {
     const i = M.union[k] * 4; cur[k] = (px[i] + px[i + 1] + px[i + 2]) / 3;
     if (C.prev) m += Math.abs(cur[k] - C.prev[k]);
   }
   C.motion = C.prev ? m / Math.max(1, M.union.length) : 99; C.prev = cur; C.cur = cur;
-  C.aligned = C.occ.ball >= BALL_MIN && C.occ.heads.every(o => o >= HEAD_MIN);
 }
 function camTick() {
   if (!camActive() || !lv.videoWidth) return;
-  if (ov.width !== lv.videoWidth || ov.height !== lv.videoHeight) { sizeStage(); if (C.state !== 'seq') startScan(); }
+  if (ov.width !== lv.videoWidth || ov.height !== lv.videoHeight) sizeStage();
   if (!C.masks) C.masks = buildMasks(C.dw, C.dh);
   dctx.drawImage(lv, 0, 0, C.dw, C.dh);
   const px = dctx.getImageData(0, 0, C.dw, C.dh).data;
   const now = performance.now();
   $('#btnCamGo').textContent = C.state === 'seq' ? 'Cancel' : 'Start now';
-  if (C.state === 'scan') {
-    const left = 2.5 - (now - C.scanT0) / 1000;
-    if (left > 0) { setCue(String(Math.ceil(left))); if (left < 1) C.scanFrames.push(Float32Array.from(px)); }
-    else {
-      if (!C.scanFrames.length) C.scanFrames.push(Float32Array.from(px));
-      const ref = new Float32Array(px.length), n = C.scanFrames.length;
-      for (const f of C.scanFrames) for (let i = 0; i < ref.length; i++) ref[i] += f[i] / n;
-      C.ref = ref; C.scanFrames = []; C.state = 'wait'; C.stillSince = 0; C.prev = null; setCue('');
-    }
-    drawOverlay(); return;
-  }
-  if (!C.ref) return;
   analyze(px);
   if (C.state === 'wait') {
-    if (C.aligned && C.motion < STILL && now >= (C.graceUntil || 0)) { if (!C.stillSince) C.stillSince = now; } else C.stillSince = 0;
+    if (C.aligned && C.motion < STILL && now >= C.graceUntil) { if (!C.stillSince) C.stillSince = now; } else C.stillSince = 0;
     const held = C.stillSince ? now - C.stillSince : 0;
     $('#holdBar').style.width = Math.min(100, held / HOLD * 100) + '%';
     setStatus(C.aligned && C.motion >= STILL ? 'Lined up. Hold still…' : statusHint());
@@ -586,6 +611,8 @@ function startRec() {
   liveChunks = [];
   liveRec = new MediaRecorder(C.stream, mime ? { mimeType: mime } : undefined);
   liveRec.ondataavailable = e => e.data && e.data.size && liveChunks.push(e.data);
+  liveRec.onstart = () => { C.recStart = performance.now(); };
+  C.recStart = performance.now();
   liveRec.start(500);
   $('#recDot').hidden = false;
 }
@@ -601,25 +628,26 @@ async function finishRec() {
   const file = new File(liveChunks, 'faceoff.' + (type.includes('mp4') ? 'mp4' : 'webm'), { type });
   liveChunks = [];
   C.state = 'review'; setCue('');
-  loadClip(file);
+  const lat = (actx && (actx.outputLatency || actx.baseLatency)) || 0;
+  loadClip(file, { settings: C.recSettings, beepGuess: Math.max(0, (C.beepAt - C.recStart) / 1000 + lat) });
 }
 async function camSequence() {
   const me = ++camRun; ensureCtx();
-  C.state = 'seq'; C.phase = 'down'; C.fsHits = 0; $('#holdBar').style.width = '0';
+  C.state = 'seq'; C.phase = 'down'; C.fsHits = 0; C.recSettings = curSettings(); $('#holdBar').style.width = '0';
   startRec();
   setStatus('Recording'); setCue('Down'); speak('Down');
   await sleep(1200 + Math.random() * 1800); if (me !== camRun) return;
   C.setSnap = C.cur ? Float32Array.from(C.cur) : null; C.fsHits = 0;
   C.phase = 'set'; setCue('Set', 'set'); speak('Set');
   await sleep(600 + Math.random() * 4400); if (me !== camRun) return;
-  C.phase = 'go'; playBeep(); setCue('BEEP', 'go');
+  C.phase = 'go'; C.beepAt = performance.now(); playBeep(); setCue('BEEP', 'go');
   await sleep(1000); if (me !== camRun) return;
   setCue(''); setStatus('Recording the finish…');
-  await sleep(1500); if (me !== camRun) return;
+  await sleep(2000); if (me !== camRun) return;
   C.phase = ''; await finishRec();
 }
 function backToWait(msg) {
-  camRun++; discardRec(); C.phase = ''; C.state = 'wait'; C.stillSince = 0; C.prev = null; C.graceUntil = performance.now() + 1500;
+  camRun++; discardRec(); C.phase = ''; C.state = 'wait'; C.stillSince = 0; C.prev = null; C.graceUntil = performance.now() + 1200;
   setCue(''); if (msg) setStatus(msg);
 }
 function falseStart() {
@@ -627,6 +655,213 @@ function falseStart() {
   setCue('False start', 'set'); speak('False start');
   setStatus('Moved before the beep. Reset and hold still.');
   setTimeout(() => { if (C.state === 'hold') backToWait(); }, 2200);
+}
+
+/* ---------- automatic control: track the ball after the beep ---------- */
+const L1 = (px, i, c) => Math.abs(px[i] - c[0]) + Math.abs(px[i + 1] - c[1]) + Math.abs(px[i + 2] - c[2]);
+function meanColor(px, idx) {
+  const m = [0, 0, 0]; if (!idx.length) return m;
+  for (const p of idx) { const i = p * 4; m[0] += px[i]; m[1] += px[i + 1]; m[2] += px[i + 2]; }
+  return m.map(v => v / idx.length);
+}
+function spread(px, idx, c) { let s = 0; for (const p of idx) s += L1(px, p * 4, c); return idx.length ? s / idx.length : 0; }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* Learn what the ball (and the stick head) look like in the frame just before the beep. */
+function buildBallModel(px, W, H, opts) {
+  let cx, cy, rb, ballIdx = [], headIdx = [], ground;
+  if (opts.seed) {
+    const sx = Math.round(opts.seed.x * W), sy = Math.round(opts.seed.y * H), lim = 0.14 * Math.min(W, H);
+    // the tap may land a pixel or two off the ball: start from the brightest-contrast pixel nearby
+    const ring = []; for (let a = 0; a < 24; a++) { const x = Math.round(sx + Math.cos(a / 24 * 6.283) * lim * 1.6), y = Math.round(sy + Math.sin(a / 24 * 6.283) * lim * 1.6); if (x >= 0 && y >= 0 && x < W && y < H) ring.push(y * W + x); }
+    ground = medianColor(px, ring);
+    let best = sy * W + sx, bd = -1;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const x = sx + dx, y = sy + dy; if (x < 0 || y < 0 || x >= W || y >= H) continue; const d = L1(px, (y * W + x) * 4, ground); if (d > bd) { bd = d; best = y * W + x; } }
+    const sc = [px[best * 4], px[best * 4 + 1], px[best * 4 + 2]];
+    const seen = new Uint8Array(W * H), q = [best]; seen[best] = 1;
+    while (q.length) {
+      const p = q.pop(); ballIdx.push(p); const x = p % W, y = (p / W) | 0;
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx;
+        if (seen[n] || Math.hypot(nx - sx, ny - sy) > lim) continue; seen[n] = 1;
+        if (L1(px, n * 4, sc) < 70) q.push(n);
+      }
+    }
+    if (ballIdx.length < 6) return null;
+    cx = ballIdx.reduce((s, p) => s + p % W, 0) / ballIdx.length; cy = ballIdx.reduce((s, p) => s + ((p / W) | 0), 0) / ballIdx.length;
+    rb = Math.sqrt(ballIdx.length / Math.PI);
+    for (let y = Math.round(cy - 4 * rb); y < cy - 1.2 * rb; y++) for (let x = Math.round(cx - 3 * rb); x <= cx + 3 * rb; x++) {
+      if (x < 0 || y < 0 || x >= W || y >= H) continue; const p = y * W + x; if (L1(px, p * 4, ground) > T_G) headIdx.push(p);
+    }
+  } else {
+    const G = geom(W, H, opts.settings);
+    ground = medianColor(px, groundIdx(W, H, G));
+    let inCircle = 0;
+    for (let y = Math.floor(G.ball.cy - G.ball.r); y <= G.ball.cy + G.ball.r; y++) for (let x = Math.floor(G.ball.cx - G.ball.r); x <= G.ball.cx + G.ball.r; x++) {
+      if (x < 0 || y < 0 || x >= W || y >= H || Math.hypot(x - G.ball.cx, y - G.ball.cy) > 0.95 * G.ball.r) continue;
+      inCircle++; const p = y * W + x; if (L1(px, p * 4, ground) > T_G) ballIdx.push(p);
+    }
+    if (ballIdx.length < 0.35 * inCircle || ballIdx.length < 6) return null;
+    cx = ballIdx.reduce((s, p) => s + p % W, 0) / ballIdx.length; cy = ballIdx.reduce((s, p) => s + ((p / W) | 0), 0) / ballIdx.length;
+    rb = Math.max(Math.sqrt(ballIdx.length / Math.PI), 0.6 * G.ball.r);
+    for (let y = Math.floor(G.head.cy - G.head.ry); y <= G.head.cy + G.head.ry; y++) for (let x = Math.floor(G.head.cx - G.head.rx); x <= G.head.cx + G.head.rx; x++) {
+      if (x < 0 || y < 0 || x >= W || y >= H || !inEll(x, y, G.head)) continue; const p = y * W + x; if (L1(px, p * 4, ground) > T_G) headIdx.push(p);
+    }
+  }
+  const mb = meanColor(px, ballIdx), mh = meanColor(px, headIdx);
+  const tolB = clamp(3 * spread(px, ballIdx, mb), 45, 120), tolH = clamp(3 * spread(px, headIdx, mh), 50, 130);
+  const headDistinct = headIdx.length > 10 && (Math.abs(mb[0] - mh[0]) + Math.abs(mb[1] - mh[1]) + Math.abs(mb[2] - mh[2])) > 90;
+  // ball-coloured things that don't move (field lines, etc.) are ignored, except near the ball and the head
+  const stat = new Uint8Array(W * H);
+  for (let p = 0; p < W * H; p++) {
+    const x = p % W, y = (p / W) | 0;
+    if (Math.hypot(x - cx, y - cy) < 1.6 * rb) continue;
+    if (Math.abs(x - cx) < 5 * rb && y < cy && y > cy - 4.5 * rb) continue;
+    if (L1(px, p * 4, mb) < tolB) stat[p] = 1;
+  }
+  const k = Math.max(1, Math.round(0.4 * rb));
+  return { cx, cy, rb, k, mb, tolB, mh, tolH, headDistinct, ground, stat, W, H, px0: Uint8ClampedArray.from(px) };
+}
+
+/* Find the ball in one frame near where it should be. Thin things (mesh, sidewalls, lines)
+   are removed by shrinking the ball-coloured area, so only the solid ball survives. */
+function makeTracker(m) {
+  const { W, H, rb, k } = m;
+  const Acore = Math.PI * Math.max(1, rb - k) ** 2;
+  let last = { x: m.cx, y: m.cy, t: null }, vx = 0, vy = 0, lost = 0;
+  return {
+    step(px, t) {
+      const dt = last.t == null ? 1 / 30 : Math.max(1 / 240, t - last.t);
+      const ex = last.x + vx * dt, ey = last.y + vy * dt;
+      const R = lost ? Math.min(Math.max(W, H), 6 * rb * (1 + 0.5 * lost)) : Math.max(5 * rb, Math.hypot(vx, vy) * dt * 3);
+      const x0 = Math.max(0, Math.floor(ex - R)), x1 = Math.min(W - 1, Math.ceil(ex + R));
+      const y0 = Math.max(0, Math.floor(ey - R)), y1 = Math.min(H - 1, Math.ceil(ey + R));
+      const ww = x1 - x0 + 1, hh = y1 - y0 + 1;
+      if (ww < 3 || hh < 3) { lost++; last.t = t; return { t, found: false }; }
+      const mask = new Uint8Array(ww * hh);
+      for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) {
+        const p = (y + y0) * W + (x + x0);
+        if (!m.stat[p] && L1(px, p * 4, m.mb) < m.tolB) mask[y * ww + x] = 1;
+      }
+      // close 1px gaps (mesh strings over the ball), then shrink by k
+      const dil = new Uint8Array(ww * hh);
+      for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) {
+        let v = 0; for (let dy = -1; dy <= 1 && !v; dy++) for (let dx = -1; dx <= 1; dx++) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < ww && Y < hh && mask[Y * ww + X]) { v = 1; break; } }
+        dil[y * ww + x] = v;
+      }
+      const closed = new Uint8Array(ww * hh);
+      for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) {
+        let v = 1; for (let dy = -1; dy <= 1 && v; dy++) for (let dx = -1; dx <= 1; dx++) { const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= ww || Y >= hh || !dil[Y * ww + X]) { v = 0; break; } }
+        closed[y * ww + x] = v;
+      }
+      // distance to the nearest non-ball pixel (chamfer), keep pixels at least k inside
+      const D = new Float32Array(ww * hh);
+      for (let i = 0; i < D.length; i++) D[i] = closed[i] ? 1e9 : 0;
+      for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) { const i = y * ww + x; if (!D[i]) continue;
+        let d = D[i]; if (x > 0) d = Math.min(d, D[i - 1] + 1); else d = Math.min(d, 1); if (y > 0) d = Math.min(d, D[i - ww] + 1); else d = Math.min(d, 1);
+        if (x > 0 && y > 0) d = Math.min(d, D[i - ww - 1] + 1.4); if (x < ww - 1 && y > 0) d = Math.min(d, D[i - ww + 1] + 1.4); D[i] = d; }
+      for (let y = hh - 1; y >= 0; y--) for (let x = ww - 1; x >= 0; x--) { const i = y * ww + x; if (!D[i]) continue;
+        let d = D[i]; if (x < ww - 1) d = Math.min(d, D[i + 1] + 1); else d = Math.min(d, 1); if (y < hh - 1) d = Math.min(d, D[i + ww] + 1); else d = Math.min(d, 1);
+        if (x < ww - 1 && y < hh - 1) d = Math.min(d, D[i + ww + 1] + 1.4); if (x > 0 && y < hh - 1) d = Math.min(d, D[i + ww - 1] + 1.4); D[i] = d; }
+      const seen = new Uint8Array(ww * hh); let best = null;
+      for (let s = 0; s < D.length; s++) {
+        if (seen[s] || D[s] < k) continue;
+        const q = [s]; seen[s] = 1; let n = 0, sx = 0, sy = 0;
+        while (q.length) { const i = q.pop(); n++; sx += i % ww; sy += (i / ww) | 0;
+          const x = i % ww, y = (i / ww) | 0;
+          for (const j of [x > 0 ? i - 1 : -1, x < ww - 1 ? i + 1 : -1, y > 0 ? i - ww : -1, y < hh - 1 ? i + ww : -1])
+            if (j >= 0 && !seen[j] && D[j] >= k) { seen[j] = 1; q.push(j); } }
+        if (n < 0.2 * Acore || n > 3.5 * Acore) continue;
+        const cx = sx / n + x0, cy = sy / n + y0, dist = Math.hypot(cx - ex, cy - ey);
+        const score = dist / rb + Math.abs(Math.log(n / Acore));
+        if (!best || score < best.score) best = { x: cx, y: cy, score };
+      }
+      if (!best) { lost++; last.t = t; return { t, found: false }; }
+      if (last.t != null && !lost) { vx = 0.5 * vx + 0.5 * (best.x - last.x) / dt; vy = 0.5 * vy + 0.5 * (best.y - last.y) / dt; }
+      else { vx = 0; vy = 0; }
+      last = { x: best.x, y: best.y, t }; lost = 0;
+      // which directions around the ball are blocked by something that's neither ground nor ball (the stick)
+      const sec = new Array(8).fill(0), tot = new Array(8).fill(0), r0 = 1.3 * rb, r1 = 2.6 * rb;
+      for (let y = Math.max(0, Math.floor(best.y - r1)); y <= Math.min(H - 1, best.y + r1); y++) for (let x = Math.max(0, Math.floor(best.x - r1)); x <= Math.min(W - 1, best.x + r1); x++) {
+        const dx = x - best.x, dy = y - best.y, d = Math.hypot(dx, dy); if (d < r0 || d > r1) continue;
+        const sct = ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8; tot[sct]++;
+        const i = (y * W + x) * 4;
+        if (L1(px, i, m.ground) <= T_G) continue;                                   // plain ground
+        const changed = Math.abs(px[i] - m.px0[i]) + Math.abs(px[i + 1] - m.px0[i + 1]) + Math.abs(px[i + 2] - m.px0[i + 2]) > 60;
+        if (changed || L1(px, i, m.mb) > m.tolB) sec[sct]++;                        // not a static white line
+      }
+      const cover = sec.map((n, i) => tot[i] > 0 && n / tot[i] >= 0.25);
+      return { t, found: true, x: best.x, y: best.y, enc: cover.filter(Boolean).length, ew: cover[0] && cover[4] };
+    }
+  };
+}
+/* Control = first moment the ball has left its spot and is held by the stick for ~0.2 s:
+   the stick head surrounds it on both sides (in the pocket), or it's being carried up off the ground beside the stick. */
+function decideControl(frames, m) {
+  if (frames.length < 4) return null;
+  const dts = []; for (let i = 1; i < frames.length; i++) dts.push(frames[i].t - frames[i - 1].t);
+  dts.sort((a, b) => a - b); const dt = dts[dts.length >> 1] || 1 / 30;
+  const need = Math.max(4, Math.round(0.18 / dt));
+  let start = -1, count = 0, gap = 0;
+  for (let i = 0; i < frames.length; i++) {
+    const f = frames[i];
+    let ok = false;
+    if (f.found) {
+      const disp = Math.hypot(f.x - m.cx, f.y - m.cy);
+      const cradled = disp > 1.0 * m.rb && f.ew && f.enc >= 4;          // stick head around the ball on both sides
+      const lifted = m.cy - f.y > 1.0 * m.rb && disp > 1.5 * m.rb && f.enc >= 2; // carried up off the ground next to the stick
+      ok = cradled || lifted;
+    }
+    if (ok) { if (start < 0) { start = i; count = 0; } count++; gap = 0; if (count >= need) return frames[start].t; }
+    else if (!f.found && start >= 0 && gap < 2) gap++;
+    else { start = -1; count = 0; gap = 0; }
+  }
+  return null;
+}
+async function findControl(file, beepT, opts, onP) {
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto';
+  Object.assign(v.style, { position: 'fixed', right: '0', bottom: '0', width: '96px', height: '54px', opacity: '0.01', pointerEvents: 'none', zIndex: '-1' });
+  const url = URL.createObjectURL(file); v.src = url; document.body.append(v);
+  try {
+    await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(new Error('load')); });
+    await fixDuration(v);
+    const W = 240, H = Math.max(60, Math.round(240 * v.videoHeight / v.videoWidth));
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const g2 = cv.getContext('2d', { willReadFrequently: true });
+    const grab = () => { g2.drawImage(v, 0, 0, W, H); return g2.getImageData(0, 0, W, H).data; };
+    v.currentTime = Math.max(0, beepT - 0.12); await once(v, 'seeked'); await sleep(40);
+    const model = buildBallModel(grab(), W, H, opts);
+    if (!model) return { ok: false, reason: 'noball' };
+    const end = Math.min(v.duration, beepT + 4.5);
+    const tracker = makeTracker(model), frames = [];
+    v.currentTime = Math.max(0, beepT - 0.03); await once(v, 'seeked');
+    await new Promise(res => {
+      let done = false;
+      const finish = () => { if (!done) { done = true; v.pause(); res(); } };
+      if (v.requestVideoFrameCallback) {
+        const onFrame = (now, meta) => {
+          if (done) return;
+          const t = meta.mediaTime;
+          if (t >= beepT - 0.03) frames.push(tracker.step(grab(), t));
+          onP && onP(clamp((t - beepT) / (end - beepT), 0, 1));
+          if (t >= end || v.ended) return finish();
+          v.requestVideoFrameCallback(onFrame);
+        };
+        v.requestVideoFrameCallback(onFrame);
+        v.onended = finish; v.playbackRate = 0.5;
+        v.play().catch(finish);
+        setTimeout(finish, (end - beepT) * 2000 + 10000);
+      } else {
+        (async () => {
+          for (let t = beepT; t < end; t += 1 / 30) { v.currentTime = t; await once(v, 'seeked'); frames.push(tracker.step(grab(), t)); onP && onP((t - beepT) / (end - beepT)); }
+          finish();
+        })();
+      }
+    });
+    const t = decideControl(frames, model);
+    return { ok: t != null, t, frames, model, reason: t == null ? 'nocontrol' : '' };
+  } catch (e) { return { ok: false, reason: 'error' }; }
+  finally { v.remove(); URL.revokeObjectURL(url); }
 }
 
 /* Find the first onset of the beep tone in a media file's audio (Goertzel filter). Returns seconds or null. */
@@ -683,13 +918,14 @@ function fixDuration(v) {
 }
 
 /* ---------- RUN flow: review + mark ---------- */
-const S = { file: null, url: null, dur: 0, fps: 30, beep: null, control: null, autoBeep: null, rate: 1, busy: false };
+const S = { file: null, url: null, dur: 0, fps: 30, beep: null, control: null, autoBeep: null, rate: 1, busy: false, tap: false, opts: null, job: 0 };
 const rv = $('#rv');
 let stopRClock = null, uiRaf = 0;
 
 function resetRun(loading) {
   if (S.url) URL.revokeObjectURL(S.url);
-  Object.assign(S, { file: null, url: null, dur: 0, beep: null, control: null, autoBeep: null, rate: 1, busy: false });
+  Object.assign(S, { file: null, url: null, dur: 0, beep: null, control: null, autoBeep: null, rate: 1, busy: false, tap: false, opts: null, job: S.job + 1 });
+  setAuto(''); $('#btnTapBall').hidden = true; rv.parentElement.classList.remove('tap');
   rv.removeAttribute('src'); rv.load();
   $('#cMark').hidden = true;
   if (!loading) {
@@ -701,9 +937,10 @@ function resetRun(loading) {
   if (stopRClock) { stopRClock(); stopRClock = null; }
   cancelAnimationFrame(uiRaf);
 }
-async function loadClip(file) {
+async function loadClip(file, opts = {}) {
   if (!file) return;
   resetRun(true);
+  S.opts = opts;
   if (C.state !== 'off') { camRun++; discardRec(); C.state = 'review'; }
   S.file = file; S.url = URL.createObjectURL(file);
   $('#clipMsg').textContent = 'Loading clip…';
@@ -730,13 +967,56 @@ async function loadClip(file) {
   if (S.file !== file) return;
   if (t != null) {
     S.beep = S.autoBeep = Math.round(t * 1000) / 1000;
-    $('#beepNote').textContent = 'auto-detected from audio — fine-tune if needed';
+    $('#beepNote').textContent = 'heard in the audio';
     rv.currentTime = Math.max(0, t - 0.4);
+  } else if (opts.beepGuess != null && opts.beepGuess < S.dur) {
+    S.beep = Math.round(opts.beepGuess * 1000) / 1000;
+    $('#beepNote').textContent = 'from the app’s clock';
+    rv.currentTime = Math.max(0, S.beep - 0.4);
   } else {
-    $('#beepNote').textContent = "couldn't hear the beep — step to its start (watch the audio) and tap";
+    $('#beepNote').textContent = "couldn't hear the beep: step to it and tap here";
+  }
+  updateMarks();
+  if (S.beep != null) autoControl(opts.settings ? { settings: opts.settings } : { settings: curSettings() }, !opts.settings);
+}
+function setAuto(msg, cls) { const a = $('#autoMsg'); a.hidden = !msg; a.textContent = msg; a.className = 'automsg' + (cls ? ' ' + cls : ''); }
+async function autoControl(modelOpts, isUpload) {
+  const job = S.job, file = S.file;
+  $('#btnTapBall').hidden = true;
+  setAuto('Finding when the ball is in your pocket… 0%', 'work');
+  $('#ctlNote').textContent = 'finding it…';
+  const res = await findControl(file, S.beep, modelOpts, f => { if (S.job === job) setAuto('Finding when the ball is in your pocket… ' + Math.round(f * 100) + '%', 'work'); });
+  if (S.job !== job) return;
+  if (res.ok) {
+    S.control = Math.round(res.t * 1000) / 1000;
+    $('#ctlNote').textContent = 'found by the app';
+    setAuto('Found it: ball in the pocket ' + fmtMs(Math.round((S.control - S.beep) * 1000)) + ' s after the beep.');
+    rv.pause(); rv.currentTime = S.control + 0.5 / S.fps;
+  } else {
+    $('#ctlNote').textContent = 'not found yet';
+    setAuto(res.reason === 'noball'
+      ? (isUpload ? 'Tap the ball (just before the beep) and the app will track it.' : 'Couldn’t see the ball in the circle at the beep. Tap the ball to try again.')
+      : 'Couldn’t tell when the ball was picked up. Tap the ball before the beep to try again, or step to the frame and tap Control.', 'fail');
+    $('#btnTapBall').hidden = false;
   }
   updateMarks();
 }
+function startTapBall() {
+  if (S.beep == null) { toast('Set the beep first'); return; }
+  rv.pause(); rv.currentTime = Math.max(0, S.beep - 0.12);
+  S.tap = true; rv.parentElement.classList.add('tap');
+  setAuto('Tap the ball in the picture.', 'work');
+}
+rv.addEventListener('click', e => {
+  if (!S.tap) return;
+  e.preventDefault();
+  const r = rv.getBoundingClientRect(), vw = rv.videoWidth, vh = rv.videoHeight;
+  const sc = Math.min(r.width / vw, r.height / vh), cw = vw * sc, ch = vh * sc;
+  const x = (e.clientX - r.left - (r.width - cw) / 2) / cw, y = (e.clientY - r.top - (r.height - ch) / 2) / ch;
+  if (x < 0 || y < 0 || x > 1 || y > 1) return;
+  S.tap = false; rv.parentElement.classList.remove('tap');
+  autoControl({ seed: { x, y } }, true);
+});
 function updateTransport() {
   const t = rv.currentTime || 0;
   if (document.activeElement !== $('#scrub')) $('#scrub').value = t;
@@ -919,7 +1199,7 @@ function openRun(id) {
   openId = id;
   const video = h('video', { playsinline: true, controls: true, preload: 'auto' });
   resolveBlob(a.asset).then(u => { if (u) video.src = u; });
-  const dl = h('a', { class: 'btn', text: 'Save video', download: 'faceoff-' + fmtMs(a.timeMs) + 's.' + 'mp4' });
+  const dl = h('a', { class: 'btn', text: 'Save video', download: 'faceoff-' + fmtMs(a.timeMs) + 's.mp4' });
   resolveBlob(a.asset).then(u => dl.href = u);
   const clock = h('div', { class: 'clock' }, h('div', { class: 't', text: '0.000' }), h('div', { class: 's', text: 'ready' }));
   const likeBtn = h('button', { class: 'btn' }), flagBtn = h('button', { class: 'btn' });
@@ -985,7 +1265,7 @@ $('#btnTest').onclick = () => { playBeep(); toast('Beep test'); };
 $('#btnCam').onclick = () => $('#inCam').click();
 $('#btnCamOn').onclick = camOn;
 $('#btnCamOff').onclick = closeCam;
-$('#btnRescan').onclick = () => { if (C.stream) startScan(); };
+$('#btnSound').onclick = async () => { ensureCtx(); speak('Set'); await sleep(900); playBeep(); };
 $('#btnFlip').onclick = () => { C.facing = C.facing === 'user' ? 'environment' : 'user'; camOn(); };
 $('#btnCamGo').onclick = () => {
   if (!C.stream) return;
@@ -1011,8 +1291,9 @@ $$('[data-step]').forEach(b => b.onclick = () => stepFrames(+b.dataset.step));
 $('#scrub').addEventListener('input', e => { rv.pause(); rv.currentTime = +e.target.value; });
 $('#fps').onchange = e => { S.fps = +e.target.value; };
 $('#btnSlow').onclick = e => { S.rate = S.rate === 1 ? 0.25 : 1; rv.playbackRate = S.rate; e.currentTarget.setAttribute('aria-pressed', S.rate !== 1); e.currentTarget.style.borderColor = S.rate !== 1 ? 'var(--lime)' : ''; };
-$('#setBeep').onclick = () => { rv.pause(); S.beep = Math.round(frameNow() * 1000) / 1000; $('#beepNote').textContent = 'set manually'; S.autoBeep = S.autoBeep; updateMarks(); };
-$('#setCtl').onclick = () => { rv.pause(); S.control = Math.round(frameNow() * 1000) / 1000; updateMarks(); };
+$('#setBeep').onclick = () => { rv.pause(); S.beep = Math.round(frameNow() * 1000) / 1000; $('#beepNote').textContent = 'set by you'; S.autoBeep = S.autoBeep; updateMarks(); };
+$('#setCtl').onclick = () => { rv.pause(); S.control = Math.round(frameNow() * 1000) / 1000; $('#ctlNote').textContent = 'set by you'; updateMarks(); };
+$('#btnTapBall').onclick = startTapBall;
 $('#handle').value = lsGet('fo-handle') || ''; $('#club').value = lsGet('fo-club') || '';
 document.addEventListener('keydown', e => {
   if ($('#cMark').hidden || $('#v-run').hidden || /INPUT|SELECT/.test(document.activeElement.tagName) && document.activeElement.type !== 'range') return;
