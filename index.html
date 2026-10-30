@@ -119,6 +119,33 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
 .pl-speed .btn{flex:1;padding:8px 4px}
 .pl-speed .btn[aria-pressed=true]{background:var(--ink);color:#0a0e12;border-color:var(--ink)}
 .pl-busy .pl-bar,.pl-busy .pl-ctl,.pl-busy .pl-ctl2,.pl-busy .pl-big{pointer-events:none;opacity:.35}
+/* stats */
+.sec{font-family:var(--disp);font-weight:800;font-size:20px;letter-spacing:.06em;text-transform:uppercase;margin:18px 0 8px;color:var(--mute)}
+.card h3{margin:0 0 4px;font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:.04em;text-transform:uppercase}
+.recgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rec{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px;text-align:left;width:100%}
+.rec span{display:block;font-family:var(--disp);font-weight:700;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.rec b{display:block;font-family:var(--disp);font-weight:800;font-size:28px;line-height:1.1;font-variant-numeric:tabular-nums}
+.rec small{display:block;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.statgrid .stat b{font-size:24px}
+.chartcard .chart{position:relative;margin-top:6px}
+.chart svg{display:block;width:100%;overflow:visible}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--mute);margin-top:6px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.legend i.dot{border-radius:50%}
+.legend i.line{height:3px;width:16px;border-radius:2px;vertical-align:3px}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:#0a0e12;font-size:13px;font-weight:600;padding:6px 9px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-100%);z-index:2;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.tip span{display:block;font-weight:500}
+.tablecard{padding:6px;overflow-x:auto}
+.ptable{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.ptable th{font-family:var(--disp);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px;color:var(--mute);text-align:right;padding:8px 6px;cursor:pointer;white-space:nowrap;border-bottom:1px solid var(--line)}
+.ptable th:first-child,.ptable td:first-child{text-align:left}
+.ptable th[aria-sort]{color:var(--ink)}
+.ptable td{padding:8px 6px;text-align:right;border-bottom:1px solid #1a2430;white-space:nowrap}
+.ptable tr.me td{color:var(--lime)}
+.ptable td:first-child{max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.nodata{color:var(--mute);padding:10px 2px}
 /* board */
 .seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .seg button{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;color:var(--mute)}
@@ -157,9 +184,10 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
   </header>
 
   <nav role="tablist" id="tabs">
-    <button role="tab" data-tab="board" aria-selected="true">My board</button>
-    <button role="tab" data-tab="run" aria-selected="false">Run a face-off</button>
-    <button role="tab" data-tab="me" aria-selected="false">My runs</button>
+    <button role="tab" data-tab="board" aria-selected="true">Board</button>
+    <button role="tab" data-tab="run" aria-selected="false">Face-off</button>
+    <button role="tab" data-tab="stats" aria-selected="false">Stats</button>
+    <button role="tab" data-tab="me" aria-selected="false">Mine</button>
   </nav>
 
   <div id="notice" class="notice" hidden></div>
@@ -187,7 +215,7 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
   <section id="v-run" hidden>
     <div class="card" id="cCam">
       <h2>Face-off cam</h2>
-      <div class="muted small">Prop your phone up low, facing you (front camera, so you can see the screen). Put the ball in the circle with your stick head <b>right behind it</b>, then press <b>Start</b>. You get 3 seconds, then <b>Down… Set… BEEP</b>. The app records the rep and times you to the moment the ball is in your pocket.</div>
+      <div class="muted small">Prop your phone up low, facing you (front camera, so you can see the screen). Press <b>Start</b>. When it says <b>Down</b>, put the ball in the circle with your stick head <b>on the ground right behind it</b>. Once you're in position it says <b>Set</b>, then <b>Go</b>. Hold still between Set and Go or it's a false start. The app times you from Go to the moment the ball is in your pocket.</div>
       <div id="camOff">
         <button class="btn primary" id="btnCamOn" style="width:100%;margin-top:12px">Start camera</button>
       </div>
@@ -240,21 +268,56 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
       <h2>Your rep</h2>
       <div class="automsg work" id="autoMsg">Timing your rep…</div>
       <div id="repPlayer" style="margin-top:10px"></div>
-      <div class="result"><div class="muted small">Face-off time</div><div class="n" id="vTime">–</div><div class="small muted">Timed by the app: from the beep to the ball in your pocket</div></div>
+      <div class="result"><div class="muted small">Face-off time</div><div class="n" id="vTime">–</div><div class="small muted">Timed by the app: from Go to the ball in your pocket</div></div>
 
       <div id="postBox" style="margin-top:14px" hidden>
         <div class="row stretch">
-          <div><label for="handle">Your name</label><input type="text" id="handle" maxlength="20" placeholder="e.g. Ari B."></div>
+          <div><label for="handle">Name on the board</label><input type="text" id="handle" maxlength="20" placeholder="e.g. Ari B."></div>
           <div><label for="club">School / club (optional)</label><input type="text" id="club" maxlength="30" placeholder="e.g. Bishop's"></div>
         </div>
-        <div class="small muted" style="margin-top:8px">Runs and clips are saved on this phone only.</div>
+        <div class="small muted" style="margin-top:8px">The rep clip (a few seconds around the beep) is saved and shown publicly.</div>
         <div class="row stretch" style="margin-top:10px">
-          <button class="btn primary" id="btnPost">Save run</button>
+          <button class="btn primary" id="btnPost">Post to leaderboard</button>
         </div>
         <div class="bar" id="barWrap" hidden><i id="bar"></i></div>
         <div class="small muted" id="postMsg" style="margin-top:6px"></div>
       </div>
       <button class="btn" id="btnReset" style="width:100%;margin-top:10px">Next rep</button>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section id="v-stats" hidden>
+    <div class="seg" id="segStats">
+      <button data-v="all" aria-pressed="true">All time</button>
+      <button data-v="week" aria-pressed="false">This week</button>
+      <button data-v="day" aria-pressed="false">Today</button>
+    </div>
+    <h2 class="sec">Records</h2>
+    <div class="recgrid" id="recGrid"></div>
+    <h2 class="sec">Everyone's times</h2>
+    <div class="statgrid" id="distGrid"></div>
+    <div class="card chartcard">
+      <h3>How the times are spread</h3>
+      <div class="legend" id="histLegend"></div>
+      <div class="chart" id="hist"></div>
+      <div class="small muted" id="histNote"></div>
+    </div>
+    <div class="card">
+      <h3>Outliers</h3>
+      <div class="small muted" style="margin-bottom:8px">Times far outside the usual range: faster than Q1 − 1.5 × IQR or slower than Q3 + 1.5 × IQR. Tap one to watch it.</div>
+      <div class="list" id="outList"></div>
+    </div>
+    <h2 class="sec">Players</h2>
+    <div class="card tablecard"><table class="ptable" id="pTable"></table></div>
+    <h2 class="sec">You</h2>
+    <div class="statgrid" id="meGrid"></div>
+    <div class="card chartcard" id="trendCard">
+      <h3>Your times, rep by rep</h3>
+      <div class="small muted">Higher on the chart = faster.</div>
+      <div class="legend" id="trendLegend"></div>
+      <div class="chart" id="trend"></div>
+      <div class="small" id="trendNote"></div>
     </div>
   </section>
 
@@ -272,46 +335,84 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
 <div id="modalRoot"></div>
 
 <script>
-/* Standalone mode: replaces Claude's shared storage with this device's storage */
+/* Shared leaderboard on Supabase: stands in for Claude's storage so the same app code runs on GitHub Pages. */
 (() => {
-  const LS = 'fo-db-v1';
-  let store = {}; try { store = JSON.parse(localStorage.getItem(LS) || '{}'); } catch {}
-  const save = () => { try { localStorage.setItem(LS, JSON.stringify(store)); } catch {} };
-  const subs = new Set(); const notify = () => subs.forEach(f => f());
-  const col = p => (store[p] = store[p] || {});
-  const snap = (id, d) => ({ id, exists: !!d, data: () => d, metadata: {} });
-  const rid = () => Math.random().toString(36).slice(2, 12);
-  function docRef(path, id) {
-    return { id, path: path + '/' + id,
-      async get() { return snap(id, col(path)[id]); },
-      async set(d) { col(path)[id] = JSON.parse(JSON.stringify(d)); save(); notify(); },
-      async update(d) { Object.assign(col(path)[id] || {}, d); save(); notify(); },
-      async delete() { delete col(path)[id]; save(); notify(); } };
+  const SB_URL = 'https://aeecqgbhnxnmpzifgcxi.supabase.co'.replace(/\/+$/, ''), SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFlZWNxZ2JobnhubXB6aWZnY3hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMTg1OTUsImV4cCI6MjEwODg5NDU5NX0.sEPAsR6sk4lTWPd1Y0hKf4uQ9BQdReFvbegGsHYNFaQ';
+  const H = { apikey: SB_KEY };
+  if (SB_KEY.startsWith('eyJ')) H.Authorization = 'Bearer ' + SB_KEY;      // older "anon" keys are JWTs
+  const rid = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
+  // this phone's identity: a random secret that never leaves the phone; others only ever see its SHA-256
+  let secret = null;
+  try { secret = localStorage.getItem('fo-secret'); } catch {}
+  if (!secret) { secret = rid() + rid(); try { localStorage.setItem('fo-secret', secret); } catch {} }
+  const myHash = crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret))
+    .then(b => Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, '0')).join(''));
+  const fail = async (r, what) => { let m = ''; try { m = (await r.json()).message || ''; } catch {} const e = new Error(what + ' failed (' + r.status + (m ? ': ' + m : '') + ')'); e.code = r.status === 413 ? 'too_large' : r.status >= 500 ? 'unavailable' : 'invalid_argument'; throw e; };
+  const rest = (path, opt = {}) => fetch(SB_URL + '/rest/v1/' + path, { ...opt, headers: { ...H, 'Content-Type': 'application/json', ...(opt.headers || {}) } });
+
+  const cache = new Map();          // collection -> { rows: [{id,data,owner_hash}], subs: Set<fn>, loaded }
+  const col = c => { if (!cache.has(c)) cache.set(c, { rows: [], subs: new Set(), loaded: false }); return cache.get(c); };
+  async function refresh(c) {
+    const r = await rest('docs?collection=eq.' + encodeURIComponent(c) + '&select=id,data,owner_hash,created_at&order=created_at.desc&limit=1000');
+    if (!r.ok) await fail(r, 'Loading the leaderboard');
+    const k = col(c); k.rows = await r.json(); k.loaded = true;
+    k.subs.forEach(f => f());
   }
-  function query(path, o = {}) {
-    const run = () => { let docs = Object.entries(col(path)).map(([id, d]) => snap(id, d));
-      if (o.f) docs.sort((a, b) => (a.data()[o.f] - b.data()[o.f]) * (o.d === 'desc' ? -1 : 1));
-      if (o.n) docs = docs.slice(0, o.n); return { docs, size: docs.length, empty: !docs.length }; };
-    const q = { where: () => q, orderBy: (f, d) => query(path, { ...o, f, d }), limit: n => query(path, { ...o, n }),
-      async get() { return run(); },
-      onSnapshot(next) { const f = () => next(run()); subs.add(f); setTimeout(f, 0); return () => subs.delete(f); },
-      doc: id => docRef(path, id || rid()),
-      async add(d) { const r = docRef(path, rid()); await r.set(d); return r; } };
+  setInterval(() => { if (document.hidden) return; cache.forEach((k, c) => { if (k.subs.size) refresh(c).catch(() => {}); }); }, 8000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) cache.forEach((k, c) => { if (k.subs.size) refresh(c).catch(() => {}); }); });
+  const snap = row => ({ id: row.id, exists: true, data: () => row.data, metadata: {} });
+
+  function query(c, o = {}) {
+    const run = () => {
+      let docs = col(c).rows.map(snap);
+      if (o.f) docs.sort((a, b) => ((a.data()[o.f] ?? Infinity) - (b.data()[o.f] ?? Infinity)) * (o.d === 'desc' ? -1 : 1));
+      if (o.n) docs = docs.slice(0, o.n);
+      return { docs, size: docs.length, empty: !docs.length, docChanges: () => [], metadata: {} };
+    };
+    const q = {
+      where: () => q, orderBy: (f, d) => query(c, { ...o, f, d }), limit: n => query(c, { ...o, n }),
+      async get() { await refresh(c); return run(); },
+      onSnapshot(next, err) {
+        const f = () => next(run()); col(c).subs.add(f);
+        refresh(c).catch(e => { col(c).subs.delete(f); err && err(e); });
+        return () => col(c).subs.delete(f);
+      },
+      doc: id => docRef(c, id || rid()),
+      async add(d) { const r = docRef(c, rid()); await r.set(d); return r; }
+    };
     return q;
   }
-  const db = { collection: p => query(p), doc: p => { const i = p.lastIndexOf('/'); return docRef(p.slice(0, i), p.slice(i + 1)); } };
-  let uid = null; try { uid = localStorage.getItem('fo-uid'); if (!uid) { uid = 'me-' + rid(); localStorage.setItem('fo-uid', uid); } } catch { uid = 'me'; }
-  const user = { id: async () => uid, can: () => true, canEdit: () => true, isOwner: () => true };
-  const idb = new Promise((res, rej) => { const r = indexedDB.open('fo-clips', 1); r.onupgradeneeded = () => r.result.createObjectStore('clips'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-  const tx = async (mode, fn) => { const d = await idb; return new Promise((res, rej) => { const t = d.transaction('clips', mode); const r = fn(t.objectStore('clips')); t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error); }); };
-  const urls = {};
-  window.resolveBlob = async id => { if (urls[id]) return urls[id]; const b = await tx('readonly', s => s.get(id)); return b ? (urls[id] = URL.createObjectURL(b)) : ''; };
+  function docRef(c, id) {
+    return {
+      id, path: c + '/' + id,
+      async get() { const k = col(c); if (!k.loaded) await refresh(c); const row = k.rows.find(x => x.id === id); return row ? snap(row) : { id, exists: false, data: () => undefined, metadata: {} }; },
+      async set(d) {
+        const owner_hash = await myHash;
+        const r = await rest('docs', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ collection: c, id, data: d, owner_hash }) });
+        if (!r.ok && r.status !== 409) await fail(r, 'Saving');
+        await refresh(c);
+      },
+      async update(d) { throw Object.assign(new Error('not supported'), { code: 'invalid_argument' }); },
+      async delete() {
+        const r = await rest('rpc/delete_doc', { method: 'POST', body: JSON.stringify({ p_collection: c, p_id: id, p_secret: secret }) });
+        if (!r.ok) await fail(r, 'Deleting');
+        await refresh(c);
+      }
+    };
+  }
+  const db = { collection: c => query(c), doc: p => { const i = p.lastIndexOf('/'); return docRef(p.slice(0, i), p.slice(i + 1)); } };
+  const user = { id: () => myHash, can: () => true, canEdit: () => false, isOwner: () => false };
   const assets = {
-    async upload(blob) { const id = rid() + rid(); await tx('readwrite', s => s.put(blob, id)); urls[id] = URL.createObjectURL(blob); return { id, url: urls[id], sizeBytes: blob.size, contentType: blob.type }; },
-    async delete(id) { await tx('readwrite', s => s.delete(id)); return { deleted: true }; },
+    async upload(blob, opt = {}) {
+      const type = (opt.type || blob.type || 'video/mp4').split(';')[0], path = rid() + rid() + (type === 'video/webm' ? '.webm' : '.mp4');
+      const r = await fetch(SB_URL + '/storage/v1/object/clips/' + path, { method: 'POST', headers: { ...H, 'Content-Type': type, 'x-upsert': 'false', 'cache-control': '31536000' }, body: blob });
+      if (!r.ok) await fail(r, 'Uploading the clip');
+      return { id: path, url: window.assetUrl(path), sizeBytes: blob.size, contentType: type };
+    },
+    async delete() { return { deleted: false }; },
     async list() { return { assets: [], usage: {} }; }
   };
-  window.assetUrl = id => window.resolveBlob(id);
+  window.assetUrl = id => SB_URL + '/storage/v1/object/public/clips/' + id;
   window.claude = { use: async n => ({ db, user, assets })[n] ?? null };
 })();
 
@@ -399,7 +500,76 @@ function speak(word) {
   } catch {}
 }
 /* the start call: 3 s to get set, Down, 1–3 s, Set, 0.5–2.5 s, then the beep (GO) */
-const COUNT_S = 3, DOWN_MIN = 1000, DOWN_RANGE = 2000, SET_MIN = 500, SET_RANGE = 2000;
+/* Start → "Down" → wait until in position → 0.5–2 s → "Set" → 0.5–2 s → "Go" */
+const POS_MIN = 500, POS_RANGE = 1500, SET_MIN = 500, SET_RANGE = 1500, SCAN_TIMEOUT = 90000;
+/* Listens to the microphone for the moment "Go" is actually heard (the true start of the clock).
+   Returns the performance-clock time (ms) of the first sound after arm(). */
+function makeOnsetDetector(stream) {
+  const tracks = stream.getAudioTracks(); if (!tracks.length) return null;
+  const c = ensureCtx();
+  let src;
+  try { src = c.createMediaStreamSource(new MediaStream([tracks[0]])); } catch { return null; }
+  const an = c.createAnalyser(); an.fftSize = 2048; an.smoothingTimeConstant = 0;
+  const mute = c.createGain(); mute.gain.value = 0;
+  src.connect(an); an.connect(mute); mute.connect(c.destination);
+  const buf = new Float32Array(an.fftSize), sr = c.sampleRate, win = Math.max(32, Math.round(sr * 0.0025));
+  const inLatMs = (c.baseLatency || 0.005) * 1000;
+  let armed = false, callCtx = 0, found = null, foundCtx = null, levels = [];
+  const poll = () => {
+    const nowPerf = performance.now(), nowCtx = c.currentTime, N = buf.length;
+    an.getFloatTimeDomainData(buf);
+    if (!armed) {                                   // learn the background level
+      let s = 0; for (let k = 0; k < N; k++) s += buf[k] * buf[k];
+      levels.push(Math.sqrt(s / N)); if (levels.length > 120) levels.shift();
+      return;
+    }
+    const sorted = levels.slice().sort((a, b) => a - b), floor = sorted.length ? sorted[Math.floor(sorted.length * 0.3)] : 0.002;
+    const thr = Math.max(floor * 6, 0.015);
+    for (let i = 0; i + win <= N; i += win >> 1) {
+      const tCtx = nowCtx - (N - i) / sr;
+      if (tCtx < callCtx) continue;
+      let s = 0; for (let k = i; k < i + win; k++) s += buf[k] * buf[k];
+      if (Math.sqrt(s / win) > thr) {
+        let j = i; while (j > 0 && j > i - win && Math.abs(buf[j - 1]) > thr * 0.5) j--;   // walk back to the first loud sample
+        const tc = nowCtx - (N - j) / sr, perf = nowPerf - (nowCtx - tc) * 1000 - inLatMs;
+        if (found == null || perf < found) { found = perf; foundCtx = tc; }
+        break;
+      }
+    }
+  };
+  const timer = setInterval(poll, 8);
+  return {
+    arm(callPerf) { found = null; foundCtx = null; callCtx = c.currentTime - (performance.now() - callPerf) / 1000; armed = true; },
+    disarm() { armed = false; },
+    result() { return found; }, resultCtx() { return foundCtx; },
+    stop() { clearInterval(timer); try { src.disconnect(); an.disconnect(); mute.disconnect(); } catch {} }
+  };
+}
+/* Say "Go" and find out exactly when it was heard: microphone onset if possible, else the speech start event. */
+function sayGo(det) {
+  return new Promise(res => {
+    const callPerf = performance.now(); let startPerf = null, done = false;
+    det && det.arm(callPerf);
+    const finish = () => {
+      if (done) return; done = true; clearInterval(iv);
+      const m = det && det.result(); det && det.disarm();
+      if (m != null && m > callPerf - 20) res({ perf: m, method: 'mic' });
+      else if (startPerf != null) res({ perf: startPerf + ((actx && (actx.outputLatency || actx.baseLatency)) || 0) * 1000, method: 'speech' });
+      else res({ perf: callPerf + 150, method: 'estimate' });
+    };
+    try {
+      const ss = window.speechSynthesis;
+      if (ss) { const u = new SpeechSynthesisUtterance('Go'); u.rate = 0.9; u.pitch = 0.8; u.volume = 1; u.onstart = () => { startPerf = performance.now(); }; ss.resume(); ss.speak(u); }
+    } catch {}
+    // keep listening 120 ms past the first sound in case an earlier part of the word shows up late, then stop
+    const iv = setInterval(() => {
+      const m = det && det.result(), now = performance.now();
+      if ((m != null && now > m + 120) || now - callPerf > 1300) finish();
+    }, 20);
+  });
+}
+/* the second-device station still beeps with "Go" so an uploaded clip can be timed from its audio */
+const COUNT_S = 3, DOWN_MIN = 1000, DOWN_RANGE = 2000;
 
 /* ---------- second-device beep station (fallback) ---------- */
 let beepRun = 0;
@@ -414,7 +584,7 @@ async function runStation() {
   await sleep(DOWN_MIN + Math.random() * DOWN_RANGE); if (!live()) return;
   st.className = 'station set'; big.textContent = 'Set'; sub.textContent = 'Wait for it…'; speak('Set');
   await sleep(SET_MIN + Math.random() * SET_RANGE); if (!live()) return;
-  playBeep(); st.className = 'station go'; big.textContent = 'BEEP'; sub.textContent = 'Go!';
+  speak('Go'); playBeep(); st.className = 'station go'; big.textContent = 'GO'; sub.textContent = '';
   await sleep(1500); if (!live()) return;
   st.className = 'station'; big.textContent = 'Done'; sub.textContent = 'Stop recording, then add your clip';
   delete btn.dataset.running; btn.textContent = 'Run again';
@@ -472,18 +642,18 @@ function groundIdx(w, h, G, step = 1) {
 }
 function buildMasks(w, h) {
   const G = geom(w, h), { cx, cy, r } = G.ball;
-  const ball = [], ring = [], headL = [], headR = [], partner = [], union = [];
+  const ball = [], ring = [], headL = [], headR = [], headLow = [], partner = [], union = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const p = y * w + x, d = Math.hypot(x - cx, y - cy);
     let u = false;
     if (d <= 0.85 * r) { ball.push(p); u = true; }
     else if (d >= 1.3 * r && d <= 1.8 * r && !inEll(x, y, G.head, 1.15) && !(G.partner && inEll(x, y, G.partner, 1.15))) ring.push(p);
-    if (inEll(x, y, G.head)) { (x < G.head.cx ? headL : headR).push(p); u = true; }
+    if (inEll(x, y, G.head)) { (x < G.head.cx ? headL : headR).push(p); if (y > G.head.cy) headLow.push(p); u = true; }
     if (G.partner && inEll(x, y, G.partner)) { partner.push(p); u = true; }
     if (u || d <= r) union.push(p);
   }
   C.prev = null;
-  return { ball, ring, headL, headR, partner, union, ground: groundIdx(w, h, G) };
+  return { ball, ring, headL, headR, headLow, partner, union, ground: groundIdx(w, h, G) };
 }
 function medianColor(px, idx) {
   if (!idx.length) return [0, 0, 0];
@@ -547,7 +717,7 @@ async function camOn() {
   try {
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new Error('unsupported');
     C.stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: C.facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+      video: { facingMode: C.facing, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } },
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
     });
   } catch (e) {
@@ -563,12 +733,15 @@ async function camOn() {
   $('#camOff').hidden = true; $('#camOn').hidden = false; $('#camMsg').textContent = '';
   try { C.wake = await navigator.wakeLock?.request('screen'); } catch {}
   clearInterval(C.timer); C.timer = setInterval(camTick, 100);
-  backToWait('Ball in the circle, stick head right behind it, then press Start');
+  if (C.onset) C.onset.stop();
+  C.onset = makeOnsetDetector(C.stream);
+  backToWait('Press Start, then get in position when it says Down');
 }
 function closeCam() {
   camRun++; discardRec();
   clearInterval(C.timer); C.timer = 0;
   if (C.stream) C.stream.getTracks().forEach(t => t.stop());
+  if (C.onset) { C.onset.stop(); C.onset = null; }
   C.stream = null; C.state = 'off'; C.masks = null; C.prev = null; C.phase = '';
   lv.srcObject = null; $('#camOn').hidden = true; $('#camOff').hidden = false;
   try { C.wake?.release(); } catch {} C.wake = null;
@@ -581,10 +754,11 @@ function statusHint() {
   if (!C.ballOk) return o.ring > 0.5 ? 'Keep hands and feet out from around the ball' : 'Ball isn’t in the circle yet';
   if (!C.headOk) {
     if (o.headL < HEAD_MIN && o.headR < HEAD_MIN) return 'Put your stick head right behind the ball';
-    return 'Center your stick head behind the ball';
+    if (o.headL < HEAD_MIN || o.headR < HEAD_MIN) return 'Center your stick head behind the ball';
+    return 'Get your stick head down on the ground behind the ball';
   }
   if (!C.partnerOk) return 'Partner’s stick head goes in front of the ball';
-  return 'Lined up. Press Start';
+  return 'In position';
 }
 function analyze(px) {
   const M = C.masks, g = medianColor(px, M.ground);
@@ -594,9 +768,9 @@ function analyze(px) {
     for (const p of idx) { const i = p * 4; if (Math.abs(px[i] - g[0]) + Math.abs(px[i + 1] - g[1]) + Math.abs(px[i + 2] - g[2]) > T_G) n++; }
     return n / idx.length;
   };
-  C.occ = { ball: far(M.ball), ring: far(M.ring), headL: far(M.headL), headR: far(M.headR), partner: M.partner.length ? far(M.partner) : 1 };
+  C.occ = { ball: far(M.ball), ring: far(M.ring), headL: far(M.headL), headR: far(M.headR), headLow: far(M.headLow), partner: M.partner.length ? far(M.partner) : 1 };
   C.ballOk = C.occ.ball >= BALL_MIN && C.occ.ring <= 0.5;
-  C.headOk = C.occ.headL >= HEAD_MIN && C.occ.headR >= HEAD_MIN;
+  C.headOk = C.occ.headL >= HEAD_MIN && C.occ.headR >= HEAD_MIN && C.occ.headLow >= 0.35;   // part of the stick down on the ground behind the ball
   C.partnerOk = !C.partner || C.occ.partner >= HEAD_MIN;
   C.aligned = C.ballOk && C.headOk && C.partnerOk;
   const cur = new Float32Array(M.union.length); let m = 0;
@@ -606,7 +780,7 @@ function analyze(px) {
   }
   C.motion = C.prev ? m / Math.max(1, M.union.length) : 99; C.prev = cur; C.cur = cur;
 }
-const camBusy = () => C.state === 'count' || C.state === 'seq' || C.state === 'track';
+const camBusy = () => C.state === 'scan' || C.state === 'inpos' || C.state === 'seq' || C.state === 'track';
 function camTick() {
   if (!camActive() || !lv.videoWidth) return;
   if (ov.width !== lv.videoWidth || ov.height !== lv.videoHeight) sizeStage();
@@ -615,7 +789,8 @@ function camTick() {
   const px = dctx.getImageData(0, 0, C.dw, C.dh).data;
   $('#btnCamGo').textContent = camBusy() ? 'Cancel' : 'Start';
   analyze(px);
-  if (C.state === 'wait') setStatus(statusHint());
+  if (C.state === 'wait') setStatus(C.aligned ? 'In position. Press Start' : statusHint() + ', then press Start');
+  else if (C.state === 'scan') setStatus(C.aligned ? 'In position…' : 'Get in position: ' + statusHint().toLowerCase());
   else if (C.state === 'seq' && C.phase === 'set' && C.fs && C.setSnap && C.cur && C.setSnap.length === C.cur.length) {
     // false start: anything moves inside the outline after "Set" (an overall brightness change is ignored)
     const a = C.cur, b = C.setSnap, n = a.length; let mean = 0, d = 0;
@@ -635,28 +810,35 @@ function grabLive() {
 }
 /* Follow the ball on the live camera, frame by frame, after the beep.
    Frame times and the beep are on the same clock, so no playback is needed to get the time. */
-function startLiveTrack(model, beepPerf) {
+function startLiveTrack(model) {
   const W = model.W, H = model.H, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const g = cv.getContext('2d', { willReadFrequently: true });
-  const tracker = makeTracker(model), frames = [];
-  let done = false, lastT = -1e9;
+  const tracker = makeTracker(model), frames = [], gaps = [];
+  let done = false, lastT = -1e9, lastPres = null;
   const step = frameMs => {
-    const t = (frameMs - beepPerf) / 1000;
+    const t = frameMs / 1000;                        // performance clock, seconds
     if (t <= lastT + 1e-4) return;
     lastT = t;
     g.drawImage(lv, 0, 0, W, H);
-    if (t >= -0.05) frames.push(tracker.step(g.getImageData(0, 0, W, H).data, t));
+    frames.push(tracker.step(g.getImageData(0, 0, W, H).data, t));
   };
   if (lv.requestVideoFrameCallback) {
     const cb = (now, meta) => {
       if (done) return;
-      let ft = meta && (meta.captureTime || meta.presentationTime);
-      if (!ft || Math.abs(ft - now) > 1000) ft = now;
+      let ft = meta && meta.captureTime;               // when the camera took the frame (best)
+      if (!ft || Math.abs(ft - now) > 1000) {
+        // no capture time: the frame was taken about one frame before it was shown
+        const pres = (meta && meta.presentationTime) || now;
+        if (lastPres != null) { gaps.push(pres - lastPres); if (gaps.length > 30) gaps.shift(); }
+        lastPres = pres;
+        const sorted = gaps.slice().sort((a, b) => a - b), frameMs = sorted.length ? sorted[sorted.length >> 1] : 1000 / 30;
+        ft = pres - Math.min(frameMs, 50);
+      }
       step(ft); lv.requestVideoFrameCallback(cb);
     };
     lv.requestVideoFrameCallback(cb);
   } else {
-    const loop = now => { if (done) return; step(now); requestAnimationFrame(loop); };
+    const loop = now => { if (done) return; step(now - 1000 / 30); requestAnimationFrame(loop); };
     requestAnimationFrame(loop);
   }
   return { frames, stop() { done = true; } };
@@ -688,43 +870,57 @@ async function finishRec(info) {
 }
 async function camSequence() {
   const me = ++camRun; ensureCtx();
-  C.state = 'count'; C.phase = ''; C.fsHits = 0; C.recSettings = curSettings();
-  const t0 = performance.now(), bar = $('#holdBar');
-  for (let i = COUNT_S; i > 0; i--) {
-    setCue(String(i)); setStatus('Get in position: Down in ' + i);
-    while (performance.now() - t0 < (COUNT_S - i + 1) * 1000) {
-      bar.style.width = Math.min(100, (performance.now() - t0) / (COUNT_S * 10)) + '%';
-      await sleep(50); if (me !== camRun) return;
+  const alive = () => me === camRun;
+  C.recSettings = curSettings(); C.fsHits = 0; C.phase = 'down'; C.state = 'scan';
+  setCue('Down'); speak('Down');
+  const scan0 = performance.now();
+  // 1) wait until you're in position, then hold it for 0.5–2 s (the recording starts here)
+  for (;;) {
+    while (!C.aligned) {
+      await sleep(40); if (!alive()) return;
+      if (performance.now() - scan0 > SCAN_TIMEOUT) return backToWait('Timed out waiting for you to get in position. Press Start again.');
+      if (performance.now() - scan0 > 1200 && $('#cue').textContent === 'Down') setCue('');
     }
+    C.state = 'inpos'; startRec(); setCue(''); setStatus('In position…');
+    const hold = POS_MIN + Math.random() * POS_RANGE, t0 = performance.now();
+    let lostSince = 0, broke = false;
+    while (performance.now() - t0 < hold) {
+      await sleep(25); if (!alive()) return;
+      if (!C.aligned) { if (!lostSince) lostSince = performance.now(); else if (performance.now() - lostSince > 200) { broke = true; break; } }
+      else lostSince = 0;
+    }
+    if (!broke && C.aligned) break;                 // must still be in position at the moment it says Set
+    discardRec(); C.state = 'scan';
   }
-  bar.style.width = '0';
-  C.state = 'seq'; C.phase = 'down';
-  startRec();
-  setStatus('Recording'); setCue('Down'); speak('Down');
-  await sleep(DOWN_MIN + Math.random() * DOWN_RANGE); if (me !== camRun) return;
+  // 2) Set: from here, any movement in the outline is a false start
   C.setSnap = C.cur ? Float32Array.from(C.cur) : null; C.fsHits = 0;
-  C.phase = 'set'; setCue('Set', 'set'); speak('Set');
-  await sleep(SET_MIN + Math.random() * SET_RANGE); if (me !== camRun) return;
-  // learn what the ball looks like right before the beep, then beep and start following it
+  C.state = 'seq'; C.phase = 'set'; setCue('Set', 'set'); speak('Set'); setStatus('Recording');
+  await sleep(SET_MIN + Math.random() * SET_RANGE); if (!alive()) return;
+  // 3) Go: learn the ball's look, say "Go", follow the ball on the live camera
   const snap = grabLive();
   let model = buildBallModel(snap.px, snap.W, snap.H, { settings: C.recSettings });
   if (!model) model = buildBallModel(snap.px, snap.W, snap.H, { autoFind: true });
-  C.phase = 'go';
-  const beepPerf = ctxToPerf(playBeep());
-  setCue('BEEP', 'go'); C.state = 'track';
-  C.track = model ? startLiveTrack(model, beepPerf) : null;
-  let controlT = null;
-  while (performance.now() < beepPerf + 5000) {
-    await sleep(100); if (me !== camRun) return;
+  C.phase = 'go'; C.state = 'track';
+  C.track = model ? startLiveTrack(model) : null;
+  const goP = sayGo(C.onset);
+  setCue('GO', 'go');
+  const tGo = performance.now();
+  let controlAbs = null, goInfo = null;
+  goP.then(g => { goInfo = g; });
+  while (performance.now() < tGo + 6000) {
+    await sleep(80); if (!alive()) return;
     const now = performance.now();
-    if (now > beepPerf + 900 && $('#cue').textContent === 'BEEP') setCue('');
-    if (C.track && controlT == null) { controlT = decideControl(C.track.frames, model); if (controlT != null) setStatus('Got it!'); }
-    if (controlT != null && now > beepPerf + controlT * 1000 + 1000) break;
-    if (controlT == null && now > beepPerf + 1000) setStatus('Watching for the ball in your pocket…');
+    if (now > tGo + 900 && $('#cue').textContent === 'GO') setCue('');
+    if (C.track && controlAbs == null) { controlAbs = decideControl(C.track.frames, model); if (controlAbs != null) setStatus('Got it!'); }
+    if (controlAbs != null && goInfo && now > controlAbs * 1000 + 1000) break;
+    if (controlAbs == null && now > tGo + 1000) setStatus('Watching for the ball in your pocket…');
   }
+  if (!goInfo) goInfo = await goP;
   if (C.track) { C.track.stop(); C.track = null; }
   C.phase = '';
-  await finishRec({ beepPerf, controlT, hasModel: !!model, settings: C.recSettings });
+  const controlT = controlAbs == null ? null : controlAbs - goInfo.perf / 1000;
+  C.lastRep = { goPerf: goInfo.perf, goMethod: goInfo.method, controlPerf: controlAbs == null ? null : controlAbs * 1000, controlT };
+  await finishRec({ beepPerf: goInfo.perf, goMethod: goInfo.method, controlT, hasModel: !!model, settings: C.recSettings });
 }
 function backToWait(msg) {
   camRun++; discardRec(); C.phase = ''; C.state = 'wait'; C.prev = null; $('#holdBar').style.width = '0';
@@ -733,7 +929,7 @@ function backToWait(msg) {
 function falseStart() {
   camRun++; discardRec(); C.phase = ''; C.state = 'hold';
   setCue('False start', 'set'); speak('False start');
-  setStatus('Moved before the beep. Reset, then press Start.');
+  setStatus('Moved before Go. Reset, then press Start.');
   setTimeout(() => { if (C.state === 'hold') { C.state = 'wait'; setCue(''); } }, 2200);
 }
 /* ---------- automatic control: track the ball after the beep ---------- */
@@ -903,18 +1099,28 @@ function decideControl(frames, m) {
   if (frames.length < 4) return null;
   const dts = []; for (let i = 1; i < frames.length; i++) dts.push(frames[i].t - frames[i - 1].t);
   dts.sort((a, b) => a - b); const dt = dts[dts.length >> 1] || 1 / 30;
-  const need = Math.max(4, Math.round(0.18 / dt));
+  const need = Math.max(3, Math.round(0.15 / dt));
   let start = -1, count = 0, gap = 0;
   for (let i = 0; i < frames.length; i++) {
     const f = frames[i];
     let ok = false;
     if (f.found) {
       const disp = Math.hypot(f.x - m.cx, f.y - m.cy);
-      const cradled = disp > 1.0 * m.rb && f.ew && f.enc >= 4;          // stick head around the ball on both sides
+      const cradled = disp > 1.0 * m.rb && f.ew && f.enc >= 3;          // stick head around the ball on both sides
       const lifted = m.cy - f.y > 1.0 * m.rb && disp > 1.5 * m.rb && f.enc >= 2; // carried up off the ground next to the stick
       ok = cradled || lifted;
     }
-    if (ok) { if (start < 0) { start = i; count = 0; } count++; gap = 0; if (count >= need) return frames[start].t; }
+    if (ok) {
+      if (start < 0) { start = i; count = 0; }
+      count++; gap = 0;
+      if (count >= need) {
+        // back up to the first frame the stick was already around the ball…
+        let s = start;
+        while (s > 0 && frames[s - 1].found && frames[s - 1].ew && Math.hypot(frames[s - 1].x - m.cx, frames[s - 1].y - m.cy) > 0.6 * m.rb) s--;
+        // …and the ball got there between the frame before and that frame
+        return s > 0 ? (frames[s - 1].t + frames[s].t) / 2 : frames[s].t;
+      }
+    }
     else if (!f.found && start >= 0 && gap < 2) gap++;
     else { start = -1; count = 0; gap = 0; }
   }
@@ -1027,9 +1233,9 @@ function makePlayer(root, o) {
   const bSnd = btn('🔇', 'Sound on or off', () => { v.muted = !v.muted; bSnd.textContent = v.muted ? '🔇' : '🔊'; });
   root.append(stage, bar,
     h('div', { class: 'pl-time' }, tCur, tRel),
-    h('div', { class: 'pl-legend' }, h('span', {}, h('i', { style: 'background:var(--red)' }), 'beep'), h('span', {}, h('i', { style: 'background:var(--lime)' }), 'ball in pocket')),
+    h('div', { class: 'pl-legend' }, h('span', {}, h('i', { style: 'background:var(--red)' }), 'go'), h('span', {}, h('i', { style: 'background:var(--lime)' }), 'ball in pocket')),
     h('div', { class: 'pl-ctl' },
-      btn('⏮ Beep', 'Jump to the beep', () => jump(m().b)), btn('−1', 'Back one frame', () => step(-1)), bPlay,
+      btn('⏮ Go', 'Jump to Go', () => jump(m().b)), btn('−1', 'Back one frame', () => step(-1)), bPlay,
       btn('+1', 'Forward one frame', () => step(1)), btn('Catch ⏭', 'Jump to the ball in the pocket', () => jump(m().c))),
     h('div', { class: 'pl-ctl2' }, h('div', { class: 'pl-speed' }, speeds), bSnd,
       btn('↺ Replay', 'Replay the rep', () => playFrom(Math.max(0, (m().b ?? 0.6) - 0.6)))));
@@ -1060,7 +1266,7 @@ function makePlayer(root, o) {
     if (!dragging) scrub.value = String(t);
     fill.style.width = pct(t) + '%';
     tCur.textContent = t.toFixed(2) + ' s';
-    tRel.textContent = b == null ? '' : (t >= b ? 'beep + ' : 'beep − ') + Math.abs(t - b).toFixed(3) + ' s';
+    tRel.textContent = b == null ? '' : (t >= b ? 'Go + ' : 'Go − ') + Math.abs(t - b).toFixed(3) + ' s';
     bPlay.textContent = v.paused ? '▶' : '❚❚'; big.hidden = !v.paused;
     if (stopAt != null && !v.paused && t >= stopAt) { v.pause(); stopAt = null; wantPlay = false; }
     requestAnimationFrame(ui);
@@ -1169,23 +1375,38 @@ async function showCamRep(file, info) {
   openRepScreen(file, info.recDur);
   S.beep = Math.max(0, info.beepFile);
   const ms = info.controlT == null ? null : Math.round(info.controlT * 1000);
-  if (!info.hasModel) failRep("Couldn't find the ball at the beep. Keep the ball in the circle and the phone low and steady.");
+  if (!info.hasModel) failRep("Couldn't find the ball at Go. Keep the ball in the circle and the phone low and steady.");
   else if (ms == null) failRep("Didn't see the ball get picked up in your pocket, so this rep has no time. (Lost face-offs aren't timed.)");
   else if (ms < 120 || ms > 15000) failRep("That timing doesn't look right (" + fmtMs(ms) + " s), so it wasn't counted. Try another rep.");
   else {
     S.ms = ms; S.control = S.beep + info.controlT; showResult();
-    setAuto('Timed: ball in your pocket ' + fmtMs(ms) + ' s after the beep.');
+    setAuto('Timed: ball in your pocket ' + fmtMs(ms) + ' s after Go' + (info.goMethod === 'mic' ? '.' : ' (Go not heard by the mic: turn the volume up for the most accurate time).'));
     $('#postBox').hidden = false;
   }
   S.player.refresh();
   S.player.playFrom(Math.max(0, S.beep - 0.6));
-  // line the replay markers up with the beep heard in the recording (display only; the time doesn't change)
-  const t = await detectBeep(file);
+  // line the replay markers up with the "Go" heard in the recording (display only; the time doesn't change)
+  const t = await detectOnset(file, S.beep);
   if (S.job !== job || t == null || Math.abs(t - S.beep) > 0.4) return;
   const rel = S.control != null ? S.control - S.beep : null;
   S.beep = S.autoBeep = Math.round(t * 1000) / 1000;
   if (rel != null) S.control = S.beep + rel;
   S.player.refresh();
+}
+/* first loud sound in a recording near time `near` (seconds) */
+async function detectOnset(file, near) {
+  try {
+    if (file.size > 200e6) return null;
+    const ab = await ensureCtx().decodeAudioData((await file.arrayBuffer()).slice(0));
+    const x = ab.getChannelData(0), sr = ab.sampleRate, w = Math.round(sr * 0.0025);
+    const rms = i0 => { let s = 0; for (let k = i0; k < i0 + w && k < x.length; k++) s += x[k] * x[k]; return Math.sqrt(s / w); };
+    const a = Math.max(0, Math.round((near - 0.6) * sr)), b = Math.max(0, Math.round((near - 0.15) * sr));
+    const bg = []; for (let i = a; i + w < b; i += w) bg.push(rms(i)); bg.sort((p, q) => p - q);
+    const floor = bg.length ? bg[Math.floor(bg.length * 0.5)] : 0.002, thr = Math.max(floor * 6, 0.015);
+    for (let i = Math.max(0, Math.round((near - 0.25) * sr)); i + w < Math.min(x.length, (near + 0.45) * sr); i += w >> 1)
+      if (rms(i) > thr) { let j = i; while (j > i - w && j > 0 && Math.abs(x[j - 1]) > thr * 0.5) j--; return j / sr; }
+    return null;
+  } catch { return null; }
 }
 /* An uploaded clip: find the beep in the audio, then watch the clip for the ball. */
 async function loadClip(file, opts = {}) {
@@ -1221,7 +1442,7 @@ async function loadClip(file, opts = {}) {
   S.control = Math.round(res.t * 1000) / 1000;
   S.ms = Math.round((S.control - S.beep) * 1000);
   if (S.ms < 120 || S.ms > 15000) return failRep("That timing doesn't look right (" + fmtMs(S.ms) + " s), so it wasn't counted.");
-  showResult(); setAuto('Timed: ball in your pocket ' + fmtMs(S.ms) + ' s after the beep.');
+  showResult(); setAuto('Timed: ball in your pocket ' + fmtMs(S.ms) + ' s after Go.');
   $('#postBox').hidden = false; S.player.refresh();
   S.player.playFrom(Math.max(0, S.beep - 0.6));
 }
@@ -1301,7 +1522,7 @@ async function post() {
       beepAt: Math.round(beep2 * 1000) / 1000, controlAt: Math.round(ctl2 * 1000) / 1000,
       asset: up.id, createdAt: Date.now(), v: 1
     });
-    setBar(1); toast('Saved: ' + fmtMs(ms) + ' s');
+    setBar(1); toast('Posted: ' + fmtMs(ms) + ' s');
     resetRun(); switchTab('board');
   } catch (e) {
     msg.className = 'small err';
@@ -1358,7 +1579,7 @@ function renderBoard() {
   } else {
     let r = 0; rows.forEach(a => { if (!isDisputed(a)) r++; list.append(rowEl(a, r)); });
   }
-  renderMe();
+  renderMe(); renderStats();
 }
 function renderMe() {
   const mine = attempts.filter(a => a.uid === P.uid && typeof a.timeMs === 'number').sort((a, b) => b.createdAt - a.createdAt);
@@ -1426,11 +1647,226 @@ function collect(snap, map) {
   snap.docs.forEach(d => { const x = d.data(); if (!x || !x.aid) return; if (!map.has(x.aid)) map.set(x.aid, new Set()); map.get(x.aid).add(x.uid); });
 }
 
+/* ---------- records & statistics ---------- */
+const VZ = { blue: '#3987e5', orange: '#d95926', ink: '#eef3f7', mute: '#8da0b2', grid: '#243140', surface: '#121921' };
+const SF = { range: 'all', sort: 'best', dir: 1 };
+const fmtS = ms => isFinite(ms) ? (ms / 1000).toFixed(3) : '–';
+const svgEl = (tag, attrs = {}) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
+function quant(sorted, q) {
+  if (!sorted.length) return NaN;
+  const pos = (sorted.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+function summarize(times) {
+  const s = times.slice().sort((a, b) => a - b), n = s.length;
+  if (!n) return { n: 0 };
+  const mean = s.reduce((a, b) => a + b, 0) / n;
+  const sd = n > 1 ? Math.sqrt(s.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1)) : 0;
+  const q1 = quant(s, 0.25), q3 = quant(s, 0.75), iqr = q3 - q1;
+  return { n, sorted: s, mean, sd, median: quant(s, 0.5), min: s[0], max: s[n - 1], p10: quant(s, 0.1), p90: quant(s, 0.9), q1, q3, iqr, lo: q1 - 1.5 * iqr, hi: q3 + 1.5 * iqr };
+}
+function statRuns(range) {
+  const now = Date.now(), lim = range === 'day' ? 864e5 : range === 'week' ? 6048e5 : Infinity;
+  return attempts.filter(a => typeof a.timeMs === 'number' && !isDisputed(a) && now - (a.createdAt || 0) <= lim);
+}
+function byPlayer(runs) {
+  const m = new Map();
+  for (const a of runs) { if (!m.has(a.uid)) m.set(a.uid, { uid: a.uid, name: a.handle || 'Player', runs: [] }); const p = m.get(a.uid); p.runs.push(a); if ((a.createdAt || 0) >= (p.last || 0)) { p.last = a.createdAt || 0; p.name = a.handle || p.name; } }
+  return [...m.values()].map(p => {
+    const sm = summarize(p.runs.map(r => r.timeMs)), chron = p.runs.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    const avg = rs => rs.reduce((x, r) => x + r.timeMs, 0) / rs.length;
+    const improve = chron.length >= 10 ? avg(chron.slice(0, 5)) - avg(chron.slice(-5)) : null;
+    const outl = sm.n >= 4 ? p.runs.filter(r => r.timeMs < sm.lo || r.timeMs > sm.hi).length : 0;
+    return { ...p, ...sm, improve, outl };
+  });
+}
+function recCard(label, value, sub, onclick) {
+  return h('button', { class: 'rec', onclick: onclick || null, disabled: onclick ? null : true, style: onclick ? '' : 'cursor:default' }, h('span', { text: label }), h('b', { text: value }), h('small', { text: sub || ' ' }));
+}
+function statTile(label, value) { return h('div', { class: 'stat' }, h('b', { text: value }), h('span', { text: label })); }
+function legend(el, items) {
+  el.replaceChildren(...items.map(([label, color, kind]) => h('span', {}, h('i', { class: kind || '', style: 'background:' + color }), label)));
+}
+function chartTip(box) {
+  let tip = box.querySelector('.tip');
+  if (!tip) { tip = h('div', { class: 'tip', hidden: true }); box.append(tip); }
+  return {
+    show(x, y, title, lines) { tip.replaceChildren(document.createTextNode(title), ...lines.map(l => h('span', { text: l }))); tip.hidden = false; tip.style.left = x + 'px'; tip.style.top = (y - 8) + 'px'; },
+    hide() { tip.hidden = true; }
+  };
+}
+function renderHistogram(box, sm, runs) {
+  box.replaceChildren();
+  if (sm.n < 2) { box.append(h('div', { class: 'nodata', text: 'Post a few more reps to see the spread.' })); return; }
+  const W = Math.max(280, box.clientWidth || 600), H = 190, ml = 30, mr = 8, mt = 22, mb = 26;
+  const range = sm.max - sm.min, steps = [25, 50, 100, 200, 250, 500, 1000, 2000];
+  const bw = steps.find(st => range / st <= 24) || 2000;
+  const x0 = Math.floor(sm.min / bw) * bw, x1 = (Math.floor(sm.max / bw) + 1) * bw, nb = Math.round((x1 - x0) / bw);
+  const bins = Array.from({ length: nb }, (_, i) => ({ a: x0 + i * bw, b: x0 + (i + 1) * bw, n: 0 }));
+  for (const t of sm.sorted) bins[Math.min(nb - 1, Math.floor((t - x0) / bw))].n++;
+  const maxN = Math.max(...bins.map(b => b.n));
+  const X = t => ml + (t - x0) / (x1 - x0) * (W - ml - mr), Y = n => H - mb - n / maxN * (H - mt - mb);
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Histogram of face-off times' });
+  const yStep = maxN <= 5 ? 1 : maxN <= 12 ? 2 : Math.ceil(maxN / 5);
+  for (let v = 0; v <= maxN; v += yStep) {
+    svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: Y(v), y2: Y(v), stroke: VZ.grid, 'stroke-width': 1 }));
+    const tl = svgEl('text', { x: ml - 6, y: Y(v) + 4, 'text-anchor': 'end', fill: VZ.mute, 'font-size': 11 }); tl.textContent = v; svg.append(tl);
+  }
+  const tip = chartTip(box);
+  bins.forEach(bn => {
+    const out = bn.b <= sm.lo || bn.a >= sm.hi;
+    const bx = X(bn.a) + 1, bwPx = Math.max(1, X(bn.b) - X(bn.a) - 2);
+    if (bn.n) {
+      const top = Y(bn.n), r = Math.min(4, bwPx / 2, (H - mb - top));
+      const d = `M${bx},${H - mb} V${top + r} Q${bx},${top} ${bx + r},${top} H${bx + bwPx - r} Q${bx + bwPx},${top} ${bx + bwPx},${top + r} V${H - mb} Z`;
+      svg.append(svgEl('path', { d, fill: out ? VZ.orange : VZ.blue }));
+    }
+    const hit = svgEl('rect', { x: X(bn.a), y: mt, width: X(bn.b) - X(bn.a), height: H - mt - mb, fill: 'transparent', tabindex: bn.n ? 0 : -1 });
+    const showTip = () => tip.show((X(bn.a) + X(bn.b)) / 2 / W * box.clientWidth, Y(bn.n) / H * box.clientHeight, fmtS(bn.a) + '–' + fmtS(bn.b) + ' s', [bn.n + (bn.n === 1 ? ' rep' : ' reps') + (out ? ' · outlier range' : '')]);
+    hit.addEventListener('pointerenter', showTip); hit.addEventListener('pointermove', showTip); hit.addEventListener('focus', showTip);
+    hit.addEventListener('pointerleave', tip.hide); hit.addEventListener('blur', tip.hide);
+    svg.append(hit);
+  });
+  svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: H - mb, y2: H - mb, stroke: VZ.mute, 'stroke-width': 1 }));
+  const tickEvery = Math.max(1, Math.ceil(nb / 6));
+  for (let i = 0; i <= nb; i += tickEvery) {
+    const t = svgEl('text', { x: X(x0 + i * bw), y: H - 8, 'text-anchor': 'middle', fill: VZ.mute, 'font-size': 11 }); t.textContent = fmtS(x0 + i * bw).replace(/0+$/, '').replace(/\.$/, '') + 's'; svg.append(t);
+  }
+  // median and mean reference lines, labelled
+  const refs = [['median', sm.median, ''], ['mean', sm.mean, '4 3']];
+  const lx = refs.map(([, v]) => X(v)); const close = Math.abs(lx[0] - lx[1]) < 70;
+  refs.forEach(([label, v, dash], i) => {
+    svg.append(svgEl('line', { x1: X(v), x2: X(v), y1: mt - 4, y2: H - mb, stroke: VZ.ink, 'stroke-width': 1.5, 'stroke-dasharray': dash, opacity: 0.85 }));
+    const anchor = close ? (i === 0 ? (lx[0] <= lx[1] ? 'end' : 'start') : (lx[1] < lx[0] ? 'end' : 'start')) : 'middle';
+    const t = svgEl('text', { x: X(v) + (anchor === 'end' ? -4 : anchor === 'start' ? 4 : 0), y: mt - 8, 'text-anchor': anchor, fill: VZ.ink, 'font-size': 11, 'font-weight': 600 }); t.textContent = label + ' ' + fmtS(v); svg.append(t);
+  });
+  box.append(svg);
+}
+function renderTrend(box, runs) {
+  box.replaceChildren();
+  const chron = runs.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  if (chron.length < 2) { box.append(h('div', { class: 'nodata', text: chron.length ? 'One rep so far. Post more to see your trend.' : 'Post a rep to start your trend.' })); return null; }
+  const sm = summarize(chron.map(r => r.timeMs)), avgN = 5;
+  const roll = chron.map((r, i) => { const w = chron.slice(Math.max(0, i - avgN + 1), i + 1); return w.reduce((x, q) => x + q.timeMs, 0) / w.length; });
+  const W = Math.max(280, box.clientWidth || 600), H = 200, ml = 40, mr = 10, mt = 14, mb = 26, n = chron.length;
+  let lo = Math.min(...chron.map(r => r.timeMs)), hi = Math.max(...chron.map(r => r.timeMs)); const pad = Math.max(40, (hi - lo) * 0.12); lo -= pad; hi += pad;
+  const X = i => ml + (n === 1 ? 0.5 : i / (n - 1)) * (W - ml - mr), Y = t => mt + (t - lo) / (hi - lo) * (H - mt - mb);
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Your face-off times by rep' });
+  const span = hi - lo, st = [25, 50, 100, 200, 250, 500, 1000].find(s2 => span / s2 <= 5) || 1000;
+  for (let v = Math.ceil(lo / st) * st; v <= hi; v += st) {
+    svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: Y(v), y2: Y(v), stroke: VZ.grid, 'stroke-width': 1 }));
+    const t = svgEl('text', { x: ml - 6, y: Y(v) + 4, 'text-anchor': 'end', fill: VZ.mute, 'font-size': 11 }); t.textContent = (v / 1000).toFixed(2); svg.append(t);
+  }
+  const xt = Math.max(1, Math.ceil(n / 6));
+  for (let i = 0; i < n; i += xt) { const t = svgEl('text', { x: X(i), y: H - 8, 'text-anchor': 'middle', fill: VZ.mute, 'font-size': 11 }); t.textContent = '#' + (i + 1); svg.append(t); }
+  // personal best (reference line)
+  svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: Y(sm.min), y2: Y(sm.min), stroke: VZ.mute, 'stroke-width': 1, 'stroke-dasharray': '3 4' }));
+  const pb = svgEl('text', { x: W - mr, y: Y(sm.min) - 5, 'text-anchor': 'end', fill: VZ.mute, 'font-size': 11 }); pb.textContent = 'best ' + fmtS(sm.min); svg.append(pb);
+  // rolling average
+  svg.append(svgEl('path', { d: roll.map((v, i) => (i ? 'L' : 'M') + X(i) + ',' + Y(v)).join(' '), fill: 'none', stroke: VZ.ink, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: 0.8 }));
+  // each rep
+  chron.forEach((r, i) => {
+    const out = sm.n >= 4 && (r.timeMs < sm.lo || r.timeMs > sm.hi);
+    svg.append(svgEl('circle', { cx: X(i), cy: Y(r.timeMs), r: 4.5, fill: out ? VZ.orange : VZ.blue, stroke: VZ.surface, 'stroke-width': 2 }));
+  });
+  // crosshair + tooltip: snaps to the nearest rep
+  const hair = svgEl('line', { y1: mt, y2: H - mb, stroke: VZ.mute, 'stroke-width': 1, visibility: 'hidden' });
+  const ring = svgEl('circle', { r: 7, fill: 'none', stroke: VZ.ink, 'stroke-width': 2, visibility: 'hidden' });
+  svg.append(hair, ring);
+  const hit = svgEl('rect', { x: ml, y: 0, width: W - ml - mr, height: H, fill: 'transparent', tabindex: 0 });
+  const tip = chartTip(box);
+  const at = i => {
+    const r = chron[i]; hair.setAttribute('x1', X(i)); hair.setAttribute('x2', X(i)); hair.setAttribute('visibility', 'visible');
+    ring.setAttribute('cx', X(i)); ring.setAttribute('cy', Y(r.timeMs)); ring.setAttribute('visibility', 'visible');
+    const k = box.clientWidth / W;
+    tip.show(X(i) * k, Y(Math.min(r.timeMs, roll[i])) * k, 'Rep ' + (i + 1) + ' · ' + new Date(r.createdAt || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      [fmtS(r.timeMs) + ' s', avgN + '-rep average ' + fmtS(roll[i]) + ' s']);
+  };
+  let cur = n - 1;
+  const move = e => { const rect = svg.getBoundingClientRect(), x = (e.clientX - rect.left) / rect.width * W; cur = Math.round(clamp((x - ml) / (W - ml - mr), 0, 1) * (n - 1)); at(cur); };
+  hit.addEventListener('pointermove', move); hit.addEventListener('pointerdown', move);
+  hit.addEventListener('pointerleave', () => { tip.hide(); hair.setAttribute('visibility', 'hidden'); ring.setAttribute('visibility', 'hidden'); });
+  hit.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') { cur = Math.max(0, cur - 1); at(cur); } if (e.key === 'ArrowRight') { cur = Math.min(n - 1, cur + 1); at(cur); } });
+  hit.addEventListener('focus', () => at(cur)); hit.addEventListener('blur', () => tip.hide());
+  svg.append(hit);
+  box.append(svg);
+  return { chron, sm };
+}
+function renderStats() {
+  if ($('#v-stats').hidden) return;
+  const runs = statRuns(SF.range), sm = summarize(runs.map(a => a.timeMs)), players = byPlayer(runs);
+  const allRuns = statRuns('all'), todayRuns = statRuns('day');
+  const best = list => list.reduce((b, a) => !b || a.timeMs < b.timeMs ? a : b, null);
+  const when = a => a ? ago(a.createdAt || Date.now()) : '';
+  const rg = $('#recGrid'); rg.replaceChildren();
+  const fe = best(allRuns), ft = best(todayRuns), fr = best(runs);
+  const most = players.slice().sort((a, b) => b.n - a.n)[0];
+  const elig = players.filter(p => p.n >= 5);
+  const bavg = elig.slice().sort((a, b) => a.mean - b.mean)[0], cons = elig.slice().sort((a, b) => a.sd - b.sd)[0];
+  const impr = players.filter(p => p.improve != null).sort((a, b) => b.improve - a.improve)[0];
+  rg.append(
+    recCard('Fastest ever', fe ? fmtS(fe.timeMs) + ' s' : '–', fe ? (fe.handle || 'Player') + ' · ' + when(fe) : 'No reps yet', fe ? () => openRun(fe.id) : null),
+    recCard('Fastest today', ft ? fmtS(ft.timeMs) + ' s' : '–', ft ? (ft.handle || 'Player') + ' · ' + when(ft) : 'No reps today', ft ? () => openRun(ft.id) : null),
+    SF.range === 'all' ? recCard('Most reps', most ? String(most.n) : '–', most ? most.name : '') : recCard('Fastest ' + (SF.range === 'week' ? 'this week' : 'today'), fr ? fmtS(fr.timeMs) + ' s' : '–', fr ? (fr.handle || 'Player') : '', fr ? () => openRun(fr.id) : null),
+    recCard('Best average', bavg ? fmtS(bavg.mean) + ' s' : '–', bavg ? bavg.name + ' · ' + bavg.n + ' reps' : 'Needs 5+ reps'),
+    recCard('Most consistent', cons ? '± ' + fmtS(cons.sd) + ' s' : '–', cons ? cons.name + ' · std dev, ' + cons.n + ' reps' : 'Needs 5+ reps'),
+    recCard('Most improved', impr && impr.improve >= 10 ? '− ' + fmtS(impr.improve) + ' s' : '–', impr && impr.improve >= 10 ? impr.name + ' · first 5 vs last 5' : (impr ? 'Nobody faster by 0.01 s+ yet' : 'Needs 10+ reps'))
+  );
+  const dg = $('#distGrid'); dg.replaceChildren();
+  dg.append(statTile('Reps', sm.n ? String(sm.n) : '0'), statTile('Average', fmtS(sm.mean)), statTile('Median', fmtS(sm.median)),
+    statTile('Std dev', sm.n > 1 ? fmtS(sm.sd) : '–'), statTile('Fastest', fmtS(sm.min)), statTile('Slowest', fmtS(sm.max)),
+    statTile('10th pct', fmtS(sm.p10)), statTile('90th pct', fmtS(sm.p90)), statTile('IQR', sm.n > 1 ? fmtS(sm.iqr) : '–'));
+  legend($('#histLegend'), [['Reps per time range', VZ.blue], ['Outlier range', VZ.orange], ['Median (solid) · average (dashed)', VZ.ink, 'line']]);
+  renderHistogram($('#hist'), sm, runs);
+  $('#histNote').textContent = sm.n >= 4 ? 'Usual range: ' + fmtS(Math.max(sm.lo, sm.min)) + '–' + fmtS(Math.min(sm.hi, sm.max)) + ' s (Q1 ' + fmtS(sm.q1) + ', Q3 ' + fmtS(sm.q3) + ').' : '';
+  const ol = $('#outList'); ol.replaceChildren();
+  const outs = sm.n >= 4 ? runs.filter(a => a.timeMs < sm.lo || a.timeMs > sm.hi).sort((a, b) => a.timeMs - b.timeMs) : [];
+  if (!outs.length) ol.append(h('div', { class: 'nodata', text: sm.n >= 4 ? 'No outliers right now.' : 'Needs at least 4 reps.' }));
+  outs.forEach(a => {
+    const d = a.timeMs - sm.median;
+    ol.append(h('button', { class: 'item', onclick: () => openRun(a.id) },
+      h('div', { class: 'rank', text: d < 0 ? '⚡' : '🐢', style: 'font-size:22px' }),
+      h('div', { class: 'who' }, h('b', { text: a.handle || 'Player' }), h('small', { text: (d < 0 ? '' : '+') + fmtS(d) + ' s vs median · ' + ago(a.createdAt || Date.now()) })),
+      h('div', { class: 'time', text: fmtS(a.timeMs) }), h('div', { class: 'play', text: '▶' })));
+  });
+  // players table (sortable)
+  const cols = [['name', 'Player'], ['n', 'Reps'], ['min', 'Best'], ['mean', 'Avg'], ['median', 'Median'], ['sd', 'Std dev'], ['outl', 'Outliers']];
+  const sorted = players.slice().sort((a, b) => { const k = SF.sort === 'best' ? 'min' : SF.sort; const va = a[k], vb = b[k]; return (typeof va === 'string' ? va.localeCompare(vb) : (va ?? Infinity) - (vb ?? Infinity)) * SF.dir; });
+  const tb = $('#pTable'); tb.replaceChildren();
+  const thead = h('tr', {}, cols.map(([k, label]) => {
+    const key = k === 'min' ? 'best' : k, on = SF.sort === key;
+    return h('th', { 'aria-sort': on ? (SF.dir > 0 ? 'ascending' : 'descending') : null, onclick: () => { if (SF.sort === key) SF.dir *= -1; else { SF.sort = key; SF.dir = (k === 'n' || k === 'outl') ? -1 : 1; } renderStats(); } }, label + (on ? (SF.dir > 0 ? ' ▲' : ' ▼') : ''));
+  }));
+  tb.append(h('thead', {}, thead));
+  const tbody = h('tbody');
+  if (!sorted.length) tbody.append(h('tr', {}, h('td', { colspan: 7, class: 'nodata', text: 'No reps in this range yet.' })));
+  sorted.forEach(p => tbody.append(h('tr', { class: p.uid === P.uid ? 'me' : '' },
+    h('td', { text: p.name }), h('td', { text: String(p.n) }), h('td', { text: fmtS(p.min) }), h('td', { text: fmtS(p.mean) }),
+    h('td', { text: fmtS(p.median) }), h('td', { text: p.n > 1 ? fmtS(p.sd) : '–' }), h('td', { text: String(p.outl) }))));
+  tb.append(tbody);
+  // you
+  const mine = runs.filter(a => a.uid === P.uid), ms = summarize(mine.map(a => a.timeMs)), mg = $('#meGrid'); mg.replaceChildren();
+  const bests = players.map(p => p.min).sort((a, b) => a - b);
+  mg.append(statTile('Your reps', String(ms.n || 0)), statTile('Your best', fmtS(ms.min)), statTile('Rank', ms.n ? '#' + (1 + bests.filter(b => b < ms.min).length) + ' of ' + players.length : '–'),
+    statTile('Your average', fmtS(ms.mean)), statTile('Your median', fmtS(ms.median)), statTile('Your std dev', ms.n > 1 ? fmtS(ms.sd) : '–'));
+  legend($('#trendLegend'), [['Each rep', VZ.blue, 'dot'], ['Outlier', VZ.orange, 'dot'], ['5-rep average', VZ.ink, 'line']]);
+  const tr = renderTrend($('#trend'), mine);
+  const note = $('#trendNote'); note.textContent = ''; note.className = 'small';
+  if (tr && tr.chron.length >= 10) {
+    const avg = rs => rs.reduce((x, r) => x + r.timeMs, 0) / rs.length, d = avg(tr.chron.slice(0, 5)) - avg(tr.chron.slice(-5));
+    note.textContent = (d >= 10 ? 'Getting faster: your last 5 average ' + fmtS(d) + ' s quicker than your first 5.' : d <= -10 ? 'Your last 5 average ' + fmtS(-d) + ' s slower than your first 5.' : 'About the same as your first 5 (within 0.01 s).');
+    note.className = 'small ' + (d <= -10 ? 'warn' : ''); note.style.color = d >= 10 ? 'var(--lime)' : '';
+  } else if (tr) note.textContent = 'After 10 reps you\'ll see how your last 5 compare with your first 5.';
+}
+let statsResize = 0;
+window.addEventListener('resize', () => { clearTimeout(statsResize); statsResize = setTimeout(renderStats, 150); });
+
 /* ---------- tabs & wiring ---------- */
 function switchTab(name) {
   $$('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === name));
   if (name !== 'run' && C.stream) closeCam();
-  $('#v-board').hidden = name !== 'board'; $('#v-run').hidden = name !== 'run'; $('#v-me').hidden = name !== 'me';
+  $('#v-board').hidden = name !== 'board'; $('#v-run').hidden = name !== 'run'; $('#v-me').hidden = name !== 'me'; $('#v-stats').hidden = name !== 'stats';
+  if (name === 'stats') renderStats();
   window.scrollTo(0, 0);
 }
 $$('#tabs button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
@@ -1440,6 +1876,7 @@ function seg(id, key) {
   });
 }
 seg('segMode', 'mode'); seg('segRange', 'range');
+$$('#segStats button').forEach(b => b.onclick = () => { SF.range = b.dataset.v; $$('#segStats button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
 
 $('#btnBeep').onclick = runStation;
 $('#btnTest').onclick = () => { playBeep(); toast('Beep test'); };
