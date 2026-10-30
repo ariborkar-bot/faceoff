@@ -31,6 +31,9 @@ button{cursor:pointer}
 .wrap{max-width:760px;margin:0 auto;padding:14px 14px 80px}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 14px;padding-top:env(safe-area-inset-top)}
 .hdr-r{display:flex;align-items:center;gap:10px}
+.rowline{display:flex;gap:6px;align-items:stretch}.rowline>.item{flex:1;min-width:0}
+.rowdel{min-width:48px;padding:0 10px;font-size:18px;border-radius:12px}.rowdel.sure{min-width:auto;background:var(--red);border-color:var(--red);color:#fff;font-size:14px;font-weight:700}
+.code{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;word-break:break-all;flex:1;min-width:0}
 .brand-em{height:46px;width:auto;display:block}.brand-wm{height:26px;width:auto;display:block}
 /* opening screen: the logo, then the sticks fly out, the circle opens and the app appears */
 @property --hole{syntax:'<length>';inherits:false;initial-value:0px}
@@ -407,6 +410,13 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <div class="stat"><b id="mRuns">0</b><span>My runs</span></div>
     </div>
     <div class="list" id="meList"></div>
+    <details class="card" id="linkCard" hidden>
+      <summary><b>Use FO &amp; GO on more than one device?</b></summary>
+      <div class="muted small" style="margin:8px 0">Each device (and the installed app vs. Safari) is its own player until you link them. Copy this device's code, then paste it on your other device: reps from both count as yours there, and you can delete them from either one.</div>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><code id="myCode" class="code"></code><button class="btn" id="btnCopyCode">Copy code</button></div>
+      <label for="linkIn" style="display:block;margin-top:12px">Code from your other device</label>
+      <div class="row" style="gap:8px"><input id="linkIn" placeholder="xxxxxxxx-xxxxxxxx-…" autocomplete="off" style="flex:1"><button class="btn primary" id="btnLink">Link</button></div>
+    </details>
   </section>
 </div>
 
@@ -423,8 +433,11 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   let secret = null;
   try { secret = localStorage.getItem('fo-secret'); } catch {}
   if (!secret) { secret = rid() + rid(); try { localStorage.setItem('fo-secret', secret); } catch {} }
-  const myHash = crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret))
-    .then(b => Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, '0')).join(''));
+  const sha = t => crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)).then(b => Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, '0')).join(''));
+  // codes of your other devices (linked in "Mine"): their reps count as yours too and you can delete them here
+  let linked = []; try { linked = JSON.parse(localStorage.getItem('fo-linked') || '[]').filter(x => typeof x === 'string'); } catch {}
+  const allSecrets = () => [secret, ...linked.filter(x => x !== secret)];
+  const myHash = sha(secret);
   const fail = async (r, what) => { let m = ''; try { m = (await r.json()).message || ''; } catch {} const e = new Error(what + ' failed (' + r.status + (m ? ': ' + m : '') + ')'); e.code = r.status === 413 ? 'too_large' : r.status >= 500 ? 'unavailable' : 'invalid_argument'; throw e; };
   const rest = (path, opt = {}) => fetch(SB_URL + '/rest/v1/' + path, { ...opt, headers: { ...H, 'Content-Type': 'application/json', ...(opt.headers || {}) } });
 
@@ -472,14 +485,30 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       },
       async update(d) { throw Object.assign(new Error('not supported'), { code: 'invalid_argument' }); },
       async delete() {
-        const r = await rest('rpc/delete_doc', { method: 'POST', body: JSON.stringify({ p_collection: c, p_id: id, p_secret: secret }) });
-        if (!r.ok) await fail(r, 'Deleting');
+        let ok = false;
+        for (const s of allSecrets()) {                          // whichever of your devices posted it
+          const r = await rest('rpc/delete_doc', { method: 'POST', body: JSON.stringify({ p_collection: c, p_id: id, p_secret: s }) });
+          if (!r.ok) await fail(r, 'Deleting');
+          if (await r.json() === true) { ok = true; break; }
+        }
         await refresh(c);
+        if (!ok) throw Object.assign(new Error('Only the person who posted a rep can delete it'), { code: 'permission_denied' });
       }
     };
   }
   const db = { collection: c => query(c), doc: p => { const i = p.lastIndexOf('/'); return docRef(p.slice(0, i), p.slice(i + 1)); } };
-  const user = { id: () => myHash, can: () => true, canEdit: () => false, isOwner: () => false };
+  const user = {
+    id: () => myHash, can: () => true, canEdit: () => false, isOwner: () => false,
+    ids: () => Promise.all(allSecrets().map(sha)),             // every identity that's yours
+    deviceCode: () => secret.match(/.{1,8}/g).join('-'),       // share this to link another device
+    link(code) {                                               // a code from your other device: post as that player from now on
+      const c = String(code || '').toLowerCase().replace(/[^0-9a-f]/g, '');
+      if (c.length !== 48) return false;
+      if (c !== secret) { linked = [...new Set([secret, ...linked])].filter(x => x !== c); secret = c; }
+      try { localStorage.setItem('fo-secret', secret); localStorage.setItem('fo-linked', JSON.stringify(linked)); } catch {}
+      return true;
+    }
+  };
   const assets = {
     async upload(blob, opt = {}) {
       const type = (opt.type || blob.type || 'video/mp4').split(';')[0], path = rid() + rid() + (type === 'video/webm' ? '.webm' : '.mp4');
@@ -529,7 +558,8 @@ function ago(ts) {
 function showNotice(msg) { const n = $('#notice'); n.textContent = msg; n.hidden = !msg; }
 
 /* ---------- platform capabilities ---------- */
-const P = { db: null, user: null, assets: null, uid: null, canWrite: null, canEdit: false };
+const P = { db: null, user: null, assets: null, uid: null, uids: new Set(), canWrite: null, canEdit: false };
+const isMine = a => !!a && (a.uid === P.uid || P.uids.has(a.uid));
 async function cap(name) { try { return (await window.claude?.use(name)) ?? null; } catch { return null; } }
 
 /* ---------- audio: the phone's own voice for Down / Set, a referee's whistle for Go ---------- */
@@ -2042,8 +2072,34 @@ function ranked() {
   runs.sort((a, b) => (isDisputed(a) - isDisputed(b)) || a.timeMs - b.timeMs);
   return runs;
 }
+/* delete one of your reps (tap twice to confirm) */
+async function deleteRun(a, btn) {
+  if (btn && btn.dataset.sure !== '1') {
+    btn.dataset.sure = '1'; const old = btn.textContent; btn.textContent = 'Tap again to delete'; btn.classList.add('sure');
+    setTimeout(() => { if (btn.isConnected) { btn.dataset.sure = ''; btn.textContent = old; btn.classList.remove('sure'); } }, 3500);
+    return false;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+  try {
+    await P.db.doc('attempts/' + a.id).delete();
+    try { await P.assets?.delete(a.asset); } catch {}
+    attempts = attempts.filter(x => x.id !== a.id); renderBoard();
+    toast('Rep deleted'); return true;
+  } catch (e) {
+    toast(e && e.code === 'permission_denied' ? 'That rep was posted from another device: link it in “Mine” to delete it here' : 'Couldn’t delete it. Check your connection and try again.');
+    if (btn) { btn.disabled = false; btn.dataset.sure = ''; btn.textContent = '🗑'; btn.classList.remove('sure'); }
+    return false;
+  }
+}
 function rowEl(a, rank) {
-  const mine = a.uid === P.uid, lk = likes.get(a.id)?.size || 0;
+  const item = rowItem(a, rank);
+  if (!isMine(a) || !P.db) return item;
+  const del = h('button', { class: 'btn rowdel', 'aria-label': 'Delete this rep', title: 'Delete this rep', text: '🗑' });
+  del.onclick = e => { e.stopPropagation(); deleteRun(a, del); };
+  return h('div', { class: 'rowline' }, item, del);
+}
+function rowItem(a, rank) {
+  const mine = isMine(a), lk = likes.get(a.id)?.size || 0;
   const item = h('button', { class: 'item' + (mine ? ' me' : '') + (rank <= 3 && !isDisputed(a) ? ' r' + rank : '') + (isDisputed(a) ? ' dim' : ''), onclick: () => openRun(a.id) },
     h('div', { class: 'rank', text: isDisputed(a) ? '–' : rank }),
     h('div', { class: 'who' }, h('b', { text: a.handle || 'Player' }, ),
@@ -2071,7 +2127,7 @@ function renderBoard() {
   renderMe(); renderStats();
 }
 function renderMe() {
-  const mine = attempts.filter(a => a.uid === P.uid && typeof a.timeMs === 'number').sort((a, b) => b.createdAt - a.createdAt);
+  const mine = attempts.filter(a => isMine(a) && typeof a.timeMs === 'number').sort((a, b) => b.createdAt - a.createdAt);
   const okMine = mine.filter(a => !isDisputed(a));
   const best = okMine.length ? Math.min(...okMine.map(a => a.timeMs)) : null;
   $('#mBest').textContent = best == null ? '–' : fmtMs(best);
@@ -2088,6 +2144,17 @@ function renderMe() {
   mine.forEach((a, i) => list.append(rowEl(a, i + 1)));
 }
 
+function renderLink() {
+  const u = P.user, card = $('#linkCard'); if (!card) return;
+  if (!u || !u.deviceCode) { card.hidden = true; return; }
+  card.hidden = false; $('#myCode').textContent = u.deviceCode();
+}
+$('#btnCopyCode').onclick = async () => { try { await navigator.clipboard.writeText($('#myCode').textContent); toast('Code copied'); } catch { toast('Select the code and copy it'); } };
+$('#btnLink').onclick = () => {
+  if (!P.user || !P.user.link) return;
+  if (!P.user.link($('#linkIn').value)) { toast('That code doesn’t look right (48 letters and numbers)'); return; }
+  toast('Linked. Reloading…'); setTimeout(() => location.reload(), 700);
+};
 /* ---------- run viewer modal ---------- */
 let modalStop = null;
 function closeModal() { if (modalStop) modalStop(); modalStop = null; $('#modalRoot').replaceChildren(); document.body.style.overflow = ''; document.removeEventListener('keydown', escClose); }
@@ -2105,10 +2172,7 @@ function openRun(id) {
   };
   likeBtn.onclick = () => toggleDoc('likes', likes, a.id, likeBtn);
   flagBtn.onclick = () => toggleDoc('flags', flags, a.id, flagBtn, 'Flagged for review. Three flags mark a run as disputed.');
-  const del = (a.uid === P.uid || P.canEdit) ? h('button', { class: 'btn danger', text: 'Delete', onclick: async () => {
-    if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = 'Tap again to delete'; return; }
-    try { await P.db.doc('attempts/' + a.id).delete(); try { await P.assets?.delete(a.asset); } catch {} closeModal(); toast('Run deleted'); } catch { toast('Could not delete'); }
-  } }) : null;
+  const del = (isMine(a) || P.canEdit) ? h('button', { class: 'btn danger', text: '🗑 Delete', onclick: async () => { if (await deleteRun(a, del)) closeModal(); } }) : null;
   const pRoot = h('div');
   const sheet = h('div', { class: 'sheet repview' },
     h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:8px;flex-wrap:nowrap' },
@@ -2343,8 +2407,8 @@ function renderStatsAll(runs) {
   }))));
   const tbody = h('tbody');
   if (!sorted.length) tbody.append(h('tr', {}, h('td', { colspan: 4, class: 'nodata', text: 'No reps ' + (rw || 'yet') + '.' })));
-  sorted.forEach(p => tbody.append(h('tr', { class: p.uid === P.uid ? 'me' : '' },
-    h('td', { text: p.name + (p.uid === P.uid ? ' (you)' : '') }), h('td', { text: String(p.n) }), h('td', { text: fmtS(p.min) }), h('td', { text: fmtS(p.mean) }))));
+  sorted.forEach(p => tbody.append(h('tr', { class: P.uids.has(p.uid) || p.uid === P.uid ? 'me' : '' },
+    h('td', { text: p.name + (P.uids.has(p.uid) || p.uid === P.uid ? ' (you)' : '') }), h('td', { text: String(p.n) }), h('td', { text: fmtS(p.min) }), h('td', { text: fmtS(p.mean) }))));
   tb.append(tbody);
   unusualList($('#outList'), runs, sm, 'No unusual reps right now.');
   $('#moreAll').replaceChildren(statTile('Fastest', fmtS(sm.min)), statTile('Slowest', fmtS(sm.max)), statTile('Std dev', sm.n > 1 ? fmtS(sm.sd) : '–'),
@@ -2352,7 +2416,7 @@ function renderStatsAll(runs) {
   $('#moreAllNote').textContent = 'Std dev: how much times vary. 10th pct: 1 in 10 reps is faster than this. 90th pct: 1 in 10 is slower. Middle half: the width of the range the middle 50% of reps fall in. Unusual = outside that range by more than 1.5× its width.';
 }
 function renderStatsMe(runs) {
-  const mine = runs.filter(a => a.uid === P.uid), sm = summarize(mine.map(a => a.timeMs)), rw = rangeWord();
+  const mine = runs.filter(isMine), sm = summarize(mine.map(a => a.timeMs)), rw = rangeWord();
   const players = byPlayer(runs), bests = players.map(p => p.min).sort((a, b) => a - b);
   const pb = mine.reduce((b, a) => !b || a.timeMs < b.timeMs ? a : b, null);
   hero($('#heroMe'), rw ? 'Your best ' + rw : 'Your best', pb ? fmtS(pb.timeMs) + ' s' : '–',
@@ -2430,6 +2494,8 @@ $('#handle').value = lsGet('fo-handle') || ''; $('#club').value = lsGet('fo-club
   const [db, user, assets] = await Promise.all([cap('db'), cap('user'), cap('assets')]);
   P.db = db; P.user = user; P.assets = assets;
   try { P.uid = user ? await user.id() : null; } catch { P.uid = null; }
+  try { P.uids = new Set(user && user.ids ? await user.ids() : [P.uid].filter(Boolean)); } catch { P.uids = new Set([P.uid].filter(Boolean)); }
+  renderLink();
   try { P.canWrite = user ? user.can('data.write') : null; } catch { P.canWrite = null; }
   try { P.canEdit = !!(user && user.canEdit()); } catch {}
   if (!db) { showNotice('The shared leaderboard needs you to be signed in. You can still look around.'); renderBoard(); return; }
