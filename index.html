@@ -1827,7 +1827,7 @@ function makePlayer(root, o) {
   root.append(stage, bar,
     h('div', { class: 'pl-time' }, h('div', { class: 'pl-chips' }, cGo, cCt), tRel),
     h('div', { class: 'pl-simple' },
-      btn('↺ Replay', 'Watch the rep again', () => playFrom(Math.max(0, (m().b ?? 0.6) - 0.6)), 'pl-rep'), bPlay, bSlow));
+      btn('↺ Replay', 'Watch the rep again', () => playFrom(0), 'pl-rep'), bPlay, bSlow));
   let dur = o.dur || 0, dead = false, dragging = false, stopAt = null, wantPlay = false, rate = 1;
   const m = () => o.getMarks();
   Promise.resolve(o.src).then(u => { if (!dead && u) v.src = u; });
@@ -2349,7 +2349,7 @@ function openRun(id, fromEl) {
   }
   document.addEventListener('keydown', escClose);
   const player = makePlayer(pRoot, { src: assetUrl(a.asset), getMarks: () => ({ b: a.beepAt, c: a.controlAt }) });
-  player.playFrom(Math.max(0, a.beepAt - 0.6));
+  player.playFrom(0);
   modalStop = () => { player.destroy(); openId = null; };
   modalRefresh = renderBtns; renderBtns();
 }
