@@ -662,7 +662,7 @@ async function finishRec() {
   liveChunks = [];
   C.state = 'review'; setCue('');
   const lat = (actx && (actx.outputLatency || actx.baseLatency)) || 0;
-  loadClip(file, { settings: C.recSettings, beepGuess: Math.max(0, (C.beepAt - C.recStart) / 1000 + lat) });
+  loadClip(file, { settings: C.recSettings, beepGuess: Math.max(0, (C.beepAt - C.recStart) / 1000 + lat), recDur: (performance.now() - C.recStart) / 1000 });
 }
 async function camSequence() {
   const me = ++camRun; ensureCtx();
@@ -876,50 +876,58 @@ function decideControl(frames, m) {
   }
   return null;
 }
-async function findControl(file, beepT, opts, onP) {
-  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto';
-  Object.assign(v.style, { position: 'fixed', right: '0', bottom: '0', width: '96px', height: '54px', opacity: '0.01', pointerEvents: 'none', zIndex: '-1' });
-  const url = URL.createObjectURL(file); v.src = url; document.body.append(v);
+async function findControl(v, beepT, dur, opts, onP) {
+  /* Reads the frames from the (visible) replay player: phones often refuse to load or play a hidden video. */
+  const wasMuted = v.muted, rate = v.playbackRate, t0 = performance.now();
+  v.pause(); v.muted = true;
   try {
-    await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(new Error('load')); });
-    await fixDuration(v);
-    const W = 240, H = Math.max(60, Math.round(240 * v.videoHeight / v.videoWidth));
+    const vw = v.videoWidth || 640, vh = v.videoHeight || 360;
+    const W = 240, H = Math.max(60, Math.round(240 * vh / vw));
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
     const g2 = cv.getContext('2d', { willReadFrequently: true });
     const grab = () => { g2.drawImage(v, 0, 0, W, H); return g2.getImageData(0, 0, W, H).data; };
-    v.currentTime = Math.max(0, beepT - 0.12); await once(v, 'seeked'); await sleep(40);
+    if (!(await seekTo(v, Math.max(0, beepT - 0.12), 5000))) return { ok: false, reason: 'stalled' };
+    await nextFrame(v);
     const model = buildBallModel(grab(), W, H, opts);
     if (!model) return { ok: false, reason: 'noball' };
-    const end = Math.min(v.duration, beepT + 4.5);
-    const tracker = makeTracker(model), frames = [];
-    v.currentTime = Math.max(0, beepT - 0.03); await once(v, 'seeked');
-    await new Promise(res => {
-      let done = false;
-      const finish = () => { if (!done) { done = true; v.pause(); res(); } };
-      if (v.requestVideoFrameCallback) {
+    const end = Math.min(isFinite(dur) ? dur : beepT + 4.5, beepT + 4.5);
+    let tracker = makeTracker(model), frames = [];
+    await seekTo(v, Math.max(0, beepT - 0.03), 5000);
+    // fast path: play at half speed and read every frame as it's shown
+    let played = false;
+    if (v.requestVideoFrameCallback) {
+      played = await new Promise(res => {
+        let done = false, got = 0, lastGot = -1;
+        const finish = ok => { if (done) return; done = true; clearInterval(iv); v.pause(); res(ok); };
         const onFrame = (now, meta) => {
-          if (done) return;
+          if (done) return; got++;
           const t = meta.mediaTime;
           if (t >= beepT - 0.03) frames.push(tracker.step(grab(), t));
           onP && onP(clamp((t - beepT) / (end - beepT), 0, 1));
-          if (t >= end || v.ended) return finish();
+          if (t >= end || v.ended) return finish(true);
           v.requestVideoFrameCallback(onFrame);
         };
         v.requestVideoFrameCallback(onFrame);
-        v.onended = finish; v.playbackRate = 0.5;
-        v.play().catch(finish);
-        setTimeout(finish, (end - beepT) * 2000 + 10000);
-      } else {
-        (async () => {
-          for (let t = beepT; t < end; t += 1 / 30) { v.currentTime = t; await once(v, 'seeked'); frames.push(tracker.step(grab(), t)); onP && onP((t - beepT) / (end - beepT)); }
-          finish();
-        })();
+        v.addEventListener('ended', () => finish(true), { once: true });
+        const iv = setInterval(() => { if (got === lastGot) finish(got > 20 && frames.length > 20); lastGot = got; }, 2500); // stalled
+        v.playbackRate = 0.5;
+        const p = v.play(); if (p && p.catch) p.catch(() => finish(false));
+      });
+    }
+    // slow path: step through the clip frame by frame
+    if (!played) {
+      tracker = makeTracker(model); frames = [];
+      for (let t = beepT; t < end; t += 1 / 30) {
+        if (performance.now() - t0 > 60000) return { ok: false, reason: 'stalled' };
+        if (!(await seekTo(v, t, 2500))) return { ok: false, reason: 'stalled' };
+        frames.push(tracker.step(grab(), t));
+        onP && onP(clamp((t - beepT) / (end - beepT), 0, 1));
       }
-    });
+    }
     const t = decideControl(frames, model);
     return { ok: t != null, t, frames, model, reason: t == null ? 'nocontrol' : '' };
   } catch (e) { return { ok: false, reason: 'error' }; }
-  finally { v.remove(); URL.revokeObjectURL(url); }
+  finally { v.pause(); v.muted = wasMuted; v.playbackRate = rate; }
 }
 
 /* Find the first onset of the beep tone in a media file's audio (Goertzel filter). Returns seconds or null. */
@@ -970,9 +978,25 @@ function bindClock(video, el, getMarks) {
 function fixDuration(v) {
   return new Promise(res => {
     if (isFinite(v.duration)) return res();
-    const f = () => { v.removeEventListener('timeupdate', f); v.currentTime = 0; res(); };
-    v.addEventListener('timeupdate', f); v.currentTime = 1e101;
+    let done = false;
+    const fin = () => { if (done) return; done = true; v.removeEventListener('timeupdate', fin); try { v.currentTime = 0; } catch {} res(); };
+    v.addEventListener('timeupdate', fin);
+    try { v.currentTime = 1e101; } catch { fin(); }
+    setTimeout(fin, 2500);
   });
+}
+/* waiting helpers that always finish (phones sometimes never fire these events) */
+function waitEv(el, ev, ms) {
+  return new Promise(res => {
+    let done = false;
+    const fin = ok => { if (done) return; done = true; el.removeEventListener(ev, on); res(ok); };
+    const on = () => fin(true);
+    el.addEventListener(ev, on); setTimeout(() => fin(false), ms);
+  });
+}
+async function seekTo(v, t, ms = 3000) { const p = waitEv(v, 'seeked', ms); v.currentTime = t; return p; }
+function nextFrame(v, ms = 250) {
+  return new Promise(res => { let d = false; const fin = () => { if (!d) { d = true; res(); } }; if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(fin); setTimeout(fin, ms); });
 }
 
 /* ---------- RUN flow: automatic timing + replay (no manual marking) ---------- */
@@ -983,7 +1007,7 @@ let stopRClock = null;
 function resetRun(loading) {
   if (S.url) URL.revokeObjectURL(S.url);
   Object.assign(S, { file: null, url: null, dur: 0, beep: null, control: null, autoBeep: null, ms: null, rate: 1, busy: false, opts: null, job: S.job + 1 });
-  rv.pause(); rv.removeAttribute('src'); rv.load(); rv.playbackRate = 1;
+  rv.pause(); rv.removeAttribute('src'); rv.load(); rv.playbackRate = 1; rv.muted = false; $('#rclock').style.visibility = '';
   $('#btnSlow').setAttribute('aria-pressed', 'false'); $('#btnSlow').style.borderColor = '';
   $('#cMark').hidden = true; $('#postBox').hidden = true;
   if (!loading) {
@@ -1018,8 +1042,8 @@ async function loadClip(file, opts = {}) {
     return;
   }
   await fixDuration(rv);
-  S.dur = rv.duration;
-  if (!isFinite(S.dur) || S.dur > 180) { resetRun(); $('#clipMsg').textContent = 'Clips must be under 3 minutes. Trim it and try again.'; return; }
+  S.dur = isFinite(rv.duration) ? rv.duration : (opts.recDur || 60);
+  if (S.dur > 180) { resetRun(); $('#clipMsg').textContent = 'Clips must be under 3 minutes. Trim it and try again.'; return; }
   $('#cMark').hidden = false; $('#cCam').hidden = true; $('#cAlt').hidden = true;
   $('#cMark').scrollIntoView({ block: 'start' });
   if (stopRClock) stopRClock();
@@ -1032,17 +1056,20 @@ async function loadClip(file, opts = {}) {
   else if (opts.beepGuess != null && opts.beepGuess < S.dur) S.beep = Math.round(opts.beepGuess * 1000) / 1000;
   else return failRep("Couldn't hear the beep in this video, so it can't be timed. Film with the sound on.");
   rv.currentTime = Math.max(0, S.beep - 0.4);
-  const prog = f => { if (S.job === job) setAuto('Finding when the ball is in your pocket… ' + Math.round(f * 100) + '%', 'work'); };
+  const prog = f => { if (S.job === job) setAuto('Watching your rep for the ball… ' + Math.round(f * 100) + '%', 'work'); };
   prog(0);
-  let res = await findControl(file, S.beep, { settings: opts.settings || curSettings() }, prog);
+  $('#rclock').style.visibility = 'hidden';
+  let res = await findControl(rv, S.beep, S.dur, { settings: opts.settings || curSettings() }, prog);
   if (S.job !== job) return;
-  if (!res.ok && !opts.settings) {           // uploaded clip: search the picture for the ball
-    res = await findControl(file, S.beep, { autoFind: true }, prog);
+  if (!res.ok && res.reason !== 'stalled' && !opts.settings) {   // uploaded clip: search the picture for the ball
+    res = await findControl(rv, S.beep, S.dur, { autoFind: true }, prog);
     if (S.job !== job) return;
   }
-  if (!res.ok) return failRep(res.reason === 'noball'
-    ? "Couldn't find the ball at the beep. Keep the ball in the circle and the phone low and steady."
-    : "Didn't see the ball get picked up in your pocket, so this rep has no time. (Lost face-offs aren't timed.)");
+  $('#rclock').style.visibility = '';
+  if (!res.ok) return failRep(
+    res.reason === 'noball' ? "Couldn't find the ball at the beep. Keep the ball in the circle and the phone low and steady."
+    : res.reason === 'nocontrol' ? "Didn't see the ball get picked up in your pocket, so this rep has no time. (Lost face-offs aren't timed.)"
+    : "This phone couldn't play the clip back to time it (" + res.reason + "). Tap Next rep and try again.");
   S.control = Math.round(res.t * 1000) / 1000;
   S.ms = Math.round((S.control - S.beep) * 1000);
   if (S.ms < 120 || S.ms > 15000) return failRep("That timing doesn't look right (" + fmtMs(S.ms) + " s), so it wasn't counted. Try another rep.");
@@ -1058,7 +1085,7 @@ async function makeClip(file, start, end, onP) {
   const url = URL.createObjectURL(file);
   const v = document.createElement('video'); v.playsInline = true; v.preload = 'auto'; v.src = url;
   try {
-    await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(new Error('load')); });
+    if (!(await waitEv(v, 'loadedmetadata', 8000)) && !v.videoWidth) throw new Error('this phone could not open the clip');
     const sc = Math.min(1, 720 / Math.max(v.videoWidth, v.videoHeight));
     const W = Math.max(2, Math.round(v.videoWidth * sc / 2) * 2), H = Math.max(2, Math.round(v.videoHeight * sc / 2) * 2);
     const cv = h('canvas', { width: W, height: H }); const g = cv.getContext('2d');
@@ -1067,7 +1094,7 @@ async function makeClip(file, start, end, onP) {
       const src = c.createMediaElementSource(v), dest = c.createMediaStreamDestination();
       src.connect(dest); dest.stream.getAudioTracks().forEach(t => cs.addTrack(t));
     } catch {}
-    v.currentTime = start; await once(v, 'seeked');
+    await seekTo(v, start, 5000);
     const cands = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
     const mime = cands.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
     if (!mime) throw new Error('This browser cannot record video clips.');
@@ -1103,15 +1130,21 @@ async function post() {
   S.busy = true; $('#btnPost').disabled = true; $('#barWrap').hidden = false;
   const bar = $('#bar'); const setBar = f => bar.style.width = Math.round(f * 100) + '%';
   try {
-    const start = Math.max(0, S.beep - 1.0), end = Math.min(S.dur, S.control + 1.0);
-    msg.textContent = 'Preparing your clip… keep this tab open and in front.'; setBar(0);
     rv.pause();
-    const clip = await makeClip(S.file, start, end, f => setBar(f * 0.7));
-    if (clip.blob.size < 1000) throw new Error('Clip came out empty. Try again.');
-    let beep2 = S.beep - start, ctl2 = S.control - start;
-    if (S.autoBeep != null && Math.abs(S.autoBeep - S.beep) < 0.05) {
-      const d = await detectBeep(clip.blob);
-      if (d != null && Math.abs(d - beep2) < 0.35) { const shift = d - beep2; beep2 += shift; ctl2 += shift; }
+    let clip, beep2 = S.beep, ctl2 = S.control;
+    const ftype = (S.file.type || '').split(';')[0];
+    if (S.file.size < 18e6 && (ftype === 'video/mp4' || ftype === 'video/webm')) {
+      clip = { blob: S.file, type: ftype };                       // the rep clip from the app's camera: save as is
+    } else {
+      const start = Math.max(0, S.beep - 1.0), end = Math.min(S.dur, S.control + 1.0);
+      msg.textContent = 'Preparing your clip… keep this tab open and in front.'; setBar(0);
+      clip = await makeClip(S.file, start, end, f => setBar(f * 0.7));
+      if (clip.blob.size < 1000) throw new Error('Clip came out empty. Try again.');
+      beep2 = S.beep - start; ctl2 = S.control - start;
+      if (S.autoBeep != null && Math.abs(S.autoBeep - S.beep) < 0.05) {
+        const d = await detectBeep(clip.blob);
+        if (d != null && Math.abs(d - beep2) < 0.35) { const shift = d - beep2; beep2 += shift; ctl2 += shift; }
+      }
     }
     msg.textContent = 'Uploading…'; setBar(0.8);
     const up = await P.assets.upload(clip.blob, { type: clip.type });
