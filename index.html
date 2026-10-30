@@ -659,11 +659,11 @@ const curSettings = () => ({ size: C.size, y: C.y, side: C.side, partner: C.part
    (further from the camera = higher in the picture); a partner's head sits in front of it. */
 function geom(w, h, s = curSettings()) {
   const u = Math.min(w, h), r = 0.055 * u * s.size, cx = w / 2, cy = h * s.y;
-  const rx = 2 * r, ry = r, gap = 0.25 * r;
+  const rx = 2 * r, ry = r, touch = 0.25 * r;          // head sits right behind the ball, overlapping it a little
   return {
     ball: { cx, cy, r },
-    head: { cx, cy: cy - r - gap - ry, rx, ry, dir: s.side },
-    partner: s.partner ? { cx, cy: cy + r + gap + ry, rx, ry, dir: -s.side } : null
+    head: { cx, cy: cy - r + touch - ry, rx, ry, dir: s.side },
+    partner: s.partner ? { cx, cy: cy + r - touch + ry, rx, ry, dir: -s.side } : null
   };
 }
 const inEll = (x, y, e, k = 1) => ((x - e.cx) / (e.rx * k)) ** 2 + ((y - e.cy) / (e.ry * k)) ** 2 <= 1;
@@ -739,11 +739,14 @@ function drawOverlay() {
     for (const d of sides) { x.beginPath(); x.moveTo(hd.cx + d * hd.rx, hd.cy); x.lineTo(hd.cx + d * hd.rx * 3.2, hd.cy); x.stroke(); }
     x.globalAlpha = 1;
   };
-  drawHead(G.head, C.headOk, partial || C.headIn);
+  const sc = W / (C.dw || W), hf = C.headFit;
+  const headShown = C.headIn && hf ? { cx: hf.cx * sc, cy: hf.cy * sc, rx: G.head.rx, ry: G.head.ry, dir: G.head.dir } : G.head;
+  drawHead(headShown, C.headOk, partial || C.headIn);
   if (G.partner) drawHead(G.partner, C.partnerOk, false);
   const b = G.ball;
   style(C.ballOk, !C.ballOk && C.ballInfo && C.ballInfo.reason !== 'empty');
-  x.beginPath(); x.arc(b.cx, b.cy, b.r, 0, Math.PI * 2); x.fillStyle = 'rgba(0,0,0,.18)'; x.fill(); x.stroke();
+  const bi = C.ballInfo && C.ballInfo.ok ? C.ballInfo : null;
+  x.beginPath(); x.arc(bi ? bi.cx * sc : b.cx, bi ? bi.cy * sc : b.cy, bi ? Math.max(bi.r * sc * 1.15, b.r * 0.7) : b.r, 0, Math.PI * 2); x.fillStyle = 'rgba(0,0,0,.18)'; x.fill(); x.stroke();
   // little arrow: stick goes behind the ball
   if (!C.headOk && !go) {
     x.setLineDash([]); x.strokeStyle = 'rgba(255,255,255,.75)'; x.lineWidth = lw * 0.8;
@@ -802,14 +805,44 @@ function camActive() { return C.stream && !$('#v-run').hidden && !$('#cCam').hid
 /* ---------- is it really a ball / really a stick? ---------- */
 /* A lacrosse ball: one solid-coloured, round, ball-sized thing that sits inside the circle.
    Shadows (same colour as the ground, just darker) don't count as part of it. */
-function verifyBall(px, W, H, G, g) {
-  const { cx, cy, r } = G.ball, R = 1.9 * r;
+/* Where is the stick head? Try positions higher/lower and left/right of the outline and keep the best fit,
+   so you don't have to line it up exactly. The ball's own spot is ignored here. */
+function findHead(px, W, H, G, g, nom) {
+  nom = nom || G.head;
+  const r = G.ball.r, bc = G.ball; let best = null;
+  for (let dy = -1.0; dy <= 0.61; dy += 0.2) for (let dx = -0.5; dx <= 0.51; dx += 0.25) {
+    const hcx = nom.cx + dx * nom.rx, hcy = nom.cy + dy * r;
+    let L = 0, Ln = 0, R = 0, Rn = 0, Lo = 0, Lon = 0;
+    const x0 = Math.max(0, Math.floor(hcx - nom.rx)), x1 = Math.min(W - 1, Math.ceil(hcx + nom.rx));
+    const y0 = Math.max(0, Math.floor(hcy - nom.ry)), y1 = Math.min(H - 1, Math.ceil(hcy + nom.ry));
+    for (let y = y0; y <= y1; y += 2) for (let x = x0; x <= x1; x += 2) {
+      if (((x - hcx) / nom.rx) ** 2 + ((y - hcy) / nom.ry) ** 2 > 1) continue;
+      if (Math.hypot(x - bc.cx, y - bc.cy) < 1.05 * r) continue;
+      const i = (y * W + x) * 4, f = Math.abs(px[i] - g[0]) + Math.abs(px[i + 1] - g[1]) + Math.abs(px[i + 2] - g[2]) > T_G;
+      if (x < hcx) { Ln++; if (f) L++; } else { Rn++; if (f) R++; }
+      if (y > hcy) { Lon++; if (f) Lo++; }
+    }
+    const occL = Ln ? L / Ln : 0, occR = Rn ? R / Rn : 0, occLow = Lon ? Lo / Lon : 0;
+    const score = Math.min(occL, occR) + 0.5 * occLow - 0.04 * Math.abs(dy) - 0.04 * Math.abs(dx);
+    if (!best || score > best.score) best = { cx: hcx, cy: hcy, rx: nom.rx, ry: nom.ry, dir: nom.dir, occL, occR, occLow, score };
+  }
+  return best;
+}
+function verifyBall(px, W, H, G, g, headAt) {
+  // measure the ball on its own first; only if it seems merged with something, cut the stick head's area away and retry
+  const first = ballBlob(px, W, H, G, g, null);
+  if (first.ok) return first;
+  for (const hx of [headAt, G.head]) { if (!hx) continue; const again = ballBlob(px, W, H, G, g, hx); if (again.ok) return again; }
+  return first;
+}
+function ballBlob(px, W, H, G, g, hx) {
+  const { cx, cy, r } = G.ball, R = 2.4 * r;
   const x0 = Math.max(0, Math.floor(cx - R)), x1 = Math.min(W - 1, Math.ceil(cx + R)), y0 = Math.max(0, Math.floor(cy - R)), y1 = Math.min(H - 1, Math.ceil(cy + R));
   const ww = x1 - x0 + 1, hh = y1 - y0 + 1, m = new Uint8Array(ww * hh);
   const gs = g[0] + g[1] + g[2] + 1, gr = g[0] / gs, gg = g[1] / gs, glum = gs / 3;
   for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) {
     const X = x + x0, Y = y + y0;
-    if (inEll(X, Y, G.head) || (G.partner && inEll(X, Y, G.partner))) continue;          // that's the stick's spot
+    if ((hx && inEll(X, Y, hx)) || (G.partner && inEll(X, Y, G.partner))) continue;          // that's the stick's spot
     const i = (Y * W + X) * 4, s = px[i] + px[i + 1] + px[i + 2] + 1;
     const chroma = s > 60 ? (Math.abs(px[i] / s - gr) + Math.abs(px[i + 1] / s - gg)) * 255 : 0;
     if (chroma > 40 || s / 3 - glum > 45) m[y * ww + x] = 1;
@@ -829,7 +862,7 @@ function verifyBall(px, W, H, G, g) {
   // the blob nearest the middle of the circle
   let seed = -1, sd = 1e9;
   for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) if (m[y * ww + x]) { const d = Math.hypot(x + x0 - cx, y + y0 - cy); if (d < sd) { sd = d; seed = y * ww + x; } }
-  if (seed < 0 || sd > 0.7 * r) return { ok: false, reason: 'empty' };
+  if (seed < 0 || sd > 1.1 * r) return { ok: false, reason: 'empty' };
   // the ball's tint, from the middle of it (shading changes brightness, not tint)
   const tint = i => { const s = px[i] + px[i + 1] + px[i + 2] + 1; return [px[i] / s, px[i + 1] / s, s]; };
   let tr = 0, tg = 0, tn = 0;
@@ -843,21 +876,23 @@ function verifyBall(px, W, H, G, g) {
     const p = q.pop(), x = p % ww, y = (p / ww) | 0; n++; sx += x; sy += y; list.push(p);
     bx0 = Math.min(bx0, x); bx1 = Math.max(bx1, x); by0 = Math.min(by0, y); by1 = Math.max(by1, y);
     if (x === 0 || y === 0 || x === ww - 1 || y === hh - 1) edge = true;
-    if (Math.hypot(x + x0 - cx, y + y0 - cy) > 1.35 * r) out++;
     const i = ((y + y0) * W + x + x0) * 4; cs[0] += px[i]; cs[1] += px[i + 1]; cs[2] += px[i + 2];
     for (const j of [x > 0 ? p - 1 : -1, x < ww - 1 ? p + 1 : -1, y > 0 ? p - ww : -1, y < hh - 1 ? p + ww : -1]) if (j >= 0 && m[j] && !seen[j] && sameTint(j)) { seen[j] = 1; q.push(j); }
   }
   const A0 = Math.PI * r * r, bw = bx1 - bx0 + 1, bh = by1 - by0 + 1;
-  if (n < 0.3 * A0) return { ok: false, reason: 'small' };
-  if (n > 1.7 * A0 || edge || out / n > 0.12) return { ok: false, reason: 'big' };
+  if (n < 0.25 * A0) return { ok: false, reason: 'small' };
+  if (n > 2.2 * A0 || edge) return { ok: false, reason: 'big' };
+  { const mx = sx / n, my = sy / n, rEq = Math.sqrt(n / Math.PI);       // compact: nothing sticking far out of it
+    for (const p of list) if (Math.hypot(p % ww - mx, ((p / ww) | 0) - my) > 1.45 * rEq) out++;
+    if (out / n > 0.12) return { ok: false, reason: 'big' }; }
   if (Math.max(bw, bh) / Math.min(bw, bh) > 1.45 || n / (bw * bh) < 0.58) return { ok: false, reason: 'shape' };
   // one solid colour: the tint barely changes across it (shading is fine)
   let spread = 0;
   for (const p of list) { const t = tint((((p / ww) | 0) + y0) * W * 4 + ((p % ww) + x0) * 4); spread += (Math.abs(t[0] - tr) + Math.abs(t[1] - tg)) * 255; }
   if (spread / n > 14) return { ok: false, reason: 'shape' };
   const bcx = sx / n + x0, bcy = sy / n + y0;
-  if (Math.hypot(bcx - cx, bcy - cy) > 0.6 * r) return { ok: false, reason: 'offcenter' };
-  return { ok: true, cx: bcx, cy: bcy, n };
+  if (Math.hypot(bcx - cx, bcy - cy) > 1.1 * r) return { ok: false, reason: 'offcenter' };
+  return { ok: true, cx: bcx, cy: bcy, n, r: Math.sqrt(n / Math.PI) };
 }
 /* A lacrosse stick: a long, thin, straight shaft coming out of the head and running off to one side. */
 function shaftScore(px, W, H, hd, r, g, dir, ballC) {
@@ -937,10 +972,13 @@ function analyze(px) {
   };
   C.occ = { ball: far(M.ball), ring: far(M.ring), headL: far(M.headL), headR: far(M.headR), headLow: far(M.headLow), partner: M.partner.length ? far(M.partner) : 1 };
   const G = C.masks.G, W = C.dw, H = C.dh;
-  C.ballInfo = verifyBall(px, W, H, G, g);
+  const fit = findHead(px, W, H, G, g);
+  C.headFit = fit;
+  C.occ.headL = fit.occL; C.occ.headR = fit.occR; C.occ.headLow = fit.occLow;
+  C.ballInfo = verifyBall(px, W, H, G, g, fit && Math.min(fit.occL, fit.occR) >= HEAD_MIN ? fit : null);
   C.ballOk = C.ballInfo.ok;
-  C.headIn = C.occ.headL >= HEAD_MIN && C.occ.headR >= HEAD_MIN && C.occ.headLow >= 0.35;   // something down on the ground behind the ball…
-  C.stickInfo = C.headIn ? verifyStick(px, W, H, G.head, G.ball.r, g, G.ball) : { shaft: false, score: 0, dir: C.stickInfo ? C.stickInfo.dir : 1 };
+  C.headIn = fit.occL >= HEAD_MIN && fit.occR >= HEAD_MIN && fit.occLow >= 0.3;   // something down on the ground behind the ball…
+  C.stickInfo = C.headIn ? verifyStick(px, W, H, fit, G.ball.r, g, G.ball) : { shaft: false, score: 0, dir: C.stickInfo ? C.stickInfo.dir : 1 };
   C.headOk = C.headIn && C.stickInfo.shaft;                                                   // …and it has a stick's shaft
   C.partnerOk = !C.partner || (C.occ.partner >= HEAD_MIN && verifyStick(px, W, H, G.partner, G.ball.r, g, G.ball).shaft);
   C.aligned = C.ballOk && C.headOk && C.partnerOk;
