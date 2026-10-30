@@ -1828,7 +1828,7 @@ function makePlayer(root, o) {
     h('div', { class: 'pl-time' }, h('div', { class: 'pl-chips' }, cGo, cCt), tRel),
     h('div', { class: 'pl-simple' },
       btn('↺ Replay', 'Watch the rep again', () => playFrom(0), 'pl-rep'), bPlay, bSlow));
-  let dur = o.dur || 0, dead = false, dragging = false, stopAt = null, wantPlay = false, rate = 1;
+  let finished = false, dur = o.dur || 0, dead = false, dragging = false, stopAt = null, wantPlay = false, rate = 1;
   const m = () => o.getMarks();
   Promise.resolve(o.src).then(u => { if (!dead && u) v.src = u; });
   // iPhones don't load a video until it has been played once: start it (muted) on the first touch
@@ -1876,24 +1876,25 @@ function makePlayer(root, o) {
     tRel.textContent = b == null ? '' : (t >= b ? 'Go + ' : 'Go − ') + Math.abs(t - b).toFixed(3) + ' s';
     bPlay.textContent = v.paused ? '▶' : '❚❚'; big.hidden = !v.paused;
     { const { b: bb, c: cc } = m(); cGo.hidden = bb == null; cCt.hidden = cc == null; }
-    if (stopAt != null && !v.paused && t >= stopAt) { v.pause(); stopAt = null; wantPlay = false; }
+    if (stopAt != null && !v.paused && t >= stopAt) { v.pause(); stopAt = null; wantPlay = false; finished = true; }
     requestAnimationFrame(ui);
   };
   requestAnimationFrame(ui);
-  scrub.addEventListener('input', () => { dragging = true; wantPlay = false; stopAt = null; v.pause(); v.currentTime = +scrub.value; });
+  scrub.addEventListener('input', () => { finished = false; dragging = true; wantPlay = false; stopAt = null; v.pause(); v.currentTime = +scrub.value; });
   scrub.addEventListener('change', () => { dragging = false; });
   scrub.addEventListener('pointerup', () => { dragging = false; });
   function toggle() {
     if (!v.paused && !wantPlay && performance.now() - primedAt < 800) { wantPlay = true; stopAt = null; v.playbackRate = rate; return; }   // that tap was "play"
+    if (v.paused && (finished || v.ended)) { finished = false; playFrom(0); return; }   // after it's played through, Play starts it over
     if (v.paused) { wantPlay = true; stopAt = null; v.playbackRate = rate; const p = v.play(); if (p && p.catch) p.catch(() => { wantPlay = false; }); }
     else { wantPlay = false; v.pause(); }
   }
   big.onclick = toggle; v.addEventListener('click', toggle);
-  function step(n) { wantPlay = false; stopAt = null; v.pause(); v.currentTime = clamp((v.currentTime || 0) + n / 30, 0, dur || 1e9); }
-  function jump(t) { if (t == null) return; wantPlay = false; stopAt = null; v.pause(); v.currentTime = Math.max(0, t); }
+  function step(n) { finished = false; wantPlay = false; stopAt = null; v.pause(); v.currentTime = clamp((v.currentTime || 0) + n / 30, 0, dur || 1e9); }
+  function jump(t) { if (t == null) return; finished = false; wantPlay = false; stopAt = null; v.pause(); v.currentTime = Math.max(0, t); }
   function playFrom(t) {
     const go = () => {
-      const { c } = m(); stopAt = c != null ? c + 1.2 : null; wantPlay = true;
+      const { c } = m(); stopAt = c != null ? c + 1.2 : null; wantPlay = true; finished = false;
       v.currentTime = t; v.playbackRate = rate;
       const p = v.play(); if (p && p.catch) p.catch(() => { wantPlay = false; });
     };
