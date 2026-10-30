@@ -146,6 +146,23 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
 .ptable tr.me td{color:var(--lime)}
 .ptable td:first-child{max-width:120px;overflow:hidden;text-overflow:ellipsis}
 .nodata{color:var(--mute);padding:10px 2px}
+.seg.seg-big{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px}
+.seg.seg-big button{background:none;color:var(--mute);border:0;border-radius:9px;padding:10px;font-family:var(--disp);font-weight:800;font-size:18px;letter-spacing:.06em;text-transform:uppercase}
+.seg.seg-big button[aria-pressed=true]{background:var(--lime);color:#101600}
+.hero{display:block;width:100%;text-align:left;background:var(--panel);border:1px solid var(--lime);border-radius:16px;padding:14px 16px;margin-bottom:10px}
+.hero span{display:block;font-family:var(--disp);font-weight:700;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--lime)}
+.hero b{display:block;font-family:var(--disp);font-weight:800;font-size:54px;line-height:1.05;font-variant-numeric:tabular-nums}
+.hero small{display:block;color:var(--mute);font-size:15px}
+.hero:disabled{cursor:default;border-color:var(--line)}
+.plain{background:#0d141b;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:16px;line-height:1.45}
+.reclist{display:flex;flex-direction:column}
+.recrow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 2px;border-bottom:1px solid #1a2430;text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%}
+.recrow:last-child{border-bottom:0}
+.recrow b{font-weight:600}
+.recrow .v{font-family:var(--disp);font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;grid-row:span 2;align-self:center}
+.recrow small{color:var(--mute)}
+details.more summary{cursor:pointer;font-family:var(--disp);font-weight:700;font-size:18px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute)}
+details.more[open] summary{margin-bottom:10px;color:var(--ink)}
 /* board */
 .seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .seg button{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;color:var(--mute)}
@@ -288,36 +305,43 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
 
   <!-- STATS -->
   <section id="v-stats" hidden>
+    <div class="seg seg-big" id="segWho">
+      <button data-v="all" aria-pressed="true">Everyone</button>
+      <button data-v="me" aria-pressed="false">Me</button>
+    </div>
     <div class="seg" id="segStats">
       <button data-v="all" aria-pressed="true">All time</button>
       <button data-v="week" aria-pressed="false">This week</button>
       <button data-v="day" aria-pressed="false">Today</button>
     </div>
-    <h2 class="sec">Records</h2>
-    <div class="recgrid" id="recGrid"></div>
-    <h2 class="sec">Everyone's times</h2>
-    <div class="statgrid" id="distGrid"></div>
-    <div class="card chartcard">
-      <h3>How the times are spread</h3>
-      <div class="legend" id="histLegend"></div>
-      <div class="chart" id="hist"></div>
-      <div class="small muted" id="histNote"></div>
+
+    <div id="statsAll">
+      <button class="hero" id="heroAll"></button>
+      <div class="statgrid" id="tilesAll"></div>
+      <div class="plain" id="plainAll"></div>
+      <div class="card chartcard">
+        <h3>Spread of times</h3>
+        <div class="legend" id="histLegend"></div>
+        <div class="chart" id="hist"></div>
+      </div>
+      <div class="card"><h3>Records</h3><div class="reclist" id="recList"></div></div>
+      <div class="card tablecard"><h3>Players</h3><div class="small muted">Tap a column to sort.</div><table class="ptable" id="pTable"></table></div>
+      <div class="card"><h3>Unusual reps</h3><div class="small muted" style="margin-bottom:8px">Much faster or slower than most reps. Tap one to watch it.</div><div class="list" id="outList"></div></div>
+      <details class="card more"><summary>More stats</summary><div class="statgrid" id="moreAll"></div><div class="small muted" id="moreAllNote"></div></details>
     </div>
-    <div class="card">
-      <h3>Outliers</h3>
-      <div class="small muted" style="margin-bottom:8px">Times far outside the usual range: faster than Q1 − 1.5 × IQR or slower than Q3 + 1.5 × IQR. Tap one to watch it.</div>
-      <div class="list" id="outList"></div>
-    </div>
-    <h2 class="sec">Players</h2>
-    <div class="card tablecard"><table class="ptable" id="pTable"></table></div>
-    <h2 class="sec">You</h2>
-    <div class="statgrid" id="meGrid"></div>
-    <div class="card chartcard" id="trendCard">
-      <h3>Your times, rep by rep</h3>
-      <div class="small muted">Higher on the chart = faster.</div>
-      <div class="legend" id="trendLegend"></div>
-      <div class="chart" id="trend"></div>
-      <div class="small" id="trendNote"></div>
+
+    <div id="statsMe" hidden>
+      <button class="hero" id="heroMe"></button>
+      <div class="statgrid" id="tilesMe"></div>
+      <div class="plain" id="plainMe"></div>
+      <div class="card chartcard">
+        <h3>Your times, rep by rep</h3>
+        <div class="small muted">Higher on the chart = faster.</div>
+        <div class="legend" id="trendLegend"></div>
+        <div class="chart" id="trend"></div>
+      </div>
+      <div class="card"><h3>Your unusual reps</h3><div class="small muted" style="margin-bottom:8px">Much faster or slower than your usual. Tap one to watch it.</div><div class="list" id="outMe"></div></div>
+      <details class="card more"><summary>More stats</summary><div class="statgrid" id="moreMe"></div><div class="small muted" id="moreMeNote"></div></details>
     </div>
   </section>
 
@@ -1649,7 +1673,7 @@ function collect(snap, map) {
 
 /* ---------- records & statistics ---------- */
 const VZ = { blue: '#3987e5', orange: '#d95926', ink: '#eef3f7', mute: '#8da0b2', grid: '#243140', surface: '#121921' };
-const SF = { range: 'all', sort: 'best', dir: 1 };
+const SF = { range: 'all', who: 'all', sort: 'best', dir: 1 };
 const fmtS = ms => isFinite(ms) ? (ms / 1000).toFixed(3) : '–';
 const svgEl = (tag, attrs = {}) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
 function quant(sorted, q) {
@@ -1733,7 +1757,7 @@ function renderHistogram(box, sm, runs) {
     const t = svgEl('text', { x: X(x0 + i * bw), y: H - 8, 'text-anchor': 'middle', fill: VZ.mute, 'font-size': 11 }); t.textContent = fmtS(x0 + i * bw).replace(/0+$/, '').replace(/\.$/, '') + 's'; svg.append(t);
   }
   // median and mean reference lines, labelled
-  const refs = [['median', sm.median, ''], ['mean', sm.mean, '4 3']];
+  const refs = [['middle', sm.median, ''], ['avg', sm.mean, '4 3']];
   const lx = refs.map(([, v]) => X(v)); const close = Math.abs(lx[0] - lx[1]) < 70;
   refs.forEach(([label, v, dash], i) => {
     svg.append(svgEl('line', { x1: X(v), x2: X(v), y1: mt - 4, y2: H - mb, stroke: VZ.ink, 'stroke-width': 1.5, 'stroke-dasharray': dash, opacity: 0.85 }));
@@ -1792,71 +1816,98 @@ function renderTrend(box, runs) {
   box.append(svg);
   return { chron, sm };
 }
-function renderStats() {
-  if ($('#v-stats').hidden) return;
-  const runs = statRuns(SF.range), sm = summarize(runs.map(a => a.timeMs)), players = byPlayer(runs);
-  const allRuns = statRuns('all'), todayRuns = statRuns('day');
-  const best = list => list.reduce((b, a) => !b || a.timeMs < b.timeMs ? a : b, null);
-  const when = a => a ? ago(a.createdAt || Date.now()) : '';
-  const rg = $('#recGrid'); rg.replaceChildren();
-  const fe = best(allRuns), ft = best(todayRuns), fr = best(runs);
-  const most = players.slice().sort((a, b) => b.n - a.n)[0];
-  const elig = players.filter(p => p.n >= 5);
-  const bavg = elig.slice().sort((a, b) => a.mean - b.mean)[0], cons = elig.slice().sort((a, b) => a.sd - b.sd)[0];
-  const impr = players.filter(p => p.improve != null).sort((a, b) => b.improve - a.improve)[0];
-  rg.append(
-    recCard('Fastest ever', fe ? fmtS(fe.timeMs) + ' s' : '–', fe ? (fe.handle || 'Player') + ' · ' + when(fe) : 'No reps yet', fe ? () => openRun(fe.id) : null),
-    recCard('Fastest today', ft ? fmtS(ft.timeMs) + ' s' : '–', ft ? (ft.handle || 'Player') + ' · ' + when(ft) : 'No reps today', ft ? () => openRun(ft.id) : null),
-    SF.range === 'all' ? recCard('Most reps', most ? String(most.n) : '–', most ? most.name : '') : recCard('Fastest ' + (SF.range === 'week' ? 'this week' : 'today'), fr ? fmtS(fr.timeMs) + ' s' : '–', fr ? (fr.handle || 'Player') : '', fr ? () => openRun(fr.id) : null),
-    recCard('Best average', bavg ? fmtS(bavg.mean) + ' s' : '–', bavg ? bavg.name + ' · ' + bavg.n + ' reps' : 'Needs 5+ reps'),
-    recCard('Most consistent', cons ? '± ' + fmtS(cons.sd) + ' s' : '–', cons ? cons.name + ' · std dev, ' + cons.n + ' reps' : 'Needs 5+ reps'),
-    recCard('Most improved', impr && impr.improve >= 10 ? '− ' + fmtS(impr.improve) + ' s' : '–', impr && impr.improve >= 10 ? impr.name + ' · first 5 vs last 5' : (impr ? 'Nobody faster by 0.01 s+ yet' : 'Needs 10+ reps'))
-  );
-  const dg = $('#distGrid'); dg.replaceChildren();
-  dg.append(statTile('Reps', sm.n ? String(sm.n) : '0'), statTile('Average', fmtS(sm.mean)), statTile('Median', fmtS(sm.median)),
-    statTile('Std dev', sm.n > 1 ? fmtS(sm.sd) : '–'), statTile('Fastest', fmtS(sm.min)), statTile('Slowest', fmtS(sm.max)),
-    statTile('10th pct', fmtS(sm.p10)), statTile('90th pct', fmtS(sm.p90)), statTile('IQR', sm.n > 1 ? fmtS(sm.iqr) : '–'));
-  legend($('#histLegend'), [['Reps per time range', VZ.blue], ['Outlier range', VZ.orange], ['Median (solid) · average (dashed)', VZ.ink, 'line']]);
-  renderHistogram($('#hist'), sm, runs);
-  $('#histNote').textContent = sm.n >= 4 ? 'Usual range: ' + fmtS(Math.max(sm.lo, sm.min)) + '–' + fmtS(Math.min(sm.hi, sm.max)) + ' s (Q1 ' + fmtS(sm.q1) + ', Q3 ' + fmtS(sm.q3) + ').' : '';
-  const ol = $('#outList'); ol.replaceChildren();
-  const outs = sm.n >= 4 ? runs.filter(a => a.timeMs < sm.lo || a.timeMs > sm.hi).sort((a, b) => a.timeMs - b.timeMs) : [];
-  if (!outs.length) ol.append(h('div', { class: 'nodata', text: sm.n >= 4 ? 'No outliers right now.' : 'Needs at least 4 reps.' }));
+const rangeWord = () => SF.range === 'day' ? 'today' : SF.range === 'week' ? 'this week' : '';
+function hero(el, label, value, sub, onclick) {
+  el.replaceChildren(h('span', { text: label }), h('b', { text: value }), h('small', { text: sub }));
+  el.onclick = onclick || null; el.disabled = !onclick;
+}
+function recRow(label, value, sub, onclick) {
+  return h('button', { class: 'recrow', onclick: onclick || null, style: onclick ? '' : 'cursor:default' },
+    h('b', { text: label }), h('span', { class: 'v', text: value }), h('small', { text: sub }));
+}
+function unusualList(box, runs, sm, emptyText) {
+  box.replaceChildren();
+  const outs = sm.n >= 4 ? runs.filter(a => a.timeMs < sm.lo || a.timeMs > sm.hi).sort((a, b) => Math.abs(b.timeMs - sm.median) - Math.abs(a.timeMs - sm.median)).slice(0, 5) : [];
+  if (!outs.length) { box.append(h('div', { class: 'nodata', text: sm.n >= 4 ? emptyText : 'Needs at least 4 reps.' })); return; }
   outs.forEach(a => {
-    const d = a.timeMs - sm.median;
-    ol.append(h('button', { class: 'item', onclick: () => openRun(a.id) },
-      h('div', { class: 'rank', text: d < 0 ? '⚡' : '🐢', style: 'font-size:22px' }),
-      h('div', { class: 'who' }, h('b', { text: a.handle || 'Player' }), h('small', { text: (d < 0 ? '' : '+') + fmtS(d) + ' s vs median · ' + ago(a.createdAt || Date.now()) })),
+    const d = a.timeMs - sm.median, fast = d < 0;
+    box.append(h('button', { class: 'item', onclick: () => openRun(a.id) },
+      h('div', { class: 'rank', text: fast ? '⚡' : '🐢', style: 'font-size:22px' }),
+      h('div', { class: 'who' }, h('b', { text: a.handle || 'Player' }), h('small', { text: fmtS(Math.abs(d)) + ' s ' + (fast ? 'faster' : 'slower') + ' than usual · ' + ago(a.createdAt || Date.now()) })),
       h('div', { class: 'time', text: fmtS(a.timeMs) }), h('div', { class: 'play', text: '▶' })));
   });
-  // players table (sortable)
-  const cols = [['name', 'Player'], ['n', 'Reps'], ['min', 'Best'], ['mean', 'Avg'], ['median', 'Median'], ['sd', 'Std dev'], ['outl', 'Outliers']];
-  const sorted = players.slice().sort((a, b) => { const k = SF.sort === 'best' ? 'min' : SF.sort; const va = a[k], vb = b[k]; return (typeof va === 'string' ? va.localeCompare(vb) : (va ?? Infinity) - (vb ?? Infinity)) * SF.dir; });
+}
+function renderStats() {
+  if ($('#v-stats').hidden) return;
+  $('#statsAll').hidden = SF.who !== 'all'; $('#statsMe').hidden = SF.who !== 'me';
+  const runs = statRuns(SF.range);
+  if (SF.who === 'all') renderStatsAll(runs); else renderStatsMe(runs);
+}
+function renderStatsAll(runs) {
+  const sm = summarize(runs.map(a => a.timeMs)), players = byPlayer(runs), rw = rangeWord();
+  const best = list => list.reduce((b, a) => !b || a.timeMs < b.timeMs ? a : b, null);
+  const f = best(runs);
+  hero($('#heroAll'), rw ? 'Fastest ' + rw : 'Fastest ever', f ? fmtS(f.timeMs) + ' s' : '–',
+    f ? (f.handle || 'Player') + ' · ' + ago(f.createdAt || Date.now()) + ' · tap to watch' : 'No reps ' + (rw || 'yet') + '. Be the first!', f ? () => openRun(f.id) : null);
+  $('#tilesAll').replaceChildren(statTile('Average', fmtS(sm.mean)), statTile('Middle time', fmtS(sm.median)), statTile('Reps', String(sm.n || 0)));
+  $('#plainAll').textContent = sm.n >= 4
+    ? 'Most reps' + (rw ? ' ' + rw : '') + ' land between ' + fmtS(sm.q1) + ' and ' + fmtS(sm.q3) + ' seconds. ' + players.length + (players.length === 1 ? ' player has' : ' players have') + ' posted.'
+    : sm.n ? 'Post a few more reps to see the usual range.' : 'Nothing posted ' + (rw || 'yet') + '.';
+  legend($('#histLegend'), [['Reps', VZ.blue], ['Unusual', VZ.orange], ['Middle (solid) · average (dashed)', VZ.ink, 'line']]);
+  renderHistogram($('#hist'), sm, runs);
+  // records
+  const rl = $('#recList'); rl.replaceChildren();
+  const most = players.slice().sort((a, b) => b.n - a.n)[0], elig = players.filter(p => p.n >= 5);
+  const bavg = elig.slice().sort((a, b) => a.mean - b.mean)[0], cons = elig.slice().sort((a, b) => a.sd - b.sd)[0];
+  const impr = players.filter(p => p.improve != null && p.improve >= 10).sort((a, b) => b.improve - a.improve)[0];
+  if (!rw) { const t = best(statRuns('day')); rl.append(recRow('Fastest today', t ? fmtS(t.timeMs) + ' s' : '–', t ? (t.handle || 'Player') : 'Nobody yet today', t ? () => openRun(t.id) : null)); }
+  rl.append(
+    recRow('Most reps', most ? String(most.n) : '–', most ? most.name : 'Nobody yet'),
+    recRow('Best average', bavg ? fmtS(bavg.mean) + ' s' : '–', bavg ? bavg.name + ' · ' + bavg.n + ' reps' : 'Needs someone with 5+ reps'),
+    recRow('Most consistent', cons ? '± ' + fmtS(cons.sd) + ' s' : '–', cons ? cons.name + ' · times vary the least' : 'Needs someone with 5+ reps'),
+    recRow('Most improved', impr ? '− ' + fmtS(impr.improve) + ' s' : '–', impr ? impr.name + ' · last 5 vs first 5' : 'Needs someone with 10+ reps'));
+  // players table: just the basics
+  const cols = [['name', 'Player'], ['n', 'Reps'], ['min', 'Best'], ['mean', 'Average']];
+  const key = SF.sort === 'best' ? 'min' : SF.sort;
+  const sorted = players.slice().sort((a, b) => { const va = a[key], vb = b[key]; return (typeof va === 'string' ? va.localeCompare(vb) : (va ?? Infinity) - (vb ?? Infinity)) * SF.dir; });
   const tb = $('#pTable'); tb.replaceChildren();
-  const thead = h('tr', {}, cols.map(([k, label]) => {
-    const key = k === 'min' ? 'best' : k, on = SF.sort === key;
-    return h('th', { 'aria-sort': on ? (SF.dir > 0 ? 'ascending' : 'descending') : null, onclick: () => { if (SF.sort === key) SF.dir *= -1; else { SF.sort = key; SF.dir = (k === 'n' || k === 'outl') ? -1 : 1; } renderStats(); } }, label + (on ? (SF.dir > 0 ? ' ▲' : ' ▼') : ''));
-  }));
-  tb.append(h('thead', {}, thead));
+  tb.append(h('thead', {}, h('tr', {}, cols.map(([k, label]) => {
+    const kk = k === 'min' ? 'best' : k, on = SF.sort === kk;
+    return h('th', { 'aria-sort': on ? (SF.dir > 0 ? 'ascending' : 'descending') : null, onclick: () => { if (SF.sort === kk) SF.dir *= -1; else { SF.sort = kk; SF.dir = k === 'n' ? -1 : 1; } renderStats(); } }, label + (on ? (SF.dir > 0 ? ' ▲' : ' ▼') : ''));
+  }))));
   const tbody = h('tbody');
-  if (!sorted.length) tbody.append(h('tr', {}, h('td', { colspan: 7, class: 'nodata', text: 'No reps in this range yet.' })));
+  if (!sorted.length) tbody.append(h('tr', {}, h('td', { colspan: 4, class: 'nodata', text: 'No reps ' + (rw || 'yet') + '.' })));
   sorted.forEach(p => tbody.append(h('tr', { class: p.uid === P.uid ? 'me' : '' },
-    h('td', { text: p.name }), h('td', { text: String(p.n) }), h('td', { text: fmtS(p.min) }), h('td', { text: fmtS(p.mean) }),
-    h('td', { text: fmtS(p.median) }), h('td', { text: p.n > 1 ? fmtS(p.sd) : '–' }), h('td', { text: String(p.outl) }))));
+    h('td', { text: p.name + (p.uid === P.uid ? ' (you)' : '') }), h('td', { text: String(p.n) }), h('td', { text: fmtS(p.min) }), h('td', { text: fmtS(p.mean) }))));
   tb.append(tbody);
-  // you
-  const mine = runs.filter(a => a.uid === P.uid), ms = summarize(mine.map(a => a.timeMs)), mg = $('#meGrid'); mg.replaceChildren();
-  const bests = players.map(p => p.min).sort((a, b) => a - b);
-  mg.append(statTile('Your reps', String(ms.n || 0)), statTile('Your best', fmtS(ms.min)), statTile('Rank', ms.n ? '#' + (1 + bests.filter(b => b < ms.min).length) + ' of ' + players.length : '–'),
-    statTile('Your average', fmtS(ms.mean)), statTile('Your median', fmtS(ms.median)), statTile('Your std dev', ms.n > 1 ? fmtS(ms.sd) : '–'));
-  legend($('#trendLegend'), [['Each rep', VZ.blue, 'dot'], ['Outlier', VZ.orange, 'dot'], ['5-rep average', VZ.ink, 'line']]);
-  const tr = renderTrend($('#trend'), mine);
-  const note = $('#trendNote'); note.textContent = ''; note.className = 'small';
-  if (tr && tr.chron.length >= 10) {
-    const avg = rs => rs.reduce((x, r) => x + r.timeMs, 0) / rs.length, d = avg(tr.chron.slice(0, 5)) - avg(tr.chron.slice(-5));
-    note.textContent = (d >= 10 ? 'Getting faster: your last 5 average ' + fmtS(d) + ' s quicker than your first 5.' : d <= -10 ? 'Your last 5 average ' + fmtS(-d) + ' s slower than your first 5.' : 'About the same as your first 5 (within 0.01 s).');
-    note.className = 'small ' + (d <= -10 ? 'warn' : ''); note.style.color = d >= 10 ? 'var(--lime)' : '';
-  } else if (tr) note.textContent = 'After 10 reps you\'ll see how your last 5 compare with your first 5.';
+  unusualList($('#outList'), runs, sm, 'No unusual reps right now.');
+  $('#moreAll').replaceChildren(statTile('Fastest', fmtS(sm.min)), statTile('Slowest', fmtS(sm.max)), statTile('Std dev', sm.n > 1 ? fmtS(sm.sd) : '–'),
+    statTile('10th pct', fmtS(sm.p10)), statTile('90th pct', fmtS(sm.p90)), statTile('Middle half', sm.n > 1 ? fmtS(sm.iqr) : '–'));
+  $('#moreAllNote').textContent = 'Std dev: how much times vary. 10th pct: 1 in 10 reps is faster than this. 90th pct: 1 in 10 is slower. Middle half: the width of the range the middle 50% of reps fall in. Unusual = outside that range by more than 1.5× its width.';
+}
+function renderStatsMe(runs) {
+  const mine = runs.filter(a => a.uid === P.uid), sm = summarize(mine.map(a => a.timeMs)), rw = rangeWord();
+  const players = byPlayer(runs), bests = players.map(p => p.min).sort((a, b) => a - b);
+  const pb = mine.reduce((b, a) => !b || a.timeMs < b.timeMs ? a : b, null);
+  hero($('#heroMe'), rw ? 'Your best ' + rw : 'Your best', pb ? fmtS(pb.timeMs) + ' s' : '–',
+    pb ? '#' + (1 + bests.filter(b => b < pb.timeMs).length) + ' of ' + players.length + ' players · tap to watch' : 'No reps ' + (rw || 'yet') + '. Run a face-off and post it.', pb ? () => openRun(pb.id) : null);
+  $('#tilesMe').replaceChildren(statTile('Your average', fmtS(sm.mean)), statTile('Middle time', fmtS(sm.median)), statTile('Your reps', String(sm.n || 0)));
+  const lines = [];
+  const chron = mine.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  if (chron.length >= 10) {
+    const avg = rs => rs.reduce((x, r) => x + r.timeMs, 0) / rs.length, d = avg(chron.slice(0, 5)) - avg(chron.slice(-5));
+    lines.push(d >= 10 ? '📈 Getting faster: your last 5 reps average ' + fmtS(d) + ' s quicker than your first 5.'
+      : d <= -10 ? '📉 Your last 5 reps average ' + fmtS(-d) + ' s slower than your first 5.' : '➖ Your last 5 reps are about the same as your first 5.');
+  } else if (chron.length) lines.push('Post ' + (10 - chron.length) + ' more rep' + (10 - chron.length === 1 ? '' : 's') + ' to see if you’re getting faster.');
+  if (sm.n >= 3) lines.push('Your times usually vary by about ± ' + fmtS(sm.sd) + ' s.');
+  if (sm.n >= 4) lines.push('Most of your reps land between ' + fmtS(sm.q1) + ' and ' + fmtS(sm.q3) + ' s.');
+  $('#plainMe').textContent = lines.join(' ') || 'Your stats show up here after you post a rep.';
+  legend($('#trendLegend'), [['Each rep', VZ.blue, 'dot'], ['Unusual', VZ.orange, 'dot'], ['5-rep average', VZ.ink, 'line']]);
+  renderTrend($('#trend'), mine);
+  unusualList($('#outMe'), mine, sm, 'None. Nice and steady.');
+  $('#moreMe').replaceChildren(statTile('Fastest', fmtS(sm.min)), statTile('Slowest', fmtS(sm.max)), statTile('Std dev', sm.n > 1 ? fmtS(sm.sd) : '–'),
+    statTile('10th pct', fmtS(sm.p10)), statTile('90th pct', fmtS(sm.p90)), statTile('Middle half', sm.n > 1 ? fmtS(sm.iqr) : '–'));
+  $('#moreMeNote').textContent = 'Std dev: how much your times vary. 10th pct: 1 in 10 of your reps is faster than this. 90th pct: 1 in 10 is slower. Middle half: the width of the range your middle 50% of reps fall in.';
 }
 let statsResize = 0;
 window.addEventListener('resize', () => { clearTimeout(statsResize); statsResize = setTimeout(renderStats, 150); });
@@ -1877,6 +1928,7 @@ function seg(id, key) {
 }
 seg('segMode', 'mode'); seg('segRange', 'range');
 $$('#segStats button').forEach(b => b.onclick = () => { SF.range = b.dataset.v; $$('#segStats button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
+$$('#segWho button').forEach(b => b.onclick = () => { SF.who = b.dataset.v; $$('#segWho button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
 
 $('#btnBeep').onclick = runStation;
 $('#btnTest').onclick = () => { playBeep(); toast('Beep test'); };
