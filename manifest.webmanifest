@@ -1,0 +1,19 @@
+{
+  "name": "FO & GO",
+  "short_name": "FO & GO",
+  "description": "Lacrosse face-off timer: Down, Set, whistle — times you to the ball in your pocket, with a shared leaderboard.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0e12",
+  "theme_color": "#0a0e12",
+  "categories": ["sports", "fitness"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
