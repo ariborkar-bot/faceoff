@@ -232,7 +232,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   <section id="v-run" hidden>
     <div class="card" id="cCam">
       <h2>Face-off cam</h2>
-      <div class="muted small">Prop your phone up low, facing you (front camera, so you can see the screen). Press <b>Start</b>. When it says <b>Down</b>, put the ball in the circle with your stick head <b>on the ground right behind it</b>. Once you're in position you get <b>3 seconds</b> to settle, then it says <b>Set</b>, then <b>Go</b>. After “Set”, hold still until “Go” or it's a false start. The app times you from Go to the moment the ball is in your pocket.</div>
+      <div class="muted small">Prop your phone up low, facing you (front camera, so you can see the screen). Press <b>Start</b>. When it says <b>Down</b>, put the ball in the circle with your stick head <b>on the ground right behind it</b>. Once you're in position you get <b>3 seconds</b> to settle, then it says <b>Set</b>, then <b>Go</b>. After “Set”, hold still until “Go” or it's a false start. The app checks it's really a ball and a stick: lay the stick flat with the shaft out to the side. On a painted line, use a yellow or orange ball (white on white paint can't be told apart). The app times you from Go to the moment the ball is in your pocket.</div>
       <div id="camOff">
         <button class="btn primary" id="btnCamOn" style="width:100%;margin-top:12px">Start camera</button>
       </div>
@@ -253,7 +253,6 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
         <div class="setgrid">
           <div><label for="rngSize">Outline size</label><input type="range" id="rngSize" min="0.5" max="2" step="0.05"></div>
           <div><label for="rngY">Outline height</label><input type="range" id="rngY" min="0.25" max="0.9" step="0.01"></div>
-          <div><label for="selSide">Stick head side</label><select id="selSide"><option value="1">Right of ball</option><option value="-1">Left of ball</option></select></div>
           <div class="checks">
             <label><input type="checkbox" id="chkPartner"> Partner's stick too</label>
             <label><input type="checkbox" id="chkFs"> Call false starts</label>
@@ -670,11 +669,12 @@ function geom(w, h, s = curSettings()) {
 const inEll = (x, y, e, k = 1) => ((x - e.cx) / (e.rx * k)) ** 2 + ((y - e.cy) / (e.ry * k)) ** 2 <= 1;
 /* pixels that should be plain ground: beside the ball and in front of it */
 function groundIdx(w, h, G, step = 1) {
-  const { cx, cy, r } = G.ball, out = [];
+  const { cx, cy, r } = G.ball, out = []; out.boxes = [];
   const box = (x0, x1, y0, y1) => {
     x0 = Math.max(0, Math.round(x0)); x1 = Math.min(w - 1, Math.round(x1));
     y0 = Math.max(0, Math.round(y0)); y1 = Math.min(h - 1, Math.round(y1));
-    for (let y = y0; y <= y1; y += step) for (let x = x0; x <= x1; x += step) out.push(y * w + x);
+    const b = []; for (let y = y0; y <= y1; y += step) for (let x = x0; x <= x1; x += step) { out.push(y * w + x); b.push(y * w + x); }
+    if (b.length) out.boxes.push(b);
   };
   box(cx - 6 * r, cx - 2.2 * r, cy - 0.8 * r, cy + 1.6 * r);
   box(cx + 2.2 * r, cx + 6 * r, cy - 0.8 * r, cy + 1.6 * r);
@@ -694,7 +694,13 @@ function buildMasks(w, h) {
     if (u || d <= r) union.push(p);
   }
   C.prev = null;
-  return { ball, ring, headL, headR, headLow, partner, union, ground: groundIdx(w, h, G) };
+  return { ball, ring, headL, headR, headLow, partner, union, ground: groundIdx(w, h, G), G };
+}
+/* the ground's colour: median of each patch, then the middle of those, so one patch landing on paint or a shoe can't fool it */
+function groundColor(px, idx) {
+  if (!idx.boxes || idx.boxes.length < 2) return medianColor(px, idx);
+  const ms = idx.boxes.map(b => medianColor(px, b));
+  return [0, 1, 2].map(c => { const v = ms.map(m => m[c]).sort((a, b) => a - b); return v[v.length >> 1]; });
 }
 function medianColor(px, idx) {
   if (!idx.length) return [0, 0, 0];
@@ -720,19 +726,23 @@ function drawOverlay() {
   const go = C.state === 'seq' || C.state === 'track' || C.aligned;
   const partial = C.occ.headL >= HEAD_MIN || C.occ.headR >= HEAD_MIN;
   const style = (ok, part) => {
-    x.strokeStyle = go ? '#c8ff2e' : ok ? '#ffb020' : part ? 'rgba(255,176,32,.6)' : 'rgba(255,255,255,.9)';
+    x.strokeStyle = go ? '#c8ff2e' : ok ? '#c8ff2e' : part ? '#ffb020' : 'rgba(255,255,255,.9)';
     x.setLineDash(go || ok ? [] : [lw * 3, lw * 2]);
   };
   x.lineWidth = lw; x.lineJoin = 'round';
   const drawHead = (hd, ok, part) => {
-    style(ok, part); x.fillStyle = 'rgba(0,0,0,.18)'; headPath(x, hd); x.fill(); x.stroke();
-    x.setLineDash([lw * 1.5, lw * 1.5]); x.globalAlpha = 0.55; x.beginPath();
-    x.moveTo(hd.cx + hd.dir * hd.rx, hd.cy); x.lineTo(hd.cx + hd.dir * hd.rx * 3.2, hd.cy); x.stroke(); x.globalAlpha = 1;
+    style(ok, part); x.fillStyle = 'rgba(0,0,0,.18)';
+    x.beginPath(); x.ellipse(hd.cx, hd.cy, hd.rx, hd.ry, 0, 0, Math.PI * 2); x.fill(); x.stroke();
+    // shaft guide: both sides until a shaft is found, then just that side
+    const sides = ok && C.stickInfo ? [C.stickInfo.dir] : [1, -1];
+    x.setLineDash([lw * 1.5, lw * 1.5]); x.globalAlpha = ok ? 0.9 : 0.45;
+    for (const d of sides) { x.beginPath(); x.moveTo(hd.cx + d * hd.rx, hd.cy); x.lineTo(hd.cx + d * hd.rx * 3.2, hd.cy); x.stroke(); }
+    x.globalAlpha = 1;
   };
-  drawHead(G.head, C.headOk, partial);
+  drawHead(G.head, C.headOk, partial || C.headIn);
   if (G.partner) drawHead(G.partner, C.partnerOk, false);
   const b = G.ball;
-  style(C.ballOk, false);
+  style(C.ballOk, !C.ballOk && C.ballInfo && C.ballInfo.reason !== 'empty');
   x.beginPath(); x.arc(b.cx, b.cy, b.r, 0, Math.PI * 2); x.fillStyle = 'rgba(0,0,0,.18)'; x.fill(); x.stroke();
   // little arrow: stick goes behind the ball
   if (!C.headOk && !go) {
@@ -789,20 +799,136 @@ function closeCam() {
   setCue('');
 }
 function camActive() { return C.stream && !$('#v-run').hidden && !$('#cCam').hidden && !$('#camOn').hidden; }
-function statusHint() {
-  const o = C.occ;
-  if (!C.ballOk && !C.headOk) return 'Ball in the circle, stick head right behind it';
-  if (!C.ballOk) return o.ring > 0.5 ? 'Keep hands and feet out from around the ball' : 'Ball isn’t in the circle yet';
-  if (!C.headOk) {
-    if (o.headL < HEAD_MIN && o.headR < HEAD_MIN) return 'Put your stick head right behind the ball';
-    if (o.headL < HEAD_MIN || o.headR < HEAD_MIN) return 'Center your stick head behind the ball';
-    return 'Get your stick head down on the ground behind the ball';
+/* ---------- is it really a ball / really a stick? ---------- */
+/* A lacrosse ball: one solid-coloured, round, ball-sized thing that sits inside the circle.
+   Shadows (same colour as the ground, just darker) don't count as part of it. */
+function verifyBall(px, W, H, G, g) {
+  const { cx, cy, r } = G.ball, R = 1.9 * r;
+  const x0 = Math.max(0, Math.floor(cx - R)), x1 = Math.min(W - 1, Math.ceil(cx + R)), y0 = Math.max(0, Math.floor(cy - R)), y1 = Math.min(H - 1, Math.ceil(cy + R));
+  const ww = x1 - x0 + 1, hh = y1 - y0 + 1, m = new Uint8Array(ww * hh);
+  const gs = g[0] + g[1] + g[2] + 1, gr = g[0] / gs, gg = g[1] / gs, glum = gs / 3;
+  for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) {
+    const X = x + x0, Y = y + y0;
+    if (inEll(X, Y, G.head) || (G.partner && inEll(X, Y, G.partner))) continue;          // that's the stick's spot
+    const i = (Y * W + X) * 4, s = px[i] + px[i + 1] + px[i + 2] + 1;
+    const chroma = s > 60 ? (Math.abs(px[i] / s - gr) + Math.abs(px[i + 1] / s - gg)) * 255 : 0;
+    if (chroma > 40 || s / 3 - glum > 45) m[y * ww + x] = 1;
   }
-  if (!C.partnerOk) return 'Partner’s stick head goes in front of the ball';
-  return 'In position';
+  // remove thin things (painted lines, laces, grass blades): shrink then grow back by ~a quarter of the ball's radius
+  const k = Math.max(1, Math.round(0.25 * r));
+  const pass = (src, keep) => {           // keep=1: erode (all neighbours set), keep=0: dilate (any neighbour set)
+    const tmp = new Uint8Array(ww * hh), out = new Uint8Array(ww * hh);
+    for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) {
+      let v = keep; for (let d = -k; d <= k; d++) { const X = x + d; const s2 = X >= 0 && X < ww ? src[y * ww + X] : 0; if (keep ? !s2 : s2) { v = 1 - keep; break; } } tmp[y * ww + x] = v; }
+    for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) {
+      let v = keep; for (let d = -k; d <= k; d++) { const Y = y + d; const s2 = Y >= 0 && Y < hh ? tmp[Y * ww + x] : 0; if (keep ? !s2 : s2) { v = 1 - keep; break; } } out[y * ww + x] = v; }
+    return out;
+  };
+  const opened = pass(pass(m, 1), 0);
+  for (let i = 0; i < m.length; i++) m[i] = m[i] & opened[i];
+  // the blob nearest the middle of the circle
+  let seed = -1, sd = 1e9;
+  for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) if (m[y * ww + x]) { const d = Math.hypot(x + x0 - cx, y + y0 - cy); if (d < sd) { sd = d; seed = y * ww + x; } }
+  if (seed < 0 || sd > 0.7 * r) return { ok: false, reason: 'empty' };
+  // the ball's tint, from the middle of it (shading changes brightness, not tint)
+  const tint = i => { const s = px[i] + px[i + 1] + px[i + 2] + 1; return [px[i] / s, px[i + 1] / s, s]; };
+  let tr = 0, tg = 0, tn = 0;
+  for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) if (m[y * ww + x] && Math.hypot(x + x0 - cx, y + y0 - cy) < 0.5 * r) { const t = tint(((y + y0) * W + x + x0) * 4); tr += t[0]; tg += t[1]; tn++; }
+  if (!tn) { const t = tint(((((seed / ww) | 0) + y0) * W + (seed % ww) + x0) * 4); tr = t[0]; tg = t[1]; tn = 1; }
+  tr /= tn; tg /= tn;
+  const sameTint = p => { const t = tint((((p / ww) | 0) + y0) * W * 4 + ((p % ww) + x0) * 4); return (Math.abs(t[0] - tr) + Math.abs(t[1] - tg)) * 255 < 32; };
+  const seen = new Uint8Array(ww * hh), q = [seed]; seen[seed] = 1;
+  let n = 0, sx = 0, sy = 0, bx0 = ww, bx1 = 0, by0 = hh, by1 = 0, out = 0, edge = false; const cs = [0, 0, 0], list = [];
+  while (q.length) {
+    const p = q.pop(), x = p % ww, y = (p / ww) | 0; n++; sx += x; sy += y; list.push(p);
+    bx0 = Math.min(bx0, x); bx1 = Math.max(bx1, x); by0 = Math.min(by0, y); by1 = Math.max(by1, y);
+    if (x === 0 || y === 0 || x === ww - 1 || y === hh - 1) edge = true;
+    if (Math.hypot(x + x0 - cx, y + y0 - cy) > 1.35 * r) out++;
+    const i = ((y + y0) * W + x + x0) * 4; cs[0] += px[i]; cs[1] += px[i + 1]; cs[2] += px[i + 2];
+    for (const j of [x > 0 ? p - 1 : -1, x < ww - 1 ? p + 1 : -1, y > 0 ? p - ww : -1, y < hh - 1 ? p + ww : -1]) if (j >= 0 && m[j] && !seen[j] && sameTint(j)) { seen[j] = 1; q.push(j); }
+  }
+  const A0 = Math.PI * r * r, bw = bx1 - bx0 + 1, bh = by1 - by0 + 1;
+  if (n < 0.3 * A0) return { ok: false, reason: 'small' };
+  if (n > 1.7 * A0 || edge || out / n > 0.12) return { ok: false, reason: 'big' };
+  if (Math.max(bw, bh) / Math.min(bw, bh) > 1.45 || n / (bw * bh) < 0.58) return { ok: false, reason: 'shape' };
+  // one solid colour: the tint barely changes across it (shading is fine)
+  let spread = 0;
+  for (const p of list) { const t = tint((((p / ww) | 0) + y0) * W * 4 + ((p % ww) + x0) * 4); spread += (Math.abs(t[0] - tr) + Math.abs(t[1] - tg)) * 255; }
+  if (spread / n > 14) return { ok: false, reason: 'shape' };
+  const bcx = sx / n + x0, bcy = sy / n + y0;
+  if (Math.hypot(bcx - cx, bcy - cy) > 0.6 * r) return { ok: false, reason: 'offcenter' };
+  return { ok: true, cx: bcx, cy: bcy, n };
+}
+/* A lacrosse stick: a long, thin, straight shaft coming out of the head and running off to one side. */
+function shaftScore(px, W, H, hd, r, g, dir, ballC) {
+  const col = (x, y) => { x = Math.round(x); y = Math.round(y); if (x < 0 || y < 0 || x >= W || y >= H) return null; const i = (y * W + x) * 4; return [px[i], px[i + 1], px[i + 2]]; };
+  const dist = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+  const len = 3.0 * hd.rx, thin = Math.max(1.5, 0.3 * r), side = Math.max(thin + 2.5, 0.9 * r), step = 1.5;   // the next ~1.5 head-lengths of shaft
+  // a thin line here = something within ±thin of the centre that looks different from what's on BOTH sides of it
+  // (grass on both sides, or grass on one side and paint on the other: a shaft lying along a painted line still counts)
+  const lineAt = (x, y, nx, ny) => {
+    const sA = col(x + nx * side, y + ny * side), sB = col(x - nx * side, y - ny * side);
+    if (!sA || !sB) return { line: false, mark: false };
+    let best = 0, mark = false;
+    for (let k = -thin; k <= thin; k += 1) {
+      const c = col(x + nx * k, y + ny * k); if (!c) continue;
+      best = Math.max(best, Math.min(dist(c, sA), dist(c, sB)));
+      if (dist(c, g) > T_G) mark = true;
+    }
+    return { line: best > T_G, mark };
+  };
+  let best = 0;
+  for (const dy0 of [-0.45, 0, 0.45]) {
+    const sx = hd.cx + dir * 1.0 * hd.rx, sy = hd.cy + dy0 * hd.ry;      // start at the head's outer edge
+    for (let deg = -45; deg <= 25; deg += 5) {
+      const a = deg * Math.PI / 180, ux = dir * Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux;
+      let tot = 0, hits = 0, attached = 0; const thirds = [[0, 0], [0, 0], [0, 0]];
+      for (let t = 0; t <= len; t += step) {
+        const x = sx + ux * t, y = sy + uy * t;
+        if (x < 0 || y < 0 || x >= W || y >= H) break;
+        tot++;
+        const L = lineAt(x, y, nx, ny);
+        if (t <= 0.35 * hd.rx && (L.mark || L.line)) attached++;
+        const th = thirds[Math.min(2, Math.floor(t / len * 3))]; th[1]++; if (L.line) { th[0]++; hits++; }
+      }
+      if (tot * step < 0.9 * hd.rx || attached < 2) continue;      // too little of it in view, or not joined to the head
+      // a real shaft keeps going: thin straight line in at least 2 of the 3 stretches (hands can cover one)
+      const lined = thirds.filter(([a2, n]) => n >= 3 && a2 / n >= 0.5).length;
+      if (lined < 2) continue;
+      // a painted field line keeps going out the other side of the head and ball; a shaft ends at the head
+      let bt = 0, bh = 0;
+      for (let t = 0; t <= 2 * len; t += step) {
+        const x = sx - ux * t, y = sy - uy * t;
+        if (x < 0 || y < 0 || x >= W || y >= H) break;
+        if (((x - hd.cx) / (hd.rx * 1.15)) ** 2 + ((y - hd.cy) / (hd.ry * 1.3)) ** 2 <= 1 || Math.hypot(x - ballC.cx, y - ballC.cy) < 1.5 * r) continue;
+        bt++; if (lineAt(x, y, nx, ny).line) bh++;
+      }
+      if (bt >= 6 && bh / bt >= 0.3) continue;
+      best = Math.max(best, hits / tot);
+    }
+  }
+  return best;
+}
+function verifyStick(px, W, H, hd, r, g, ballC) {
+  const right = shaftScore(px, W, H, hd, r, g, 1, ballC), left = shaftScore(px, W, H, hd, r, g, -1, ballC);
+  const sc = Math.max(right, left);
+  return { shaft: sc >= 0.7, score: sc, dir: right >= left ? 1 : -1 };
+}
+function statusHint() {
+  const o = C.occ, b = C.ballInfo || {}, mark = ok => ok ? 'Ball ✓' : 'Ball ✗';
+  const ballWhy = { empty: 'put the ball in the circle', small: 'put the ball in the circle', big: 'something bigger than a ball is in the circle (hand or foot?)', shape: 'that doesn’t look like a ball', offcenter: 'center the ball in the circle' }[b.reason] || 'put the ball in the circle';
+  let stickWhy = '';
+  if (!C.headOk) {
+    if (o.headL < HEAD_MIN && o.headR < HEAD_MIN) stickWhy = 'put your stick head right behind the ball';
+    else if (o.headL < HEAD_MIN || o.headR < HEAD_MIN) stickWhy = 'center your stick head behind the ball';
+    else if (o.headLow < 0.35) stickWhy = 'get your stick head down on the ground behind the ball';
+    else stickWhy = 'that doesn’t look like a stick: lay it flat with the shaft out to the side';
+  }
+  if (C.ballOk && C.headOk) return C.partnerOk ? 'Ball ✓ · Stick ✓' : 'Ball ✓ · Stick ✓ · partner’s stick goes in front of the ball';
+  return mark(C.ballOk) + ' · ' + (C.headOk ? 'Stick ✓' : 'Stick ✗') + ': ' + (!C.ballOk ? ballWhy : stickWhy);
 }
 function analyze(px) {
-  const M = C.masks, g = medianColor(px, M.ground);
+  const M = C.masks, g = groundColor(px, M.ground);
   const far = idx => {
     if (!idx.length) return 0;
     let n = 0;
@@ -810,9 +936,13 @@ function analyze(px) {
     return n / idx.length;
   };
   C.occ = { ball: far(M.ball), ring: far(M.ring), headL: far(M.headL), headR: far(M.headR), headLow: far(M.headLow), partner: M.partner.length ? far(M.partner) : 1 };
-  C.ballOk = C.occ.ball >= BALL_MIN && C.occ.ring <= 0.5;
-  C.headOk = C.occ.headL >= HEAD_MIN && C.occ.headR >= HEAD_MIN && C.occ.headLow >= 0.35;   // part of the stick down on the ground behind the ball
-  C.partnerOk = !C.partner || C.occ.partner >= HEAD_MIN;
+  const G = C.masks.G, W = C.dw, H = C.dh;
+  C.ballInfo = verifyBall(px, W, H, G, g);
+  C.ballOk = C.ballInfo.ok;
+  C.headIn = C.occ.headL >= HEAD_MIN && C.occ.headR >= HEAD_MIN && C.occ.headLow >= 0.35;   // something down on the ground behind the ball…
+  C.stickInfo = C.headIn ? verifyStick(px, W, H, G.head, G.ball.r, g, G.ball) : { shaft: false, score: 0, dir: C.stickInfo ? C.stickInfo.dir : 1 };
+  C.headOk = C.headIn && C.stickInfo.shaft;                                                   // …and it has a stick's shaft
+  C.partnerOk = !C.partner || (C.occ.partner >= HEAD_MIN && verifyStick(px, W, H, G.partner, G.ball.r, g, G.ball).shaft);
   C.aligned = C.ballOk && C.headOk && C.partnerOk;
   const cur = new Float32Array(M.union.length); let m = 0;
   for (let k = 0; k < M.union.length; k++) {
@@ -830,8 +960,8 @@ function camTick() {
   const px = dctx.getImageData(0, 0, C.dw, C.dh).data;
   $('#btnCamGo').textContent = camBusy() ? 'Cancel' : 'Start';
   analyze(px);
-  if (C.state === 'wait') setStatus(C.aligned ? 'In position. Press Start' : statusHint() + ', then press Start');
-  else if (C.state === 'scan') setStatus(C.aligned ? 'In position…' : 'Get in position: ' + statusHint().toLowerCase());
+  if (C.state === 'wait') setStatus(C.aligned ? 'Ball ✓ · Stick ✓ In position. Press Start' : statusHint());
+  else if (C.state === 'scan') setStatus(C.aligned ? 'Ball ✓ · Stick ✓ In position…' : statusHint());
   else if (C.state === 'seq' && C.phase === 'set' && C.fs && C.setSnap && C.cur && C.setSnap.length === C.cur.length) {
     // false start: anything moves inside the outline after "Set" (an overall brightness change is ignored)
     C.fsHits = setChange() > FALSE_MOVE ? C.fsHits + 1 : 0;
@@ -954,7 +1084,9 @@ async function camSequence() {
   if (C.fs && C.masks) { dctx.drawImage(lv, 0, 0, C.dw, C.dh); analyze(dctx.getImageData(0, 0, C.dw, C.dh).data); if (setChange() > FALSE_MOVE) return falseStart(); }
   // 3) Go: learn the ball's look, say "Go", follow the ball on the live camera
   const snap = grabLive();
-  let model = buildBallModel(snap.px, snap.W, snap.H, { settings: C.recSettings });
+  const bi = C.ballInfo && C.ballInfo.ok ? C.ballInfo : null;
+  let model = bi ? buildBallModel(snap.px, snap.W, snap.H, { seed: { x: bi.cx / C.dw, y: bi.cy / C.dh } }) : null;
+  if (!model) model = buildBallModel(snap.px, snap.W, snap.H, { settings: C.recSettings });
   if (!model) model = buildBallModel(snap.px, snap.W, snap.H, { autoFind: true });
   C.phase = 'go'; C.state = 'track';
   C.track = model ? startLiveTrack(model) : null;
@@ -1049,7 +1181,7 @@ function buildBallModel(px, W, H, opts) {
     }
   } else {
     const G = geom(W, H, opts.settings);
-    ground = medianColor(px, groundIdx(W, H, G));
+    ground = groundColor(px, groundIdx(W, H, G));
     let inCircle = 0;
     for (let y = Math.floor(G.ball.cy - G.ball.r); y <= G.ball.cy + G.ball.r; y++) for (let x = Math.floor(G.ball.cx - G.ball.r); x <= G.ball.cx + G.ball.r; x++) {
       if (x < 0 || y < 0 || x >= W || y >= H || Math.hypot(x - G.ball.cx, y - G.ball.cy) > 0.95 * G.ball.r) continue;
@@ -1976,11 +2108,10 @@ $('#btnCamGo').onclick = () => {
   else if (C.state === 'wait' || C.state === 'hold') camSequence();
 };
 const geomChanged = () => { C.masks = null; if (C.stream) drawOverlay(); };
-$('#rngSize').value = C.size; $('#rngY').value = C.y; $('#selSide').value = String(C.side);
+$('#rngSize').value = C.size; $('#rngY').value = C.y;
 $('#chkPartner').checked = C.partner; $('#chkFs').checked = C.fs;
 $('#rngSize').oninput = e => { C.size = +e.target.value; lsSet('fo-size', C.size); geomChanged(); };
 $('#rngY').oninput = e => { C.y = +e.target.value; lsSet('fo-y', C.y); geomChanged(); };
-$('#selSide').onchange = e => { C.side = +e.target.value; lsSet('fo-side', C.side); geomChanged(); };
 $('#chkPartner').onchange = e => { C.partner = e.target.checked; lsSet('fo-partner', C.partner ? '1' : '0'); geomChanged(); };
 $('#chkFs').onchange = e => { C.fs = e.target.checked; lsSet('fo-fs', C.fs ? '1' : '0'); };
 document.addEventListener('visibilitychange', () => { if (document.hidden && C.state === 'seq') backToWait('Paused while the app was in the background.'); });
