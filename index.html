@@ -92,6 +92,23 @@ nav.pilled button[aria-selected=true]{background:none}
 .modal.full.closing .repview{animation:sheetIn .2s ease reverse both}
 .seg button[aria-pressed=true]{transition:background-color .25s ease,color .25s ease,transform .14s var(--ease)}
 .card{transition:border-color .25s ease}
+/* every tap gets feedback: a springy press, a ripple from your finger, a pop when it lets go */
+@keyframes ripple{from{transform:translate(-50%,-50%) scale(0);opacity:.35}to{transform:translate(-50%,-50%) scale(1);opacity:0}}
+@keyframes release{0%{transform:scale(.92)}55%{transform:scale(1.05)}100%{transform:scale(1)}}
+@keyframes glowPulse{0%{box-shadow:0 0 0 0 rgba(200,255,46,.65)}100%{box-shadow:0 0 0 16px rgba(200,255,46,0)}}
+@keyframes chosen{0%{transform:scale(.9)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes tick{0%{transform:scale(.6)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+.tapfx{position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent}
+.tapfx .rip{position:absolute;border-radius:50%;pointer-events:none;background:currentColor;animation:ripple .55s ease-out forwards}
+.tapfx.pressing{transform:scale(.92)!important;transition:transform .08s ease!important}
+.tapfx.released{animation:release .36s var(--spring)}
+.btn.primary.released,.btn-install.released{animation:release .36s var(--spring),glowPulse .6s ease-out}
+.seg button[aria-pressed=true].released,.seg button[aria-pressed=true].just{animation:chosen .35s var(--spring)}
+nav button.released{animation:none}
+input[type=checkbox]{transition:transform .2s var(--spring)}
+input[type=checkbox].ticked{animation:tick .35s var(--spring)}
+input[type=range]::-webkit-slider-thumb{transition:transform .15s var(--spring)}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 /* opening screen: the logo, then the sticks fly out, the circle opens and the app appears */
 @property --hole{syntax:'<length>';inherits:false;initial-value:0px}
@@ -2643,6 +2660,23 @@ $('#handle').value = lsGet('fo-handle') || ''; $('#club').value = lsGet('fo-club
 })();
 </script>
 <script>
+/* ---------- tap feedback on every button ---------- */
+(() => {
+  const SEL = '.btn, .seg button, nav button, .item, .btn-install, .rowdel, summary';
+  const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.addEventListener('pointerdown', e => {
+    const b = e.target.closest(SEL); if (!b || b.disabled || still() || b.closest('.pl-stage')) return;
+    b.classList.add('tapfx', 'pressing'); b.classList.remove('released');
+    const r = b.getBoundingClientRect(), d = Math.hypot(r.width, r.height) * 2;
+    const rip = document.createElement('span'); rip.className = 'rip';
+    rip.style.cssText = `left:${e.clientX - r.left}px;top:${e.clientY - r.top}px;width:${d}px;height:${d}px`;
+    b.append(rip); setTimeout(() => rip.remove(), 600);
+    if (navigator.vibrate && e.pointerType === 'touch') try { navigator.vibrate(8); } catch {}
+  }, { passive: true });
+  const up = () => $$('.pressing').forEach(b => { b.classList.remove('pressing'); void b.offsetWidth; b.classList.add('released'); setTimeout(() => b.classList.remove('released'), 650); });
+  ['pointerup', 'pointercancel', 'dragstart'].forEach(ev => document.addEventListener(ev, up, true));
+  document.addEventListener('change', e => { const c = e.target; if (c.type === 'checkbox') { c.classList.remove('ticked'); void c.offsetWidth; c.classList.add('ticked'); } });
+})();
 /* ---------- opening screen ---------- */
 (() => {
   const sp = document.getElementById('splash'); if (!sp) return;
