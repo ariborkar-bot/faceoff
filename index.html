@@ -361,8 +361,16 @@ function loadVoices() {
   }));
   return voiceLoading;
 }
+/* The phone's own voice is used for Down / Set. Phones only let a page speak if its first
+   speech happens inside a tap, so a silent word is spoken on the first tap (Start camera). */
+let speechPrimed = false;
+function primeSpeech() {
+  if (speechPrimed) return;
+  try { const ss = window.speechSynthesis; if (!ss) return; const u = new SpeechSynthesisUtterance('ready'); u.volume = 0; ss.speak(u); speechPrimed = true; } catch {}
+}
 /* call synchronously inside a tap handler */
 function unlockAudio() {
+  primeSpeech();
   const c = ensureCtx();
   try { const s = c.createBufferSource(); s.buffer = c.createBuffer(1, 1, 22050); s.connect(c.destination); s.start(0); } catch {}
   loadVoices();
@@ -381,9 +389,20 @@ function playBeep() {
   o.connect(g).connect(c.destination); o.start(t); o.stop(t + 0.45);
 }
 function speak(word) {
-  const buf = voiceBufs[word.toLowerCase().replace(/\s+/g, '_')];
-  if (buf) { playBuf(buf, 1); return; }
-  try { const ss = window.speechSynthesis; if (ss) { const u = new SpeechSynthesisUtterance(word); u.rate = 0.9; u.volume = 1; ss.speak(u); } } catch {}
+  const buf = voiceBufs[word.toLowerCase().replace(/\s+/g, '_')];   // recorded backup
+  const ss = window.speechSynthesis;
+  if (ss && speechPrimed) {
+    try {
+      const u = new SpeechSynthesisUtterance(word);
+      u.rate = 0.9; u.pitch = 0.8; u.volume = 1;
+      let started = false; u.onstart = () => { started = true; };
+      ss.resume(); ss.speak(u);
+      // if the phone's voice doesn't start, fall back to the recorded clip
+      if (buf) setTimeout(() => { if (!started) { try { ss.cancel(); } catch {} playBuf(buf, 1); } }, 450);
+      return;
+    } catch {}
+  }
+  if (buf) playBuf(buf, 1);
 }
 /* ---------- second-device beep station (fallback) ---------- */
 let beepRun = 0;
@@ -398,7 +417,7 @@ async function runStation() {
   await sleep(1200 + Math.random() * 1800); if (!live()) return;
   st.className = 'station set'; big.textContent = 'Set'; sub.textContent = 'Wait for it…';
   speak('Set');
-  await sleep(600 + Math.random() * 4400); if (!live()) return;
+  await sleep(1000 + Math.random() * 4000); if (!live()) return;
   playBeep(); st.className = 'station go'; big.textContent = 'BEEP'; sub.textContent = 'Go!';
   await sleep(1500); if (!live()) return;
   st.className = 'station'; big.textContent = 'Done'; sub.textContent = 'Stop recording, then add your clip';
@@ -655,7 +674,7 @@ async function camSequence() {
   await sleep(1200 + Math.random() * 1800); if (me !== camRun) return;
   C.setSnap = C.cur ? Float32Array.from(C.cur) : null; C.fsHits = 0;
   C.phase = 'set'; setCue('Set', 'set'); speak('Set');
-  await sleep(600 + Math.random() * 4400); if (me !== camRun) return;
+  await sleep(1000 + Math.random() * 4000); if (me !== camRun) return;
   C.phase = 'go'; C.beepAt = performance.now(); playBeep(); setCue('BEEP', 'go');
   await sleep(1000); if (me !== camRun) return;
   setCue(''); setStatus('Recording the finish…');
