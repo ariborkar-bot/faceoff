@@ -2020,7 +2020,7 @@ async function showCamRep(file, info) {
     $('#postBox').hidden = false;
   }
   S.player.refresh();
-  S.player.playFrom(Math.max(0, S.beep - 0.6));
+  S.player.playFrom(0);
   // line the replay markers up with the "Go" heard in the recording (display only; the time doesn't change)
   const t = await detectOnset(file, S.beep);
   if (S.job !== job || t == null || Math.abs(t - S.beep) > 0.4) return;
@@ -2080,7 +2080,7 @@ async function loadClip(file, opts = {}) {
   if (S.ms < 120 || S.ms > 15000) return failRep("That timing doesn't look right (" + fmtMs(S.ms) + " s), so it wasn't counted.");
   showResult(); setAuto('Timed: ball in your pocket ' + fmtMs(S.ms) + ' s after Go.');
   $('#postBox').hidden = false; S.player.refresh();
-  S.player.playFrom(Math.max(0, S.beep - 0.6));
+  S.player.playFrom(0);
 }
 
 /* Re-encode only the relevant stretch to a small, compatible clip (plays the source in real time). */
