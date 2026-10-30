@@ -120,6 +120,7 @@ details.card[open] summary{color:var(--ink)}
 .pl-fill{position:absolute;left:0;top:0;height:100%;border-radius:3px;background:#4a5a6b}
 .pl-span{position:absolute;top:0;height:100%;background:rgba(200,255,46,.45);border-radius:3px}
 .pl-mark{position:absolute;top:-7px;width:4px;height:20px;margin-left:-2px;border-radius:2px}
+.pl-err{position:absolute;inset:auto 10px 10px 10px;background:rgba(10,14,18,.9);border:1px solid var(--amber);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:14px;z-index:3}
 .pl-mark.beep{background:var(--red)}.pl-mark.ctl{background:var(--lime)}
 input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
 .pl-scrub::-webkit-slider-runnable-track{height:36px;background:transparent}
@@ -1269,8 +1270,10 @@ function startLiveTrack(model) {
   }
   return { frames, stop() { done = true; } };
 }
+/* H.264 + AAC MP4 plays on iPhones and computers alike, so use it whenever the browser can record it */
+const REC_TYPES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
 function startRec() {
-  const mime = ['video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m));
+  const mime = REC_TYPES.find(m => MediaRecorder.isTypeSupported(m));
   liveChunks = [];
   liveRec = new MediaRecorder(C.stream, mime ? { mimeType: mime } : undefined);
   liveRec.ondataavailable = e => e.data && e.data.size && liveChunks.push(e.data);
@@ -1674,9 +1677,27 @@ function makePlayer(root, o) {
   const m = () => o.getMarks();
   Promise.resolve(o.src).then(u => { if (!dead && u) v.src = u; });
   // iPhones don't load a video until it has been played once: start it (muted) on the first touch
+  let primedAt = 0;
   root.addEventListener('pointerdown', () => {
-    if (v.readyState < 2) { const p = v.play(); if (p && p.then) p.then(() => { if (!wantPlay) v.pause(); }).catch(() => {}); }
+    if (v.readyState < 2) { primedAt = performance.now(); const p = v.play(); if (p && p.then) p.then(() => { if (!wantPlay) v.pause(); }).catch(() => {}); }
   }, { capture: true });
+  const errBox = h('div', { class: 'pl-err', hidden: true });
+  stage.appendChild(errBox);
+  const cantPlay = () => {
+    const webm = /webm/i.test(v.currentSrc || '') || (o.type || '').includes('webm');
+    errBox.textContent = webm && /iP(hone|ad|od)/.test(navigator.userAgent)
+      ? 'This rep was recorded in a format iPhones can’t play (WebM, from a computer browser). Watch it on a computer; new reps are saved as MP4, which plays everywhere.'
+      : 'This video can’t be played on this device. Try another browser (Chrome, Safari or Edge).';
+    errBox.hidden = false; big.hidden = true;
+  };
+  v.addEventListener('error', () => { if (!dead && v.getAttribute('src')) cantPlay(); });
+  const onKey = e => {
+    if (dead || !root.isConnected || e.target.closest && e.target.closest('input,textarea,select')) return;
+    if (e.key === ' ' || e.key === 'k') { e.preventDefault(); toggle(); }
+    else if (e.key === 'ArrowRight' || e.key === '.') { e.preventDefault(); step(1); }
+    else if (e.key === 'ArrowLeft' || e.key === ',') { e.preventDefault(); step(-1); }
+  };
+  document.addEventListener('keydown', onKey);
   const pct = t => dur ? clamp(t / dur, 0, 1) * 100 : 0;
   function setDur(d) { if (isFinite(d) && d > 0) { dur = d; scrub.max = String(d); refresh(); } }
   function refresh() {
@@ -1707,6 +1728,7 @@ function makePlayer(root, o) {
   scrub.addEventListener('change', () => { dragging = false; });
   scrub.addEventListener('pointerup', () => { dragging = false; });
   function toggle() {
+    if (!v.paused && !wantPlay && performance.now() - primedAt < 800) { wantPlay = true; stopAt = null; v.playbackRate = rate; return; }   // that tap was "play"
     if (v.paused) { wantPlay = true; stopAt = null; v.playbackRate = rate; const p = v.play(); if (p && p.catch) p.catch(() => { wantPlay = false; }); }
     else { wantPlay = false; v.pause(); }
   }
@@ -1726,7 +1748,7 @@ function makePlayer(root, o) {
   return {
     video: v, refresh, setDur, playFrom,
     busy(on) { root.classList.toggle('pl-busy', on); clock.style.visibility = on ? 'hidden' : ''; },
-    destroy() { dead = true; stopClock(); try { v.pause(); v.removeAttribute('src'); v.load(); } catch {} root.replaceChildren(); }
+    destroy() { dead = true; document.removeEventListener('keydown', onKey); stopClock(); try { v.pause(); v.removeAttribute('src'); v.load(); } catch {} root.replaceChildren(); }
   };
 }
 const assetUrl = id => (window.assetUrl ? window.assetUrl(id) : '/_blob/' + id);
@@ -1894,7 +1916,7 @@ async function makeClip(file, start, end, onP) {
       src.connect(dest); dest.stream.getAudioTracks().forEach(t => cs.addTrack(t));
     } catch {}
     await seekTo(v, start, 5000);
-    const cands = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+    const cands = REC_TYPES;
     const mime = cands.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
     if (!mime) throw new Error('This browser cannot record video clips.');
     const rec = new MediaRecorder(cs, { mimeType: mime, videoBitsPerSecond: 2500000, audioBitsPerSecond: 96000 });
