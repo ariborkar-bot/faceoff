@@ -34,11 +34,11 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 nav button{white-space:nowrap}
 @media(max-width:430px){nav button{font-size:16px;letter-spacing:.02em;padding:10px 3px}}
 .btn-install{background:var(--lime);color:#101600;border:0;border-radius:10px;padding:8px 12px;font-family:var(--disp);font-weight:800;font-size:16px;letter-spacing:.05em;text-transform:uppercase;min-height:38px}
-.sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40;display:flex;align-items:flex-end;justify-content:center}
-.sheet>div{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;padding:20px 18px calc(22px + env(safe-area-inset-bottom));width:min(560px,100%)}
-.sheet h3{margin:0 0 10px;font-family:var(--disp);font-size:26px;text-transform:uppercase;letter-spacing:.04em}
-.sheet ol{margin:0 0 14px;padding-left:22px;line-height:1.7}
-.sheet .ico{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 6px;background:var(--panel2)}
+.isheet{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.isheet>div{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;padding:20px 18px calc(22px + env(safe-area-inset-bottom));width:min(560px,100%)}
+.isheet h3{margin:0 0 10px;font-family:var(--disp);font-size:26px;text-transform:uppercase;letter-spacing:.04em}
+.isheet ol{margin:0 0 14px;padding-left:22px;line-height:1.7}
+.isheet .ico{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 6px;background:var(--panel2)}
 .brand{font-family:var(--disp);font-weight:800;font-size:28px;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;gap:10px}
 .dot{width:14px;height:14px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 4px rgba(200,255,46,.18)}
 nav{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:16px}
@@ -207,6 +207,18 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
 /* modal */
 .modal{position:fixed;inset:0;background:rgba(3,6,9,.86);display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow:auto;z-index:20}
 .sheet{width:100%;max-width:720px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+.modal.full{padding:0;align-items:stretch;background:#05080b;overflow:hidden}
+.repview{max-width:none;width:100%;height:100%;height:100dvh;border:0;border-radius:0;display:flex;flex-direction:column;
+  padding:calc(10px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))}
+.repview .rv-body{flex:1;min-height:0;display:flex;flex-direction:column}
+.repview .rv-body>div{flex:1;min-height:0;display:flex;flex-direction:column;width:100%;max-width:min(100%, 1100px);margin:0 auto}
+.repview .pl-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+.repview .pl-stage video{width:100%;height:100%;max-height:none;object-fit:contain}
+.repview .rv-foot{display:flex;gap:8px;margin:8px auto 0;width:100%;max-width:min(100%, 1100px)}
+.repview .rv-foot .btn{flex:1}
+.repview .btn{white-space:nowrap}
+@media(max-width:600px){.repview h3{font-size:20px;line-height:1.15}}
+@media(min-width:900px){.repview .pl-ctl,.repview .pl-ctl2{max-width:760px;margin-left:auto;margin-right:auto;width:100%}}
 .sheet h3{margin:0;font-family:var(--disp);font-size:26px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#0a0e12;padding:10px 16px;border-radius:12px;font-weight:600;z-index:30;max-width:90vw}
 .notice{background:#2a2108;border:1px solid #5b4710;color:#ffd98a;border-radius:12px;padding:10px 12px;margin-bottom:14px;font-size:14px}
@@ -2054,7 +2066,7 @@ function renderMe() {
 
 /* ---------- run viewer modal ---------- */
 let modalStop = null;
-function closeModal() { if (modalStop) modalStop(); modalStop = null; $('#modalRoot').replaceChildren(); document.removeEventListener('keydown', escClose); }
+function closeModal() { if (modalStop) modalStop(); modalStop = null; $('#modalRoot').replaceChildren(); document.body.style.overflow = ''; document.removeEventListener('keydown', escClose); }
 function escClose(e) { if (e.key === 'Escape') closeModal(); }
 let openId = null;
 function openRun(id) {
@@ -2074,13 +2086,14 @@ function openRun(id) {
     try { await P.db.doc('attempts/' + a.id).delete(); try { await P.assets?.delete(a.asset); } catch {} closeModal(); toast('Run deleted'); } catch { toast('Could not delete'); }
   } }) : null;
   const pRoot = h('div');
-  const sheet = h('div', { class: 'sheet' },
-    h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:8px' },
+  const sheet = h('div', { class: 'sheet repview' },
+    h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:8px;flex-wrap:nowrap' },
       h('div', {}, h('h3', { id: 'mtitle' }), h('div', { class: 'muted small', text: [a.club, ago(a.createdAt || Date.now())].filter(Boolean).join(' · ') })),
-      h('button', { class: 'btn', text: 'Close', onclick: closeModal })),
-    pRoot,
-    h('div', { class: 'row stretch', style: 'margin-top:10px' }, likeBtn, flagBtn, del));
-  const root = $('#modalRoot'); root.replaceChildren(h('div', { class: 'modal', onclick: e => { if (e.target.className === 'modal') closeModal(); } }, sheet));
+      h('button', { class: 'btn', text: '✕ Close', onclick: closeModal })),
+    h('div', { class: 'rv-body' }, pRoot),
+    h('div', { class: 'rv-foot' }, likeBtn, flagBtn, del));
+  const root = $('#modalRoot'); root.replaceChildren(h('div', { class: 'modal full' }, sheet));
+  document.body.style.overflow = 'hidden';
   document.addEventListener('keydown', escClose);
   const player = makePlayer(pRoot, { src: assetUrl(a.asset), getMarks: () => ({ b: a.beepAt, c: a.controlAt }) });
   player.playFrom(Math.max(0, a.beepAt - 0.6));
@@ -2419,7 +2432,7 @@ $('#handle').value = lsGet('fo-handle') || ''; $('#club').value = lsGet('fo-club
   window.addEventListener('appinstalled', () => { deferred = null; btn.hidden = true; });
   const iosSheet = () => {
     const safari = !/CriOS|FxiOS|EdgiOS|GSA\//.test(navigator.userAgent);
-    const el = document.createElement('div'); el.className = 'sheet';
+    const el = document.createElement('div'); el.className = 'isheet';
     el.innerHTML = '<div role="dialog" aria-label="Install FO &amp; GO"><h3>Install FO &amp; GO</h3>' + (safari
       ? '<ol><li>Tap the Share button <span class="ico">&#x2191;&#xFE0E;</span> in Safari\'s toolbar</li><li>Scroll down and tap <b>Add to Home Screen</b></li><li>Tap <b>Add</b>. FO &amp; GO opens full screen from your home screen.</li></ol>'
       : '<ol><li>Open this page in <b>Safari</b> (iPhone only installs apps from Safari)</li><li>Tap Share <span class="ico">&#x2191;&#xFE0E;</span>, then <b>Add to Home Screen</b></li></ol>')
