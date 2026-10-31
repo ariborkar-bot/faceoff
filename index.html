@@ -125,7 +125,8 @@ input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
 .rx-pad.go .rx-big,.rx-pad.go .rx-sub{color:#101600}
 .rx-pad.go .rx-ring{border-color:var(--lime);animation:rxRing .6s ease-out}
 .rx-pad.done .rx-big{color:var(--lime)}
-.rx-pad.fs{border-color:var(--red);animation:shake .45s ease}
+.rx-pad.fs{border-color:var(--red);animation:rxShake .45s ease}
+@keyframes rxShake{0%,100%{transform:none}20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
 .rx-pad.fs .rx-big{color:var(--red);font-size:clamp(34px,10vw,54px)}
 @keyframes rxRing{from{transform:scale(.9);opacity:1}to{transform:scale(1.25);opacity:0}}
 .rx-pad .rx-big.land{animation:land .45s var(--spring)}
@@ -2463,8 +2464,10 @@ async function rxStart(e) {
   setTimeout(() => { if (me === RX.run && RX.state === 'go') rxShow('GO', 'Let go!', 'holding go'); }, Math.max(0, RX.goPerf - performance.now()));
   setTimeout(() => { if (me === RX.run && RX.state === 'go') { RX.state = 'idle'; rxShow('TOO SLOW', 'Hold to try again', 'fs'); } }, 3000);
 }
+/* when the finger came off: the event's own time if it's on the same clock as performance.now() (older Safari used the date) */
+const evTime = e => { const n = performance.now(), t = e && e.timeStamp; return t && t > 0 && Math.abs(n - t) < 1000 ? Math.min(t, n) : n; };
 function rxRelease(e) {
-  const at = e && e.timeStamp > 1e3 ? e.timeStamp : performance.now();
+  const at = evTime(e);
   if (RX.state === 'idle') return;
   RX.run++;
   if (RX.state === 'go' && at >= RX.goPerf - 5) {
@@ -2482,11 +2485,33 @@ function rxRelease(e) {
 }
 {
   const pad = $('#rxPad');
-  pad.addEventListener('pointerdown', e => { try { pad.setPointerCapture(e.pointerId); } catch {} rxStart(e); });
-  pad.addEventListener('pointerup', rxRelease); pad.addEventListener('pointercancel', rxRelease);
+  // Touch: use touch events and cancel the phone's own long-press handling (on iPhone a long press otherwise
+  // "cancels" the touch partway through, which looked like letting go = a false start). One finger at a time.
+  let finger = null;
+  pad.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (finger != null) return;
+    finger = e.changedTouches[0].identifier; rxStart(e);
+  }, { passive: false });
+  const fingerUp = e => {
+    if (finger == null || ![...e.changedTouches].some(t => t.identifier === finger)) return;
+    e.preventDefault(); finger = null; rxRelease(e);
+  };
+  pad.addEventListener('touchend', fingerUp, { passive: false });
+  pad.addEventListener('touchcancel', e => { if (finger == null) return; finger = null; rxCancelled(); });
+  pad.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  // Mouse / pen (computers): pointer events, ignoring touch ones handled above
+  let mouseId = null;
+  pad.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' || mouseId != null) return; mouseId = e.pointerId; try { pad.setPointerCapture(e.pointerId); } catch {} rxStart(e); });
+  pad.addEventListener('pointerup', e => { if (e.pointerId !== mouseId) return; mouseId = null; rxRelease(e); });
+  pad.addEventListener('pointercancel', e => { if (e.pointerId !== mouseId) return; mouseId = null; rxCancelled(); });
   pad.addEventListener('contextmenu', e => e.preventDefault());
-  pad.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) rxStart(e); });
-  pad.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') rxRelease(e); });
+  pad.addEventListener('selectstart', e => e.preventDefault());
+  // the phone interrupted the hold (call, notification, app switch): not a false start, just start again
+  window.rxCancelled = () => { if (RX.state === 'idle') return; RX.run++; RX.state = 'idle'; rxShow('HOLD', 'Interrupted: press and hold to go again'); };
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { finger = null; mouseId = null; rxCancelled(); } });
+  pad.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!e.repeat) rxStart(e); } });
+  pad.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); rxRelease(e); } });
   $('#rxClear').onclick = () => { RX.times = []; RX.fs = 0; rxStats(); $('#rxHist').replaceChildren(); rxCancel(); rxShow('HOLD', 'Press and hold here'); };
 }
 /* ---------- accounts: email, username, password ---------- */
