@@ -31,8 +31,14 @@ button{cursor:pointer}
 .wrap{max-width:760px;margin:0 auto;padding:14px 14px 80px}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 14px;padding-top:env(safe-area-inset-top)}
 .hdr-r{display:flex;align-items:center;gap:10px}
-.rowline{display:flex;gap:6px;align-items:stretch}.rowline>.item{flex:1;min-width:0}
-.rowdel{min-width:48px;padding:0 10px;font-size:18px;border-radius:12px}.rowdel.sure{min-width:auto;background:var(--red);border-color:var(--red);color:#fff;font-size:14px;font-weight:700}
+.rowline{position:relative;border-radius:14px}.rowline>.item{position:relative;z-index:1;width:100%;transition:transform .32s var(--spring),border-color .2s ease,box-shadow .2s ease;touch-action:pan-y}
+.rowline.dragging>.item{transition:none}
+.rowline.swipe>.item:active{transform:none}
+.rowline.swipe.open>.item{border-color:#5a2a25}
+.rowline .rowdel{position:absolute;top:0;right:0;bottom:0;width:86px;border:0;border-radius:14px;background:var(--red);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:20px;opacity:0;transition:opacity .2s ease}
+.rowline .rowdel small{font-size:12px;font-weight:700;letter-spacing:.03em}
+.rowline.open .rowdel,.rowline.dragging .rowdel{opacity:1}
+.rowline .rowdel:disabled{opacity:.7}
 .code{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;word-break:break-all;flex:1;min-width:0}
 .brand-em{height:46px;width:auto;display:block}.brand-wm{height:26px;width:auto;display:block}
 @media(max-width:430px){.brand-em{height:36px}.brand-wm{height:20px}.hdr-r{gap:6px}}
@@ -2497,7 +2503,7 @@ async function deleteRun(a, btn) {
     setTimeout(() => { if (btn.isConnected) { btn.dataset.sure = ''; btn.textContent = old; btn.classList.remove('sure'); } }, 3500);
     return false;
   }
-  if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<small>Deleting…</small>'; }
   try {
     await P.db.doc('attempts/' + a.id).delete();
     try { await P.assets?.delete(a.asset); } catch {}
@@ -2507,17 +2513,52 @@ async function deleteRun(a, btn) {
     toast('Rep deleted'); return true;
   } catch (e) {
     toast(e && e.code === 'permission_denied' ? 'That rep was posted from another device: link it in “Mine” to delete it here' : 'Couldn’t delete it. Check your connection and try again.');
-    if (btn) { btn.disabled = false; btn.dataset.sure = ''; btn.textContent = '🗑'; btn.classList.remove('sure'); }
+    if (btn) { btn.disabled = false; btn.dataset.sure = '1'; btn.innerHTML = '<span>🗑</span><small>Delete</small>'; }
     return false;
   }
 }
 function rowEl(a, rank) {
   const item = rowItem(a, rank);
   if (!isMine(a) || !P.db) return item;
-  const del = h('button', { class: 'btn rowdel', 'aria-label': 'Delete this rep', title: 'Delete this rep', text: '🗑' });
+  // your reps: swipe left to show Delete (swipe back, or tap anywhere else, to hide it)
+  const del = h('button', { class: 'rowdel', 'aria-label': 'Delete this rep', title: 'Delete this rep', tabindex: '-1' }, h('span', { text: '🗑' }), h('small', { text: 'Delete' }));
+  del.dataset.sure = '1';                                       // the swipe was the "are you sure"
   del.onclick = e => { e.stopPropagation(); deleteRun(a, del); };
-  return h('div', { class: 'rowline' }, item, del);
+  const line = h('div', { class: 'rowline swipe' + (swipeOpen === a.id ? ' open' : ''), 'data-id': a.id }, del, item);
+  addSwipe(line, item, a.id);
+  return line;
 }
+let swipeOpen = null;
+const SWIPE_W = 92;
+function closeSwipes(except) { $$('.rowline.swipe.open').forEach(l => { if (l !== except) { l.classList.remove('open'); l.querySelector('.item').style.transform = ''; } }); if (!except) swipeOpen = null; }
+function addSwipe(line, item, id) {
+  let x0 = 0, y0 = 0, dx = 0, drag = false, decided = false, horiz = false, pid = null;
+  const base = () => line.classList.contains('open') ? -SWIPE_W : 0;
+  item.addEventListener('pointerdown', e => { if (e.button > 0) return; x0 = e.clientX; y0 = e.clientY; dx = 0; drag = true; decided = false; horiz = false; pid = e.pointerId; });
+  item.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== pid) return;
+    const mx = e.clientX - x0, my = e.clientY - y0;
+    if (!decided && Math.hypot(mx, my) > 8) { decided = true; horiz = Math.abs(mx) > Math.abs(my) * 1.2; if (horiz) { try { item.setPointerCapture(pid); } catch {} line.classList.add('dragging'); closeSwipes(line); } else drag = false; }
+    if (!horiz) return;
+    dx = mx; const t = Math.max(-SWIPE_W * 1.35, Math.min(0, base() + dx));
+    item.style.transform = `translateX(${t}px)`;
+  });
+  const end = e => {
+    if (!drag || (e && e.pointerId !== pid)) return; drag = false; line.classList.remove('dragging');
+    if (!horiz) return;
+    const t = base() + dx, open = t < -SWIPE_W / 2;
+    line.classList.toggle('open', open); item.style.transform = open ? `translateX(${-SWIPE_W}px)` : '';
+    swipeOpen = open ? id : (swipeOpen === id ? null : swipeOpen);
+    item.dataset.swiped = '1'; setTimeout(() => { delete item.dataset.swiped; }, 50);   // a swipe isn't a tap
+  };
+  item.addEventListener('pointerup', end); item.addEventListener('pointercancel', end);
+  item.addEventListener('click', e => {
+    if (item.dataset.swiped) { e.stopImmediatePropagation(); e.preventDefault(); return; }
+    if (line.classList.contains('open')) { e.stopImmediatePropagation(); e.preventDefault(); closeSwipes(); }   // tap an open row: just close it
+  }, true);
+  if (line.classList.contains('open')) item.style.transform = `translateX(${-SWIPE_W}px)`;
+}
+document.addEventListener('pointerdown', e => { if (swipeOpen && !e.target.closest('.rowline.swipe.open')) closeSwipes(); }, true);
 function rowItem(a, rank) {
   const mine = isMine(a), lk = likes.get(a.id)?.size || 0;
   const item = h('button', { 'data-id': a.id, class: 'item' + (mine ? ' me' : '') + (rank <= 3 && !isDisputed(a) ? ' r' + rank : '') + (isDisputed(a) ? ' dim' : ''), onclick: e => openRun(a.id, e.currentTarget) },
@@ -3236,7 +3277,7 @@ $('#club').value = lsGet('fo-club') || '';
   const SEL = '.btn, .seg button, nav button, .item, .btn-install, .rowdel, summary';
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.addEventListener('pointerdown', e => {
-    const b = e.target.closest(SEL); if (!b || b.disabled || still() || b.closest('.pl-stage')) return;
+    const b = e.target.closest(SEL); if (!b || b.disabled || still() || b.closest('.pl-stage') || b.closest('.rowline.swipe')) return;
     b.classList.add('tapfx', 'pressing'); b.classList.remove('released');
     const r = b.getBoundingClientRect(), d = Math.hypot(r.width, r.height) * 2;
     const rip = document.createElement('span'); rip.className = 'rip';
