@@ -300,7 +300,10 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
 .pl-speeds{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;min-height:50px}
 .pl-sp{flex:1;border:0;background:none;border-radius:9px;color:var(--mute);font-weight:800;font-size:16px;min-width:0;padding:0 4px}
 .pl-sp[aria-pressed=true]{background:var(--ink);color:#0a0e12}
-.pl-snd{position:absolute;right:10px;top:10px;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:rgba(5,8,12,.7);font-size:17px;z-index:2}
+.pl-snd{position:absolute;right:10px;top:10px;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:rgba(5,8,12,.75);font-size:18px;z-index:3}
+.pl-snd.needtap{border-color:var(--lime);animation:glowPulse 1.4s ease-out infinite}
+.pl-volpop{position:absolute;right:10px;top:60px;z-index:3;background:rgba(5,8,12,.88);border:1px solid var(--line);border-radius:22px;padding:12px 10px;display:flex;justify-content:center;animation:pbIn .25s var(--spring) both}
+.pl-vol{-webkit-appearance:slider-vertical;appearance:slider-vertical;writing-mode:vertical-lr;direction:rtl;width:24px;height:140px;margin:0;accent-color:var(--lime);cursor:pointer}
 .pl-legend{display:flex;gap:12px;font-size:12px;color:var(--mute);padding:2px 4px 0}
 .pl-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 .pl-ctl{display:grid;grid-template-columns:1.1fr .8fr 1fr .8fr 1.1fr;gap:6px;margin-top:8px}
@@ -2000,11 +2003,51 @@ async function detectBeep(file) {
 function makePlayer(root, o) {
   root.replaceChildren();
   const v = h('video', { playsinline: true, 'webkit-playsinline': true, preload: 'auto' });
-  v.muted = true;
+  v.muted = false;                                                 // sound on by default
   const clock = h('div', { class: 'clock' }, h('div', { class: 't', text: '0.000' }), h('div', { class: 's', text: '–' }));
   const big = h('button', { class: 'pl-big', 'aria-label': 'Play', text: '▶' });
-  const bSnd = h('button', { class: 'pl-snd', 'aria-label': 'Sound on or off', title: 'Sound', text: '🔇', onclick: e => { e.stopPropagation(); v.muted = !v.muted; bSnd.textContent = v.muted ? '🔇' : '🔊'; } });
-  const stage = h('div', { class: 'stage pl-stage' }, v, clock, big, bSnd);
+  // ----- sound: on by default; tap the speaker for a volume slider -----
+  let vol = +(lsGet('fo-vol') ?? 1); if (!isFinite(vol) || vol < 0.1) vol = 1;    // always starts with sound on
+  const volSet = (() => { try { const t = document.createElement('video'); t.volume = 0.5; return Math.abs(t.volume - 0.5) < 0.01; } catch { return false; } })();  // iPhones ignore video volume
+  let gain = null;
+  const hookGain = () => {                                        // iPhone: route the sound through a volume control we can set
+    if (volSet || gain || !v.crossOrigin) return;
+    try { const c = ensureCtx(), src = c.createMediaElementSource(v); gain = c.createGain(); src.connect(gain).connect(c.destination); } catch { gain = null; }
+  };
+  const applyVol = () => {
+    if (volSet) v.volume = Math.min(1, vol); else if (gain) gain.gain.value = vol;
+    v.muted = vol === 0 ? true : v.muted;
+    bSnd.textContent = v.muted || vol === 0 ? '🔇' : vol < 0.5 ? '🔈' : '🔊';
+    bSnd.classList.toggle('needtap', v.muted && vol > 0);
+  };
+  const volIn = h('input', { type: 'range', class: 'pl-vol', min: '0', max: '1', step: '0.05', 'aria-label': 'Volume', orient: 'vertical' });
+  volIn.value = String(vol);
+  const volPop = h('div', { class: 'pl-volpop', hidden: true }, volIn);
+  volIn.addEventListener('input', () => { vol = +volIn.value; lsSet('fo-vol', vol); if (vol > 0) { v.muted = false; unlockAudio(false); hookGain(); } applyVol(); });
+  ['pointerdown', 'click'].forEach(ev => volPop.addEventListener(ev, e => e.stopPropagation()));
+  const bSnd = h('button', { class: 'pl-snd', 'aria-label': 'Sound and volume', title: 'Volume', text: '🔊', onclick: e => {
+    e.stopPropagation(); unlockAudio(false);
+    if (v.muted && vol > 0) { v.muted = false; hookGain(); applyVol(); }        // first tap after the phone blocked sound: turn it on
+    volPop.hidden = !volPop.hidden;
+  } });
+  bSnd.addEventListener('pointerdown', e => e.stopPropagation());
+  document.addEventListener('pointerdown', e => { if (!volPop.hidden && !volPop.contains(e.target) && e.target !== bSnd) volPop.hidden = true; });
+  let corsTried = false, retrying = false;
+  if (!volSet) { v.crossOrigin = 'anonymous'; corsTried = true; }   // iPhone: lets the volume control reach the sound
+  v.addEventListener('error', () => {                               // the clip host didn't allow it: load it the plain way
+    if (!corsTried || dead || gain) return; corsTried = false; retrying = true; const src = v.currentSrc || v.src;
+    v.removeAttribute('crossorigin'); if (src) { v.src = src; v.load(); }
+  }, true);
+  /* play with sound; if the browser only allows silent playback here, play silently and show "tap for sound" */
+  const playSafe = () => {
+    hookGain(); applyVol();
+    const p = v.play(); if (!p || !p.catch) return p;
+    return p.catch(err => {
+      if (err && err.name === 'NotAllowedError' && !v.muted) { v.muted = true; applyVol(); return v.play().catch(() => { wantPlay = false; }); }
+      wantPlay = false;
+    });
+  };
+  const stage = h('div', { class: 'stage pl-stage' }, v, clock, big, bSnd, volPop);
   const fill = h('div', { class: 'pl-fill' }), span = h('div', { class: 'pl-span' });
   const mb = h('div', { class: 'pl-mark beep' }), mc = h('div', { class: 'pl-mark ctl' });
   const scrub = h('input', { type: 'range', class: 'pl-scrub', min: '0', max: '1', step: '0.001', value: '0', 'aria-label': 'Slide through the video' });
@@ -2032,7 +2075,7 @@ function makePlayer(root, o) {
   // iPhones don't load a video until it has been played once: start it (muted) on the first touch
   let primedAt = 0;
   root.addEventListener('pointerdown', () => {
-    if (v.readyState < 2) { primedAt = performance.now(); const p = v.play(); if (p && p.then) p.then(() => { if (!wantPlay) v.pause(); }).catch(() => {}); }
+    if (v.readyState < 2) { primedAt = performance.now(); hookGain(); const p = v.play(); if (p && p.then) p.then(() => { if (!wantPlay) v.pause(); }).catch(() => {}); }
   }, { capture: true });
   const errBox = h('div', { class: 'pl-err', hidden: true });
   stage.appendChild(errBox);
@@ -2043,7 +2086,7 @@ function makePlayer(root, o) {
       : 'This video can’t be played on this device. Try another browser (Chrome, Safari or Edge).';
     errBox.hidden = false; big.hidden = true;
   };
-  v.addEventListener('error', () => { if (!dead && v.getAttribute('src')) cantPlay(); });
+  v.addEventListener('error', () => { if (retrying) { retrying = false; return; } if (!dead && v.getAttribute('src')) cantPlay(); });
   const onKey = e => {
     if (dead || !root.isConnected || e.target.closest && e.target.closest('input,textarea,select')) return;
     if (e.key === ' ' || e.key === 'k') { e.preventDefault(); toggle(); }
@@ -2084,7 +2127,7 @@ function makePlayer(root, o) {
   function toggle() {
     if (!v.paused && !wantPlay && performance.now() - primedAt < 800) { wantPlay = true; stopAt = null; v.playbackRate = rate; return; }   // that tap was "play"
     if (v.paused && (finished || v.ended)) { finished = false; playFrom(0); return; }   // after it's played through, Play starts it over
-    if (v.paused) { wantPlay = true; stopAt = null; v.playbackRate = rate; const p = v.play(); if (p && p.catch) p.catch(() => { wantPlay = false; }); }
+    if (v.paused) { wantPlay = true; stopAt = null; v.playbackRate = rate; playSafe(); }
     else { wantPlay = false; v.pause(); }
   }
   big.onclick = toggle; v.addEventListener('click', toggle);
@@ -2094,7 +2137,7 @@ function makePlayer(root, o) {
     const go = () => {
       const { c } = m(); stopAt = c != null ? c + 1.2 : null; wantPlay = true; finished = false;
       v.currentTime = t; v.playbackRate = rate;
-      const p = v.play(); if (p && p.catch) p.catch(() => { wantPlay = false; });
+      playSafe();
     };
     if (v.readyState >= 1) go(); else v.addEventListener('loadedmetadata', go, { once: true });
   }
