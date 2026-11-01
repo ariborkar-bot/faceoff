@@ -31,14 +31,14 @@ button{cursor:pointer}
 .wrap{max-width:760px;margin:0 auto;padding:14px 14px 80px}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 14px;padding-top:env(safe-area-inset-top)}
 .hdr-r{display:flex;align-items:center;gap:10px}
-.rowline{position:relative;border-radius:14px}.rowline>.item{position:relative;z-index:1;width:100%;transition:transform .32s var(--spring),border-color .2s ease,box-shadow .2s ease;touch-action:pan-y}
-.rowline.dragging>.item{transition:none}
-.rowline.swipe>.item:active{transform:none}
-.rowline.swipe.open>.item{border-color:#5a2a25}
-.rowline .rowdel{position:absolute;top:0;right:0;bottom:0;width:86px;border:0;border-radius:14px;background:var(--red);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:20px;opacity:0;transition:opacity .2s ease}
-.rowline .rowdel small{font-size:12px;font-weight:700;letter-spacing:.03em}
-.rowline.open .rowdel,.rowline.dragging .rowdel{opacity:1}
-.rowline .rowdel:disabled{opacity:.7}
+.rowline{position:relative;border-radius:14px}.rowline>.item{position:relative;z-index:1;width:100%}
+.rowline .delfill{position:absolute;inset:0;z-index:2;border-radius:14px;pointer-events:none;background:linear-gradient(90deg,rgba(255,77,61,.55),rgba(255,77,61,.35));clip-path:inset(0 calc(100% - var(--p,0) * 100%) 0 0 round 14px);opacity:0;transition:opacity .15s}
+.rowline.holding .delfill{opacity:1}
+.rowline .delhint{position:absolute;left:50%;top:-10px;transform:translate(-50%,-100%);z-index:3;background:var(--red);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s}
+.rowline.holding .delhint{opacity:1}
+.rowline.holding>.item{transform:scale(.98)}
+.toast.undo{display:flex;align-items:center;gap:14px}
+.undo-btn{background:none;border:0;color:#0a5be0;font-weight:800;font-size:15px;padding:2px 4px}
 .code{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;word-break:break-all;flex:1;min-width:0}
 .brand-em{height:46px;width:auto;display:block}.brand-wm{height:26px;width:auto;display:block}
 @media(max-width:430px){.brand-em{height:36px}.brand-wm{height:20px}.hdr-r{gap:6px}}
@@ -191,6 +191,46 @@ nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacit
 .ipop::before{content:'';position:absolute;top:-6px;left:var(--ax,16px);width:10px;height:10px;background:var(--panel2);border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg)}
 .hinfo{display:flex;align-items:center}
 .sw b{display:inline-flex;align-items:center}
+/* the big start button */
+.bigstart{position:relative;display:block;margin:22px auto 10px;width:min(64vw,250px);aspect-ratio:1;border-radius:50%;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.bigstart .bs-core{position:absolute;inset:8%;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle at 50% 35%,#1d2a1a 0%,#0b1109 70%);border:3px solid var(--lime);
+  box-shadow:0 0 0 6px rgba(200,255,46,.12),0 0 40px rgba(200,255,46,.35),inset 0 0 30px rgba(200,255,46,.15);
+  transition:transform .25s var(--spring),box-shadow .25s ease}
+.bigstart .bs-core img{width:72%;height:auto;filter:drop-shadow(0 0 10px rgba(200,255,46,.45));animation:bsFloat 3.2s ease-in-out infinite}
+.bigstart .bs-ring{position:absolute;inset:8%;border-radius:50%;border:2px solid var(--lime);opacity:0;animation:bsPulse 2.4s ease-out infinite}
+.bigstart .r2{animation-delay:.8s}.bigstart .r3{animation-delay:1.6s}
+.bigstart .bs-label{position:absolute;left:50%;bottom:-6px;transform:translate(-50%,100%);font-family:var(--disp);font-weight:800;font-size:22px;letter-spacing:.12em;text-transform:uppercase;color:var(--lime);white-space:nowrap;animation:bsBlink 2.4s ease-in-out infinite}
+.bigstart:hover .bs-core{transform:scale(1.04);box-shadow:0 0 0 8px rgba(200,255,46,.18),0 0 60px rgba(200,255,46,.5),inset 0 0 30px rgba(200,255,46,.2)}
+.bigstart:active .bs-core{transform:scale(.93)}
+.bigstart.launch .bs-core{animation:bsLaunch .5s cubic-bezier(.5,0,.75,0) forwards}
+.bigstart.launch .bs-ring{animation:bsPulse .5s ease-out forwards}
+#camOff{padding-bottom:40px}
+@keyframes bsPulse{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.45);opacity:0}}
+@keyframes bsFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-2deg)}}
+@keyframes bsBlink{0%,100%{opacity:1}50%{opacity:.55}}
+@keyframes bsLaunch{0%{transform:scale(1)}30%{transform:scale(.9)}100%{transform:scale(6);opacity:0}}
+/* Start button in the camera view */
+.go-btn{display:flex;align-items:center;justify-content:center;gap:10px}
+.go-btn img{height:34px;width:auto;filter:brightness(0) saturate(100%)}
+.go-btn.cancel{background:var(--panel2);color:var(--ink);border-color:var(--line)}
+.go-btn.cancel img{filter:none;opacity:.8}
+/* camera view: irises open, HUD corners, a scan line while it looks for you */
+.camstage.reveal{animation:camIris .9s cubic-bezier(.65,0,.35,1) both}
+@keyframes camIris{0%{clip-path:circle(0% at 50% 50%);filter:brightness(2.2) saturate(0)}60%{filter:brightness(1.2) saturate(.6)}100%{clip-path:circle(75% at 50% 50%);filter:none}}
+.hud{position:absolute;inset:0;pointer-events:none;z-index:2}
+.hud .c{position:absolute;width:12%;aspect-ratio:1;border:3px solid rgba(255,255,255,.7);transition:all .45s var(--spring)}
+.hud .tl{left:4%;top:6%;border-right:0;border-bottom:0;border-top-left-radius:10px}.hud .tr{right:4%;top:6%;border-left:0;border-bottom:0;border-top-right-radius:10px}
+.hud .bl{left:4%;bottom:6%;border-right:0;border-top:0;border-bottom-left-radius:10px}.hud .br{right:4%;bottom:6%;border-left:0;border-top:0;border-bottom-right-radius:10px}
+.camstage.reveal .hud .c{animation:hudIn .7s .35s var(--spring) both}
+@keyframes hudIn{from{opacity:0;transform:scale(1.6)}to{opacity:1;transform:none}}
+.camstage.locked .hud .c{border-color:var(--lime);filter:drop-shadow(0 0 6px rgba(200,255,46,.9))}
+.camstage.locked .hud .tl{left:10%;top:12%}.camstage.locked .hud .tr{right:10%;top:12%}.camstage.locked .hud .bl{left:10%;bottom:12%}.camstage.locked .hud .br{right:10%;bottom:12%}
+.camstage.racing .hud .c{border-color:var(--lime);opacity:.5}
+.hud .scan{position:absolute;left:0;right:0;height:2px;top:0;background:linear-gradient(90deg,transparent,rgba(200,255,46,.9),transparent);box-shadow:0 0 12px rgba(200,255,46,.8);opacity:0}
+.camstage.scanning .hud .scan{animation:scanY 2.2s ease-in-out infinite;opacity:1}
+@keyframes scanY{0%{top:8%}50%{top:90%}100%{top:8%}}
+@media (prefers-reduced-motion:reduce){.bigstart .bs-ring,.bigstart .bs-core img,.bigstart .bs-label,.camstage.scanning .hud .scan{animation:none}}
 /* opening screen: the logo, then the sticks fly out, the circle opens and the app appears */
 @property --hole{syntax:'<length>';inherits:false;initial-value:0px}
 #splash{position:fixed;inset:0;z-index:100;background:#000;display:grid;place-items:center;--hole:0px;
@@ -462,19 +502,24 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
     <div class="card" id="cCam">
       <h2 class="hinfo">Face-off<span class="info" data-info="Prop your phone up low, facing you. Tap <b>Start</b>, set the ball down with your stick head on the ground behind it, anywhere in view, and hold still: <b>Down, Set</b>, then the whistle. You're timed from the whistle to the ball in your pocket."></span></h2>
       <div id="camOff">
-        <button class="btn primary" id="btnCamOn" style="width:100%;margin-top:12px">Start camera</button>
+        <button class="bigstart" id="btnCamOn" aria-label="Start camera">
+          <span class="bs-ring r1"></span><span class="bs-ring r2"></span><span class="bs-ring r3"></span>
+          <span class="bs-core"><img src="brand/emblem-md.png" alt=""></span>
+          <span class="bs-label">Tap to start</span>
+        </button>
       </div>
       <div id="camOn" hidden>
         <div class="camstage" id="camStage">
           <video id="lv" playsinline muted autoplay></video>
           <canvas id="ov"></canvas>
+          <div class="hud" aria-hidden="true"><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i><i class="scan"></i></div>
           <div class="holdbar"><i id="holdBar"></i></div>
           <div class="recdot" id="recDot" hidden>● REC</div>
           <div class="cue" id="cue"></div>
           <div class="camstatus" id="camStatus">Starting…</div>
         </div>
         <div class="camctl simple">
-          <button class="btn primary" id="btnCamGo">Start</button>
+          <button class="btn primary go-btn" id="btnCamGo"><img src="brand/emblem-sm.png" alt=""><span>Start</span></button>
         </div>
         <div class="voicehint" id="voiceHint" hidden>🎙 Or just say <b>“Start”</b></div>
       </div>
@@ -1191,6 +1236,7 @@ async function camOn() {
   sizeStage();
   const m = C.facing === 'user'; lv.classList.toggle('mirror', m); ov.classList.toggle('mirror', m);
   $('#camOff').hidden = true; $('#camOn').hidden = false; $('#camMsg').textContent = '';
+  { const st = $('#camStage'); st.classList.remove('reveal'); void st.offsetWidth; st.classList.add('reveal'); }   // the camera irises open
   try { C.wake = await navigator.wakeLock?.request('screen'); } catch {}
   clearInterval(C.timer); C.timer = setInterval(camTick, 100);
   if (C.onset) C.onset.stop();
@@ -1579,8 +1625,9 @@ function camTick() {
   if (!C.masks) C.masks = buildMasks(C.dw, C.dh);
   dctx.drawImage(lv, 0, 0, C.dw, C.dh);
   const px = dctx.getImageData(0, 0, C.dw, C.dh).data;
-  $('#btnCamGo').textContent = camBusy() ? 'Cancel' : 'Start';
+  { const sp = $('#btnCamGo span'); const t = camBusy() ? 'Cancel' : 'Start'; if (sp && sp.textContent !== t) sp.textContent = t; $('#btnCamGo').classList.toggle('cancel', camBusy()); }
   analyze(px);
+  { const st = $('#camStage'); st.classList.toggle('scanning', (C.state === 'wait' || C.state === 'scan') && !C.aligned); st.classList.toggle('locked', !!C.aligned || C.state === 'seq'); st.classList.toggle('racing', C.state === 'track'); }
   if (C.state === 'wait') setStatus(C.aligned ? 'Ball ✓ · Stick ✓ In position. Press Start' : statusHint());
   else if (C.state === 'scan') setStatus(C.aligned ? 'Ball ✓ · Stick ✓ Hold it…' : statusHint());
   else if (C.state === 'seq' && C.phase === 'set' && C.fs && C.setSnap) {
@@ -2519,46 +2566,66 @@ async function deleteRun(a, btn) {
 }
 function rowEl(a, rank) {
   const item = rowItem(a, rank);
+  if (window.pendingDel && pendingDel.has(a.id)) { const x = h('div'); x.hidden = true; return x; }
   if (!isMine(a) || !P.db) return item;
-  // your reps: swipe left to show Delete (swipe back, or tap anywhere else, to hide it)
-  const del = h('button', { class: 'rowdel', 'aria-label': 'Delete this rep', title: 'Delete this rep', tabindex: '-1' }, h('span', { text: '🗑' }), h('small', { text: 'Delete' }));
-  del.dataset.sure = '1';                                       // the swipe was the "are you sure"
-  del.onclick = e => { e.stopPropagation(); deleteRun(a, del); };
-  const line = h('div', { class: 'rowline swipe' + (swipeOpen === a.id ? ' open' : ''), 'data-id': a.id }, del, item);
-  addSwipe(line, item, a.id);
+  // your reps: double-tap and hold to delete (a red bar fills while you hold; you get a few seconds to undo)
+  const fill = h('div', { class: 'delfill' }), hint = h('div', { class: 'delhint', text: 'Keep holding to delete' });
+  const line = h('div', { class: 'rowline hold', 'data-id': a.id }, item, fill, hint);
+  addHoldDelete(line, item, a);
   return line;
 }
-let swipeOpen = null;
-const SWIPE_W = 92;
-function closeSwipes(except) { $$('.rowline.swipe.open').forEach(l => { if (l !== except) { l.classList.remove('open'); l.querySelector('.item').style.transform = ''; } }); if (!except) swipeOpen = null; }
-function addSwipe(line, item, id) {
-  let x0 = 0, y0 = 0, dx = 0, drag = false, decided = false, horiz = false, pid = null;
-  const base = () => line.classList.contains('open') ? -SWIPE_W : 0;
-  item.addEventListener('pointerdown', e => { if (e.button > 0) return; x0 = e.clientX; y0 = e.clientY; dx = 0; drag = true; decided = false; horiz = false; pid = e.pointerId; });
-  item.addEventListener('pointermove', e => {
-    if (!drag || e.pointerId !== pid) return;
-    const mx = e.clientX - x0, my = e.clientY - y0;
-    if (!decided && Math.hypot(mx, my) > 8) { decided = true; horiz = Math.abs(mx) > Math.abs(my) * 1.2; if (horiz) { try { item.setPointerCapture(pid); } catch {} line.classList.add('dragging'); closeSwipes(line); } else drag = false; }
-    if (!horiz) return;
-    dx = mx; const t = Math.max(-SWIPE_W * 1.35, Math.min(0, base() + dx));
-    item.style.transform = `translateX(${t}px)`;
-  });
-  const end = e => {
-    if (!drag || (e && e.pointerId !== pid)) return; drag = false; line.classList.remove('dragging');
-    if (!horiz) return;
-    const t = base() + dx, open = t < -SWIPE_W / 2;
-    line.classList.toggle('open', open); item.style.transform = open ? `translateX(${-SWIPE_W}px)` : '';
-    swipeOpen = open ? id : (swipeOpen === id ? null : swipeOpen);
-    item.dataset.swiped = '1'; setTimeout(() => { delete item.dataset.swiped; }, 50);   // a swipe isn't a tap
+const HOLD_DEL_MS = 900;
+function addHoldDelete(line, item, a) {
+  let lastUp = 0, lastX = 0, lastY = 0, holding = false, t0 = 0, raf = 0, pid = null, sx = 0, sy = 0, pendingOpen = 0, suppress = false;
+  const stop = done => {
+    holding = false; cancelAnimationFrame(raf); line.classList.remove('holding');
+    line.style.setProperty('--p', 0); if (!done) suppress = true;
   };
-  item.addEventListener('pointerup', end); item.addEventListener('pointercancel', end);
+  item.addEventListener('pointerdown', e => {
+    if (e.button > 0) return;
+    const now = performance.now();
+    if (now - lastUp < 380 && Math.hypot(e.clientX - lastX, e.clientY - lastY) < 30) {   // second tap: start the hold
+      clearTimeout(pendingOpen); holding = true; t0 = now; pid = e.pointerId; sx = e.clientX; sy = e.clientY;
+      try { item.setPointerCapture(pid); } catch {}
+      line.classList.add('holding');
+      const tick = () => {
+        if (!holding) return;
+        const p = Math.min(1, (performance.now() - t0) / HOLD_DEL_MS); line.style.setProperty('--p', p);
+        if (p >= 1) { stop(true); suppress = true; if (navigator.vibrate) try { navigator.vibrate(30); } catch {} softDelete(a, line); return; }
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    }
+  });
+  item.addEventListener('pointermove', e => { if (holding && e.pointerId === pid && Math.hypot(e.clientX - sx, e.clientY - sy) > 14) stop(false); });
+  const up = e => {
+    if (holding && e.pointerId === pid) { stop(false); return; }
+    lastUp = performance.now(); lastX = e.clientX; lastY = e.clientY;
+  };
+  item.addEventListener('pointerup', up); item.addEventListener('pointercancel', e => { if (holding) stop(false); });
+  // a single tap still opens the rep (a moment later, in case it's the start of a double-tap)
   item.addEventListener('click', e => {
-    if (item.dataset.swiped) { e.stopImmediatePropagation(); e.preventDefault(); return; }
-    if (line.classList.contains('open')) { e.stopImmediatePropagation(); e.preventDefault(); closeSwipes(); }   // tap an open row: just close it
+    e.stopImmediatePropagation(); e.preventDefault();
+    if (suppress) { suppress = false; return; }
+    clearTimeout(pendingOpen);
+    pendingOpen = setTimeout(() => { if (!holding && line.isConnected) openRun(a.id, item); }, 300);
   }, true);
-  if (line.classList.contains('open')) item.style.transform = `translateX(${-SWIPE_W}px)`;
 }
-document.addEventListener('pointerdown', e => { if (swipeOpen && !e.target.closest('.rowline.swipe.open')) closeSwipes(); }, true);
+/* delete after a short delay with Undo; the row disappears right away */
+var pendingDel = new Map();
+function softDelete(a, line) {
+  if (line) { line.style.maxHeight = line.offsetHeight + 'px'; void line.offsetWidth; line.classList.add('gone'); }
+  const t = h('div', { class: 'toast undo' }, h('span', { text: 'Rep deleted' }), h('button', { class: 'undo-btn', text: 'Undo' }));
+  $$('.toast').forEach(x => x.remove()); document.body.append(t);
+  const timer = setTimeout(async () => {
+    pendingDel.delete(a.id); t.classList.add('out'); setTimeout(() => t.remove(), 260);
+    try { await P.db.doc('attempts/' + a.id).delete(); try { await P.assets?.delete(a.asset); } catch {} attempts = attempts.filter(x => x.id !== a.id); renderBoard(); }
+    catch (e) { renderBoard(); toast(e && e.code === 'permission_denied' ? 'That rep was posted from another device or account' : 'Couldn’t delete it. Check your connection and try again.'); }
+  }, 4000);
+  pendingDel.set(a.id, timer);
+  $('.undo-btn', t).onclick = () => { clearTimeout(timer); pendingDel.delete(a.id); t.remove(); renderBoard(); toast('Kept it'); };
+  setTimeout(() => { if (pendingDel.has(a.id)) renderBoard(); }, 450);
+}
 function rowItem(a, rank) {
   const mine = isMine(a), lk = likes.get(a.id)?.size || 0;
   const item = h('button', { 'data-id': a.id, class: 'item' + (mine ? ' me' : '') + (rank <= 3 && !isDisputed(a) ? ' r' + rank : '') + (isDisputed(a) ? ' dim' : ''), onclick: e => openRun(a.id, e.currentTarget) },
@@ -3213,7 +3280,12 @@ seg('segMode', 'mode'); seg('segRange', 'range');
 $$('#segStats button').forEach(b => b.onclick = () => { SF.range = b.dataset.v; $$('#segStats button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
 $$('#segWho button').forEach(b => b.onclick = () => { SF.who = b.dataset.v; $$('#segWho button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
 
-$('#btnCamOn').onclick = camOn;
+$('#btnCamOn').onclick = () => {
+  const b = $('#btnCamOn'); unlockAudio(true);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return camOn();
+  b.classList.add('launch'); setTimeout(() => b.classList.remove('launch'), 700);
+  camOn();
+};
 $('#btnSound').onclick = async () => { unlockAudio(true); await speakDone('Down'); await sleep(400); await speakDone('Set'); await sleep(800); if (SET.whistle) playWhistle(); else speak('Go'); };
 $('#btnFlip').onclick = () => { C.facing = C.facing === 'user' ? 'environment' : 'user'; lsSet('fo-facing', C.facing); toast(C.facing === 'user' ? 'Front camera' : 'Back camera'); if (C.stream) camOn(); };
 $('#btnCamGo').onclick = () => {
@@ -3277,7 +3349,7 @@ $('#club').value = lsGet('fo-club') || '';
   const SEL = '.btn, .seg button, nav button, .item, .btn-install, .rowdel, summary';
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.addEventListener('pointerdown', e => {
-    const b = e.target.closest(SEL); if (!b || b.disabled || still() || b.closest('.pl-stage') || b.closest('.rowline.swipe')) return;
+    const b = e.target.closest(SEL); if (!b || b.disabled || still() || b.closest('.pl-stage') || b.closest('.rowline.hold')) return;
     b.classList.add('tapfx', 'pressing'); b.classList.remove('released');
     const r = b.getBoundingClientRect(), d = Math.hypot(r.width, r.height) * 2;
     const rip = document.createElement('span'); rip.className = 'rip';
