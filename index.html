@@ -1218,7 +1218,7 @@ function findHeads(px, W, H, G, g, anchor, ballR, nomE) {
     findHeads.fg = { px, key, fg };
   }
   const fgm = findHeads.fg.fg, irx2 = 1 / (nom.rx * nom.rx), iry2 = 1 / (nom.ry * nom.ry), bx2 = (1.1 * br) ** 2;
-  for (let dy = -1.25; dy <= 0.51; dy += 0.25) for (let dx = -1.0; dx <= 1.01; dx += 0.25) {   // not so far up that it lands on you
+  for (let dy = -1.5; dy <= 0.76; dy += 0.25) for (let dx = -1.5; dx <= 1.51; dx += 0.25) {   // behind the ball, or off to either side of it
     const hcx = a.cx + dx * nom.rx, hcy = a.cy + (nom.cy - G.ball.cy) + away * dy * r;
     let L = 0, Ln = 0, R = 0, Rn = 0, Lo = 0, Lon = 0;
     const x0 = Math.max(0, Math.floor(hcx - nom.rx)), x1 = Math.min(W - 1, Math.ceil(hcx + nom.rx));
@@ -1231,27 +1231,27 @@ function findHeads(px, W, H, G, g, anchor, ballR, nomE) {
       if (away > 0 ? y > hcy : y < hcy) { Lon++; if (f) Lo++; }                 // the half next to the ball
     }
     const occL = Ln ? L / Ln : 0, occR = Rn ? R / Rn : 0, occLow = Lon ? Lo / Lon : 0;
-    const score = Math.min(occL, occR) + 0.5 * occLow - 0.03 * Math.abs(dy) - 0.03 * Math.abs(dx);
+    const score = Math.min(occL, occR) + 0.5 * occLow - 0.02 * Math.abs(dy) - 0.02 * Math.abs(dx);
     all.push({ cx: hcx, cy: hcy, rx: nom.rx, ry: nom.ry, dir: nom.dir, occL, occR, occLow, score });
   }
   all.sort((p, q) => q.score - p.score);
   const keep = [];                                                       // best few, at least half a ball apart
-  for (const c of all) { if (keep.every(k => Math.hypot(k.cx - c.cx, k.cy - c.cy) > 0.6 * r)) keep.push(c); if (keep.length >= 8) break; }
+  for (const c of all) { if (keep.every(k => Math.hypot(k.cx - c.cx, k.cy - c.cy) > 0.6 * r)) keep.push(c); if (keep.length >= 10) break; }
   return keep;
 }
 /* Is part of the stick down at ground level? The head has to come down to the ball (it rests on the ground right
    behind it), or the shaft has to reach down to the ball's level. A head held up off the ground leaves a gap of
    plain ground between it and the ball. */
 function groundedCheck(px, W, H, fit, ball, br, g, shaftLow) {
-  const x0 = Math.max(0, Math.round(Math.max(fit.cx - fit.rx, ball.cx - 1.8 * br))), x1 = Math.min(W - 1, Math.round(Math.min(fit.cx + fit.rx, ball.cx + 1.8 * br)));
-  const y0 = Math.max(0, Math.round(ball.cy - 1.6 * br)), y1 = Math.min(H - 1, Math.round(ball.cy - 0.85 * br));
+  const x0 = Math.max(0, Math.round(Math.max(fit.cx - fit.rx, ball.cx - 3 * br))), x1 = Math.min(W - 1, Math.round(Math.min(fit.cx + fit.rx, ball.cx + 3 * br)));
+  const y0 = Math.max(0, Math.round(ball.cy - 1.8 * br)), y1 = Math.min(H - 1, Math.round(ball.cy - 0.5 * br));
   let n = 0, f = 0;
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     if (Math.hypot(x - ball.cx, y - ball.cy) < 1.05 * br) continue;
     n++; if (fgDist(px, (y * W + x) * 4, C.pal) > T_G) f++;
   }
   const band = n ? f / n : 0;
-  return { ok: band >= 0.25 || (shaftLow != null && shaftLow >= ball.cy - 1.0 * br), band };
+  return { ok: band >= 0.2 || (shaftLow != null && shaftLow >= ball.cy - 1.2 * br), band };
 }
 function ballBlob(px, W, H, G, g, excl, opt = {}) {
   const { cx, cy, r } = G.ball, RX = 3.8 * r, RY = 2.8 * r;                 // the search area: around a spot, or the whole picture
@@ -1262,7 +1262,8 @@ function ballBlob(px, W, H, G, g, excl, opt = {}) {
   if (!ballBlob.cache || ballBlob.cache.px !== px || ballBlob.cache.g !== g) ballBlob.cache = { px, g, win: {} };
   if (!ballBlob.cache.win[wkey]) { const raw = ballMask(px, W, g, x0, y0, ww, hh); ballBlob.cache.win[wkey] = { raw, m: openMask(raw, ww, hh, opt.full ? 0.7 * r : r) }; }
   const wc = ballBlob.cache.win[wkey];
-  if (!ballBlob.order || ballBlob.order.key !== [x0, y0, ww, hh, cx, cy].join()) {          // pixels nearest the circle first
+  if (opt.full) { if (!ballBlob.scan || ballBlob.scan.length !== ww * hh) ballBlob.scan = Int32Array.from({ length: ww * hh }, (_, i) => i); }   // whole picture: plain scan order, sorted after
+  else if (!ballBlob.order || ballBlob.order.key !== [x0, y0, ww, hh, cx, cy].join()) {          // pixels nearest the spot first
     const d = new Float32Array(ww * hh), o = new Int32Array(ww * hh);
     for (let p = 0; p < o.length; p++) { o[p] = p; d[p] = Math.hypot(p % ww + x0 - cx, ((p / ww) | 0) + y0 - cy); }
     o.sort((a2, b2) => d[a2] - d[b2]); ballBlob.order = { key: [x0, y0, ww, hh, cx, cy].join(), o };
@@ -1305,16 +1306,22 @@ function ballSearch(px, W, G, m, x0, y0, ww, hh, r, cx, cy, excl, opt = {}) {
   // try each blob in the area, nearest the circle first, and keep the first one that looks like a ball
   const tint = i => { const s2 = px[i] + px[i + 1] + px[i + 2] + 1; return [px[i] / s2, px[i + 1] / s2]; };
   const at = p => (((p / ww) | 0) + y0) * W * 4 + ((p % ww) + x0) * 4;
+  const tdiff = (p, tr, tg) => { const i = at(p), s2 = px[i] + px[i + 1] + px[i + 2] + 1; return (Math.abs(px[i] / s2 - tr) + Math.abs(px[i + 1] / s2 - tg)) * 255; };
   const visited = new Uint8Array(ww * hh); let firstFail = null, tries = 0, any = false;
-  for (const seed of ballBlob.order.o) {
+  for (let seed of (opt.full ? ballBlob.scan : ballBlob.order.o)) {
     if (!m[seed] || visited[seed]) continue;
+    if (opt.full) {                                   // scanning top-down hits a blob's edge first, where colours blend: start a little inside
+      const k = Math.max(2, Math.round(0.35 * r)); let q = seed;
+      for (let i = 0; i < k; i++) { const nq = q + ww; if (nq < m.length && m[nq] && !visited[nq]) q = nq; else break; }
+      seed = q;
+    }
     any = true;
-    if (++tries > (opt.full ? 60 : 14)) break;
+    if (++tries > (opt.full ? 400 : 14)) break;
     // the blob's tint from the area around the seed (shading changes brightness, not tint)
     let tr = 0, tg = 0, tn = 0; const sx0 = seed % ww, sy0 = (seed / ww) | 0;
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const X = sx0 + dx, Y = sy0 + dy; if (X < 0 || Y < 0 || X >= ww || Y >= hh || !m[Y * ww + X]) continue; const t = tint(at(Y * ww + X)); tr += t[0]; tg += t[1]; tn++; }
     tr /= tn; tg /= tn;
-    const sameTint = p => { const t = tint(at(p)); return (Math.abs(t[0] - tr) + Math.abs(t[1] - tg)) * 255 < 32; };
+    const sameTint = p => tdiff(p, tr, tg) < 32;
     const lumA = p => { const i = at(p); return (px[i] + px[i + 1] + px[i + 2]) / 3; };
     const q = [seed]; visited[seed] = 1;
     let n = 0, sx = 0, sy = 0, bx0 = ww, bx1 = 0, by0 = hh, by1 = 0, edge = false; const list = [];
@@ -1331,13 +1338,17 @@ function ballSearch(px, W, G, m, x0, y0, ww, hh, r, cx, cy, excl, opt = {}) {
     if (res.ok) {
       const b = { ok: true, cx: sx / n + x0, cy: sy / n + y0, n, r: cut ? (bx1 - bx0 + 1) / 2 : Math.sqrt(n / Math.PI) };
       if (!opt.all) return b;
-      found.push(b); if (found.length >= 4) break;
+      found.push(b); if (found.length >= 12) break;
     } else if (n >= 0.25 * Math.PI * (opt.full ? 0.45 * r : r) ** 2) {
       fails.push(Object.assign(res, { cx: sx / n + x0, cy: sy / n + y0, n, bx0: bx0 + x0, bx1: bx1 + x0, by0: by0 + y0, by1: by1 + y0 }));
       if (!firstFail) firstFail = fails[fails.length - 1];
     }
   }
-  if (opt.all) return { ok: found.length > 0, list: found, fails };
+  if (opt.all) {
+    const d = b => Math.hypot(b.cx - cx, b.cy - cy);
+    found.sort((a, b) => d(a) - d(b)); fails.sort((a, b) => d(a) - d(b));
+    return { ok: found.length > 0, list: found.slice(0, 4), fails };
+  }
   return firstFail || { ok: false, reason: any ? 'small' : 'empty' };
 }
 function judgeBlob(px, list, n, sx, sy, bx0, bx1, by0, by1, edge, r, tr, tg, tint, at, ww, cut) {
@@ -1465,7 +1476,7 @@ function stickAt(px, W, H, Gb, ball, g) {
   let pick = null, nth = 0;
   for (const f of cands) {
     if (!isIn(f)) continue;                                                     // something there…
-    if (nth >= 4) break;
+    if (nth >= 7) break;
     const st = verifyStick(px, W, H, f, br, gB, anchor);                        // …that's a stick…
     if (nth++ > 0 && st.score < 0.85) st.shaft = false;
     const gr = st.shaft ? groundedCheck(px, W, H, f, anchor, br, gB, st.low) : { ok: false };   // …and part of it is on the ground
@@ -1513,21 +1524,23 @@ function analyze(px) {
     for (const ex of tries) { const t = ballBlob(px, W, H, Gs, g, ex); if (t.ok) return t; }
     return null;
   };
-  for (const sp of spots.slice(0, 6)) {
-    if (balls.some(b => Math.hypot(b.cx - sp.cx, b.cy - sp.cy) < 1.2 * r0)) continue;
-    let b2 = lookAt(sp.cx, sp.cy, sp.r, sp.low ? [sp.low] : null);
-    if (!b2 && sp.low) b2 = lookAt(sp.low.cx, sp.low.cy, sp.r);          // a merged blob: the ball is its bottom end
-    if (b2) balls.push(b2);
-    else if (sp.cand && sp.cand.r >= 0.45 * r0 && sp.cand.r <= 1.3 * r0) balls.push(sp.cand);   // a ball a bit bigger or smaller than usual
-    if (balls.length >= 3) break;
-  }
-  // check for a stick at each ball; keep the best
-  let best = null;
-  for (const b of balls.slice(0, 3)) {
+  // go through the spots (nearest first) and stop at the first ball that has a stick on the ground at it
+  let best = null; const seen = [];
+  for (const sp of spots.slice(0, 7)) {
+    if (seen.some(b => Math.hypot(b.cx - sp.cx, b.cy - sp.cy) < 1.2 * r0)) continue;
+    let b2 = null;
+    if (sp.cand && sp.cand.r >= 0.6 * r0 && sp.cand.r <= 1.4 * r0) b2 = sp.cand;                 // clearly a ball already
+    else {
+      b2 = lookAt(sp.cx, sp.cy, sp.r, sp.low ? [sp.low] : null);
+      if (!b2 && sp.low) b2 = lookAt(sp.low.cx, sp.low.cy, sp.r);       // a merged blob: the ball is its bottom end
+      if (!b2 && sp.cand && sp.cand.r >= 0.45 * r0 && sp.cand.r <= 1.3 * r0) b2 = sp.cand;
+    }
+    if (!b2) continue;
+    seen.push(b2);
     // stick-head size from the usual ball size, unless this ball is clearly nearer or farther than usual
-    const rb = b.r > 1.3 * r0 || b.r < 0.65 * r0 ? Math.max(b.r, 0.45 * r0) : r0, res = stickAt(px, W, H, localGeom(b.cx, b.cy, rb), b, g);
-    if (!best || res.score > best.score) best = Object.assign(res, { ball: b, br: rb });
-    if (res.score >= 3.5) break;
+    const rb = b2.r > 1.3 * r0 || b2.r < 0.65 * r0 ? Math.max(b2.r, 0.45 * r0) : r0, res = stickAt(px, W, H, localGeom(b2.cx, b2.cy, rb), b2, g);
+    if (!best || res.score > best.score) best = Object.assign(res, { ball: b2, br: rb });
+    if (res.score >= 3.5 || seen.length >= 3) break;
   }
   const nearFail = all.fails.find(f => f.n < 6 * A0 && f.n > 0.6 * A0);   // something ball-ish but wrong (a hand, a shoe…)
   const ball = best ? best.ball : nearFail ? Object.assign({ ok: false }, nearFail) : { ok: false, reason: 'empty' };
@@ -1544,9 +1557,12 @@ function analyze(px) {
   C.aligned = C.ballOk && C.headOk && C.partnerOk;
   if (C.aligned && C.lastGood && C.alignedSince) {                       // same ball and stick as last time, not something flickering
     const rr = best.br, jb = Math.hypot(ball.cx - C.lastGood.ball.cx, ball.cy - C.lastGood.ball.cy), jh = Math.hypot(fit.cx - C.lastGood.head.cx, fit.cy - C.lastGood.head.cy);
-    if (jb > 0.8 * rr || jh > 1.0 * rr) C.alignedSince = 0;
+    if (jb > 1.5 * rr || jh > 2.5 * rr) C.alignedSince = 0;               // only a big jump (a different object) restarts it
   }
-  C.alignedSince = C.aligned ? (C.alignedSince || performance.now()) : 0;
+  // settling in is fine: moving a little, or a moment where it loses sight of something, doesn't restart the count
+  const tNow = performance.now();
+  if (C.aligned) { C.alignedSince = C.alignedSince || tNow; C.lastAlignedT = tNow; }
+  else if (!C.lastAlignedT || tNow - C.lastAlignedT > 450) C.alignedSince = 0;
   if (C.aligned) C.lastGood = { ball: Object.assign({}, ball), head: Object.assign({}, fit), br: best.br, t: performance.now() };
   C.motion = 0;
 }
@@ -1695,7 +1711,7 @@ async function camSequence() {
     const now = performance.now();
     if (now - scan0 > SCAN_TIMEOUT) { bar.style.width = '0'; return backToWait('Timed out waiting for you to get in position. Press Start again.'); }
     if (now - scan0 > 1200 && $('#cue').textContent === 'Down') setCue('');
-    const held = C.aligned && C.alignedSince ? now - C.alignedSince : 0;
+    const held = C.alignedSince && (C.aligned || now - (C.lastAlignedT || 0) < 450) ? now - C.alignedSince : 0;
     bar.style.width = Math.min(100, held / HOLD_MS * 100) + '%';
     if (held >= HOLD_MS) break;
   }
