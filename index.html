@@ -31,12 +31,22 @@ button{cursor:pointer}
 .wrap{max-width:760px;margin:0 auto;padding:14px 14px 80px}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 14px;padding-top:env(safe-area-inset-top)}
 .hdr-r{display:flex;align-items:center;gap:10px}
-.rowline{position:relative;border-radius:14px}.rowline>.item{position:relative;z-index:1;width:100%}
-.rowline .delfill{position:absolute;inset:0;z-index:2;border-radius:14px;pointer-events:none;background:linear-gradient(90deg,rgba(255,77,61,.55),rgba(255,77,61,.35));clip-path:inset(0 calc(100% - var(--p,0) * 100%) 0 0 round 14px);opacity:0;transition:opacity .15s}
-.rowline.holding .delfill{opacity:1}
-.rowline .delhint{position:absolute;left:50%;top:-10px;transform:translate(-50%,-100%);z-index:3;background:var(--red);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s}
-.rowline.holding .delhint{opacity:1}
-.rowline.holding>.item{transform:scale(.98)}
+.rowline{position:relative;border-radius:14px}.rowline>.item{position:relative;z-index:1;width:100%;transition:transform .32s var(--spring),border-color .2s ease,box-shadow .2s ease;touch-action:pan-y}
+.rowline.dragging>.item{transition:none}
+.rowline.swipe>.item:active{transform:none}
+.rowline.swipe.open>.item{border-color:#5a2a25}
+.rowline .rowdel{position:absolute;top:0;right:0;bottom:0;width:86px;border:0;border-radius:14px;background:var(--red);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:20px;opacity:0;transition:opacity .2s ease}
+.rowline .rowdel small{font-size:12px;font-weight:700;letter-spacing:.03em}
+.rowline.open .rowdel,.rowline.dragging .rowdel{opacity:1}
+.rowline .rowdel:disabled{opacity:.7}
+.rowline.dragging>.item{transition:none}
+.rowline.swipe>.item:active{transform:none}
+.rowline.swipe.open>.item{border-color:#5a2a25}
+.rowline .rowdel{overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+.rowline .rowdel>span,.rowline .rowdel>small{position:relative;z-index:1}
+.rowline .rowdel small{font-size:11px;text-align:center;line-height:1.1;padding:0 4px}
+.rowline .rowdel .delprog{position:absolute;left:0;right:0;bottom:0;height:calc(var(--p,0) * 100%);background:#a3160b}
+.rowline .rowdel.holding{box-shadow:inset 0 0 0 3px #fff}
 .toast.undo{display:flex;align-items:center;gap:14px}
 .undo-btn{background:none;border:0;color:#0a5be0;font-weight:800;font-size:15px;padding:2px 4px}
 .code{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;word-break:break-all;flex:1;min-width:0}
@@ -2568,49 +2578,74 @@ function rowEl(a, rank) {
   const item = rowItem(a, rank);
   if (window.pendingDel && pendingDel.has(a.id)) { const x = h('div'); x.hidden = true; return x; }
   if (!isMine(a) || !P.db) return item;
-  // your reps: double-tap and hold to delete (a red bar fills while you hold; you get a few seconds to undo)
-  const fill = h('div', { class: 'delfill' }), hint = h('div', { class: 'delhint', text: 'Keep holding to delete' });
-  const line = h('div', { class: 'rowline hold', 'data-id': a.id }, item, fill, hint);
-  addHoldDelete(line, item, a);
+  // your reps: swipe left to show Delete (swipe back, or tap anywhere else, to hide it)
+  const del = h('button', { class: 'rowdel', 'aria-label': 'Delete this rep', title: 'Delete this rep', tabindex: '-1' }, h('span', { text: '🗑' }), h('small', { text: 'Delete' }));
+  del.append(h('i', { class: 'delprog' }));
+  del.onclick = e => e.stopPropagation();
+  addTrashHold(del, a);
+  const line = h('div', { class: 'rowline swipe' + (swipeOpen === a.id ? ' open' : ''), 'data-id': a.id }, del, item);
+  addSwipe(line, item, a.id);
   return line;
 }
-const HOLD_DEL_MS = 900;
-function addHoldDelete(line, item, a) {
-  let lastUp = 0, lastX = 0, lastY = 0, holding = false, t0 = 0, raf = 0, pid = null, sx = 0, sy = 0, pendingOpen = 0, suppress = false;
-  const stop = done => {
-    holding = false; cancelAnimationFrame(raf); line.classList.remove('holding');
-    line.style.setProperty('--p', 0); if (!done) suppress = true;
+let swipeOpen = null;
+const SWIPE_W = 92;
+function closeSwipes(except) { $$('.rowline.swipe.open').forEach(l => { if (l !== except) { l.classList.remove('open'); l.querySelector('.item').style.transform = ''; } }); if (!except) swipeOpen = null; }
+function addSwipe(line, item, id) {
+  let x0 = 0, y0 = 0, dx = 0, drag = false, decided = false, horiz = false, pid = null;
+  const base = () => line.classList.contains('open') ? -SWIPE_W : 0;
+  item.addEventListener('pointerdown', e => { if (e.button > 0) return; x0 = e.clientX; y0 = e.clientY; dx = 0; drag = true; decided = false; horiz = false; pid = e.pointerId; });
+  item.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== pid) return;
+    const mx = e.clientX - x0, my = e.clientY - y0;
+    if (!decided && Math.hypot(mx, my) > 8) { decided = true; horiz = Math.abs(mx) > Math.abs(my) * 1.2; if (horiz) { try { item.setPointerCapture(pid); } catch {} line.classList.add('dragging'); closeSwipes(line); } else drag = false; }
+    if (!horiz) return;
+    dx = mx; const t = Math.max(-SWIPE_W * 1.35, Math.min(0, base() + dx));
+    item.style.transform = `translateX(${t}px)`;
+  });
+  const end = e => {
+    if (!drag || (e && e.pointerId !== pid)) return; drag = false; line.classList.remove('dragging');
+    if (!horiz) return;
+    const t = base() + dx, open = t < -SWIPE_W / 2;
+    line.classList.toggle('open', open); item.style.transform = open ? `translateX(${-SWIPE_W}px)` : '';
+    swipeOpen = open ? id : (swipeOpen === id ? null : swipeOpen);
+    item.dataset.swiped = '1'; setTimeout(() => { delete item.dataset.swiped; }, 50);   // a swipe isn't a tap
   };
-  item.addEventListener('pointerdown', e => {
-    if (e.button > 0) return;
+  item.addEventListener('pointerup', end); item.addEventListener('pointercancel', end);
+  item.addEventListener('click', e => {
+    if (item.dataset.swiped) { e.stopImmediatePropagation(); e.preventDefault(); return; }
+    if (line.classList.contains('open')) { e.stopImmediatePropagation(); e.preventDefault(); closeSwipes(); }   // tap an open row: just close it
+  }, true);
+  if (line.classList.contains('open')) item.style.transform = `translateX(${-SWIPE_W}px)`;
+}
+document.addEventListener('pointerdown', e => { if (swipeOpen && !e.target.closest('.rowline.swipe.open')) closeSwipes(); }, true);
+/* the trash can: double-tap it and keep holding; it fills up red, then the rep goes (with Undo) */
+function addTrashHold(del, a) {
+  let lastUp = 0, holding = false, t0 = 0, raf = 0, pid = null;
+  const lab = del.querySelector('small'), base = 'Delete';
+  const stop = () => { holding = false; cancelAnimationFrame(raf); del.classList.remove('holding'); del.style.setProperty('--p', 0); };
+  del.addEventListener('pointerdown', e => {
+    e.stopPropagation();
     const now = performance.now();
-    if (now - lastUp < 380 && Math.hypot(e.clientX - lastX, e.clientY - lastY) < 30) {   // second tap: start the hold
-      clearTimeout(pendingOpen); holding = true; t0 = now; pid = e.pointerId; sx = e.clientX; sy = e.clientY;
-      try { item.setPointerCapture(pid); } catch {}
-      line.classList.add('holding');
+    if (now - lastUp < 400) {                                 // second tap: hold it
+      holding = true; t0 = now; pid = e.pointerId; try { del.setPointerCapture(pid); } catch {}
+      del.classList.add('holding'); lab.textContent = 'Hold…';
       const tick = () => {
         if (!holding) return;
-        const p = Math.min(1, (performance.now() - t0) / HOLD_DEL_MS); line.style.setProperty('--p', p);
-        if (p >= 1) { stop(true); suppress = true; if (navigator.vibrate) try { navigator.vibrate(30); } catch {} softDelete(a, line); return; }
+        const p = Math.min(1, (performance.now() - t0) / HOLD_DEL_MS); del.style.setProperty('--p', p);
+        if (p >= 1) { stop(); lab.textContent = base; if (navigator.vibrate) try { navigator.vibrate(30); } catch {} closeSwipes(); softDelete(a, del.closest('.rowline')); return; }
         raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
     }
   });
-  item.addEventListener('pointermove', e => { if (holding && e.pointerId === pid && Math.hypot(e.clientX - sx, e.clientY - sy) > 14) stop(false); });
   const up = e => {
-    if (holding && e.pointerId === pid) { stop(false); return; }
-    lastUp = performance.now(); lastX = e.clientX; lastY = e.clientY;
+    if (holding) { stop(); lab.textContent = 'Double-tap & hold'; setTimeout(() => { if (!holding) lab.textContent = base; }, 1400); return; }
+    lastUp = performance.now();
+    lab.textContent = 'Double-tap & hold'; clearTimeout(del._t); del._t = setTimeout(() => { if (!holding) lab.textContent = base; }, 1400);
   };
-  item.addEventListener('pointerup', up); item.addEventListener('pointercancel', e => { if (holding) stop(false); });
-  // a single tap still opens the rep (a moment later, in case it's the start of a double-tap)
-  item.addEventListener('click', e => {
-    e.stopImmediatePropagation(); e.preventDefault();
-    if (suppress) { suppress = false; return; }
-    clearTimeout(pendingOpen);
-    pendingOpen = setTimeout(() => { if (!holding && line.isConnected) openRun(a.id, item); }, 300);
-  }, true);
+  del.addEventListener('pointerup', up); del.addEventListener('pointercancel', () => holding && stop());
 }
+const HOLD_DEL_MS = 900;
 /* delete after a short delay with Undo; the row disappears right away */
 var pendingDel = new Map();
 function softDelete(a, line) {
@@ -3349,7 +3384,7 @@ $('#club').value = lsGet('fo-club') || '';
   const SEL = '.btn, .seg button, nav button, .item, .btn-install, .rowdel, summary';
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.addEventListener('pointerdown', e => {
-    const b = e.target.closest(SEL); if (!b || b.disabled || still() || b.closest('.pl-stage') || b.closest('.rowline.hold')) return;
+    const b = e.target.closest(SEL); if (!b || b.disabled || still() || b.closest('.pl-stage') || b.closest('.rowline.swipe')) return;
     b.classList.add('tapfx', 'pressing'); b.classList.remove('released');
     const r = b.getBoundingClientRect(), d = Math.hypot(r.width, r.height) * 2;
     const rip = document.createElement('span'); rip.className = 'rip';
