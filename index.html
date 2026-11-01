@@ -224,6 +224,17 @@ nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacit
 .bigstart.launch .bs-ring{animation:bsPulse .6s ease-out forwards}
 .bigstart.launch .bs-label{animation:none;opacity:0;transition:opacity .2s}
 .bigstart.open .bs-core{animation:bsOpen .45s cubic-bezier(.5,0,.75,0) forwards}
+/* the sticks pull the whole screen open like two doors */
+.doors{position:fixed;inset:0;z-index:9000;pointer-events:none;overflow:hidden}
+.doors .door{position:absolute;inset:0;overflow:hidden;background:var(--bg);will-change:transform}
+.doors .door-page{position:absolute!important;left:0;right:0;top:0;margin:0 auto!important}
+.doors .door-page *,.doors .door-page{animation:none!important;transition:none!important}
+.doors .door-page .bs-core img,.doors .door-page .bs-ring,.doors .door-page .bs-label{visibility:hidden}
+.doors .dr-img{position:absolute;transform:rotate(90deg);filter:drop-shadow(0 0 10px rgba(200,255,46,.45));will-change:transform}
+.doors .edge{position:absolute;top:0;bottom:0;width:22px;opacity:0}
+.doors .door-l .edge{background:linear-gradient(90deg,transparent,rgba(200,255,46,.14));border-right:2px solid rgba(200,255,46,.85)}
+.doors .door-r .edge{background:linear-gradient(270deg,transparent,rgba(200,255,46,.14));border-left:2px solid rgba(200,255,46,.85)}
+.doors .seam{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--lime);box-shadow:0 0 14px 4px rgba(200,255,46,.65);transform:scaleY(0)}
 @keyframes bsTurn{from{transform:rotate(0)}to{transform:rotate(90deg)}}
 @keyframes bsOpen{0%{transform:scale(1);opacity:1}100%{transform:scale(3.2);opacity:0}}
 #camOff{padding-bottom:44px}
@@ -3385,14 +3396,64 @@ seg('segMode', 'mode'); seg('segRange', 'range');
 $$('#segStats button').forEach(b => b.onclick = () => { SF.range = b.dataset.v; $$('#segStats button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
 $$('#segWho button').forEach(b => b.onclick = () => { SF.who = b.dataset.v; $$('#segWho button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
 
+/* Tap the logo: it turns a quarter turn, then the two sticks grab the screen and pull it open, onto the camera */
+function buildDoors(btn) {
+  const core = btn.querySelector('.bs-core').getBoundingClientRect();
+  const W = document.documentElement.clientWidth, cx = core.left + core.width / 2, cy = core.top + core.height / 2;
+  const ew = core.width * 0.72, eh = ew * 256 / 304;
+  const place = el => Object.assign(el.style, { left: cx - ew / 2 + 'px', top: cy - eh / 2 + 'px', width: ew + 'px', height: eh + 'px' });
+  const img = (src, cls) => { const i = h('img', { src, alt: '', class: 'dr-img' + (cls ? ' ' + cls : '') }); place(i); return i; };
+  const root = h('div', { class: 'doors', 'aria-hidden': 'true', inert: '' });
+  const page = () => {
+    const c = $('.wrap').cloneNode(true);
+    c.classList.add('door-page'); c.style.top = -window.scrollY + 'px'; c.style.width = W + 'px'; c.style.maxWidth = $('.wrap').getBoundingClientRect().width + 'px';
+    c.querySelectorAll('section[hidden], video, canvas, .modal').forEach(x => x.remove());
+    c.querySelectorAll('[name]').forEach(x => x.removeAttribute('name'));
+    return c;
+  };
+  const L = h('div', { class: 'door door-l', style: `clip-path:inset(0 ${W - cx}px 0 0)` }, page(), h('i', { class: 'edge', style: `left:${cx - 22}px` }), img('brand/e-ring.png'));
+  const R = h('div', { class: 'door door-r', style: `clip-path:inset(0 0 0 ${cx}px)` }, page(), h('i', { class: 'edge', style: `left:${cx}px` }), img('brand/e-ring.png'));
+  const sl = img('brand/e-stick-bot.png'), sr = img('brand/e-stick-top.png');   // after the quarter turn, the bottom stick is on the left
+  L.append(sl); R.append(sr);
+  const ball = img('brand/e-ball.png'), seam = h('i', { class: 'seam', style: `left:${cx}px` });
+  root.append(L, R, seam, ball);
+  return { root, L, R, sl, sr, ball, seam, cx, W };
+}
+async function runDoors(btn, go) {
+  const D = buildDoors(btn), anim = (el, k, o) => el.animate(k, Object.assign({ fill: 'forwards' }, o));
+  document.body.append(D.root);
+  await new Promise(r => requestAnimationFrame(r));
+  btn.classList.remove('launch');                    // the real page is covered now
+  // 1) the sticks grab hold: a lime seam splits down the logo
+  const grip = 'cubic-bezier(.3,1.7,.5,1)';
+  anim(D.sl, [{ transform: 'rotate(90deg)' }, { transform: 'translateX(-16px) rotate(90deg)' }], { duration: 260, easing: grip });
+  anim(D.sr, [{ transform: 'rotate(90deg)' }, { transform: 'translateX(16px) rotate(90deg)' }], { duration: 260, easing: grip });
+  anim(D.ball, [{ transform: 'rotate(90deg) scale(1)' }, { transform: 'rotate(90deg) scale(1.3)' }], { duration: 260, easing: grip });
+  anim(D.seam, [{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  $$('.edge', D.root).forEach(e => anim(e, [{ opacity: 0 }, { opacity: 1 }], { duration: 260 }));
+  // wait for the camera (or its error), but don't hang if a permission prompt is up
+  const t0 = performance.now();
+  await sleep(260);
+  while (!C.stream && !$('#camMsg').textContent && performance.now() - t0 < 4000) await sleep(50);
+  go();                                              // swap the page underneath to the camera
+  await sleep(30); await new Promise(r => requestAnimationFrame(r));
+  // 2) pull the whole screen apart
+  const dur = 760, ease = 'cubic-bezier(.75,0,.18,1)';
+  anim(D.L, [{ transform: 'translateX(0)', filter: 'brightness(1)' }, { transform: `translateX(${-(D.cx + 70)}px)`, filter: 'brightness(.6)' }], { duration: dur, easing: ease });
+  anim(D.R, [{ transform: 'translateX(0)', filter: 'brightness(1)' }, { transform: `translateX(${D.W - D.cx + 70}px)`, filter: 'brightness(.6)' }], { duration: dur, easing: ease });
+  anim(D.seam, [{ transform: 'scaleY(1)', opacity: 1 }, { transform: 'scaleY(1) scaleX(14)', opacity: 0 }], { duration: 380, easing: 'ease-out' });
+  anim(D.ball, [{ transform: 'rotate(90deg) scale(1.3)', opacity: 1 }, { transform: 'rotate(90deg) scale(7)', opacity: 0 }], { duration: 560, delay: 120, easing: 'cubic-bezier(.5,0,.8,.4)' });
+  await sleep(dur + 40);
+  D.root.remove();
+}
 $('#btnCamOn').onclick = () => {
   const b = $('#btnCamOn'); unlockAudio(true);
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return camOn();
-  // the logo turns a quarter turn, then opens up into the camera
+  if (b.disabled) return;
   b.classList.add('launch'); b.disabled = true;
-  camLaunch = new Promise(res => setTimeout(() => { b.classList.add('open'); setTimeout(res, 380); }, 520));
-  camLaunch.then(() => setTimeout(() => { b.classList.remove('launch', 'open'); b.disabled = false; }, 600));
+  let go; camLaunch = new Promise(res => go = res);
   camOn();
+  setTimeout(() => runDoors(b, go).catch(() => { go(); $$('.doors').forEach(x => x.remove()); }).finally(() => { b.classList.remove('launch'); b.disabled = false; }), 520);
 };
 $('#btnSound').onclick = async () => { unlockAudio(true); await speakDone('Down'); await sleep(400); await speakDone('Set'); await sleep(800); if (SET.whistle) playWhistle(); else speak('Go'); };
 $('#btnFlip').onclick = () => { C.facing = C.facing === 'user' ? 'environment' : 'user'; lsSet('fo-facing', C.facing); toast(C.facing === 'user' ? 'Front camera' : 'Back camera'); if (C.stream) camOn(); };
