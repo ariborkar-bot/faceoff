@@ -175,6 +175,16 @@ nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacit
 .voicehint{text-align:center;margin-top:8px;color:var(--mute);font-size:14px}
 .voicehint.live{color:var(--lime)}
 .rx-mode{display:flex;justify-content:center;margin:12px 0 0}
+.info{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-left:8px;border-radius:50%;border:1.5px solid var(--mute);color:var(--mute);
+  font:italic 700 13px/1 Georgia,serif;cursor:pointer;vertical-align:middle;text-transform:none;letter-spacing:0;flex:none;-webkit-tap-highlight-color:transparent;transition:background .2s,color .2s,border-color .2s,transform .15s var(--spring)}
+.info::before{content:'i'}
+.info:hover{border-color:var(--ink);color:var(--ink)}
+.info.open{background:var(--lime);border-color:var(--lime);color:#101600}
+.info:active{transform:scale(.88)}
+.ipop{position:absolute;z-index:60;max-width:min(320px,86vw);background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:400 14px/1.45 var(--body);text-transform:none;letter-spacing:0;box-shadow:0 12px 30px rgba(0,0,0,.45);animation:pbIn .25s var(--spring) both}
+.ipop::before{content:'';position:absolute;top:-6px;left:var(--ax,16px);width:10px;height:10px;background:var(--panel2);border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg)}
+.hinfo{display:flex;align-items:center}
+.sw b{display:inline-flex;align-items:center}
 /* opening screen: the logo, then the sticks fly out, the circle opens and the app appears */
 @property --hole{syntax:'<length>';inherits:false;initial-value:0px}
 #splash{position:fixed;inset:0;z-index:100;background:#000;display:grid;place-items:center;--hole:0px;
@@ -444,8 +454,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   <!-- RUN -->
   <section id="v-run" hidden>
     <div class="card" id="cCam">
-      <h2>Face-off</h2>
-      <div class="muted small" id="camHelp">Prop your phone up low, facing you. Tap <b>Start</b>, set the ball down with your stick head on the ground behind it, anywhere in view, and hold still: <b>Down, Set</b>, then the whistle.</div>
+      <h2 class="hinfo">Face-off<span class="info" data-info="Prop your phone up low, facing you. Tap <b>Start</b>, set the ball down with your stick head on the ground behind it, anywhere in view, and hold still: <b>Down, Set</b>, then the whistle. You're timed from the whistle to the ball in your pocket."></span></h2>
       <div id="camOff">
         <button class="btn primary" id="btnCamOn" style="width:100%;margin-top:12px">Start camera</button>
       </div>
@@ -477,7 +486,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
           <div id="handleBox"><label>Name on the board</label><div class="acct-name" id="postAs">–</div></div>
           <div><label for="club">School / club (optional)</label><input type="text" id="club" maxlength="30" placeholder="e.g. Bishop's"></div>
         </div>
-        <div class="small muted" style="margin-top:8px">The rep clip (a few seconds around the whistle) is saved and shown publicly.</div>
+        <div class="small muted" style="margin-top:8px">Posting shares the rep clip publicly <span class="info" data-info="A few seconds of video around the whistle are saved with your time, and anyone on the leaderboard can watch it. You can delete it any time from Mine."></span></div>
         <div class="row stretch" style="margin-top:10px">
           <button class="btn primary" id="btnPost">Post to leaderboard</button>
         </div>
@@ -533,8 +542,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   <!-- REACT: reaction-time practice, nothing saved -->
   <section id="v-react" hidden>
     <div class="card rx-card">
-      <h2>Reaction practice</h2>
-      <div class="muted small">Press and hold the pad. <b>Down</b>, <b>Set</b>, then GO: let go as fast as you can. Let go early and it's a false start. Just practice: nothing is saved.</div>
+      <h2 class="hinfo">Reaction practice<span class="info" data-info="Press and hold the pad. <b>Down</b>, <b>Set</b>, then GO: let go as fast as you can. Let go early and it's a false start. <b>No whistle</b> = watch for the pad to turn green. Just practice: nothing is saved."></span></h2>
       <div class="rx-mode"><div class="seg" id="rxMode" style="margin:0">
         <button data-v="whistle" aria-pressed="true">🔊 Whistle</button>
         <button data-v="visual" aria-pressed="false">👀 No whistle</button>
@@ -557,18 +565,17 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   <!-- SETTINGS -->
   <section id="v-settings" hidden>
     <div class="card">
-      <h2>Sounds</h2>
-      <label class="sw"><span><b>Whistle</b><small>The whistle that starts each rep. Off: it says “Go” instead (or shows GO if voice is off too).</small></span><input type="checkbox" id="setWhistle"><i></i></label>
-      <label class="sw"><span><b>Voice calls</b><small>“Down”, “Set” and “False start”.</small></span><input type="checkbox" id="setVoice"><i></i></label>
+      <h2 class="hinfo">Sounds<span class="info" data-info="Turn your phone's volume all the way up. On iPhone, make sure silent mode isn't hiding the whistle."></span></h2>
+      <label class="sw"><span><b>Whistle<span class="info" data-info="The whistle that starts each rep. Off: it says “Go” instead (or shows GO if voice is off too)."></span></b></span><input type="checkbox" id="setWhistle"><i></i></label>
+      <label class="sw"><span><b>Voice calls<span class="info" data-info="“Down”, “Set” and “False start”."></span></b></span><input type="checkbox" id="setVoice"><i></i></label>
       <button class="btn" id="btnSound" style="width:100%;margin-top:6px">Test sounds</button>
-      <div class="muted small" style="margin-top:8px">Turn your phone's volume all the way up.</div>
     </div>
     <div class="card">
       <h2>Face-off</h2>
-      <label class="sw"><span><b>Voice start</b><small>Say “Start” instead of tapping. “Stop” cancels.</small></span><input type="checkbox" id="setVoiceStart"><i></i></label>
+      <label class="sw"><span><b>Voice start<span class="info" data-info="Say “Start” instead of tapping. “Stop” cancels."></span></b></span><input type="checkbox" id="setVoiceStart"><i></i></label>
       <div class="small err" id="voiceStartMsg"></div>
-      <label class="sw"><span><b>Call false starts</b><small>Moving after “Set”, before the whistle.</small></span><input type="checkbox" id="chkFs"><i></i></label>
-      <label class="sw"><span><b>Partner's stick too</b><small>Check for a second stick in front of the ball.</small></span><input type="checkbox" id="chkPartner"><i></i></label>
+      <label class="sw"><span><b>Call false starts<span class="info" data-info="Moving after “Set”, before the whistle."></span></b></span><input type="checkbox" id="chkFs"><i></i></label>
+      <label class="sw"><span><b>Partner's stick too<span class="info" data-info="Check for a second stick in front of the ball."></span></b></span><input type="checkbox" id="chkPartner"><i></i></label>
       <button class="btn" id="btnFlip" style="width:100%;margin-top:10px">Switch front / back camera</button>
     </div>
     <button class="btn" id="btnSetDone" style="width:100%">Done</button>
@@ -2702,7 +2709,7 @@ function renderAccount() {
   if (me) c.append(h('div', { class: 'row', style: 'justify-content:space-between;flex-wrap:nowrap;gap:10px' },
       h('div', {}, h('div', { class: 'who', text: '@' + me.username }), h('div', { class: 'muted small', text: me.email || '' })),
       h('button', { class: 'btn', text: 'Sign out', onclick: async () => { await P.user.account.signOut(); toast('Signed out'); } })));
-  else c.append(h('h2', { text: 'Save your reps' }), h('div', { class: 'muted', text: 'Make a free account with your email, a username and a password. Your reps are saved to it and show up on any device you sign in on.' }),
+  else c.append(h('h2', { class: 'hinfo' }, 'Save your reps', h('span', { class: 'info', 'data-info': 'Make a free account with your email, a username and a password. Your reps are saved to it and show up on any device you sign in on.' })),
       h('div', { class: 'row stretch', style: 'margin-top:12px' }, h('button', { class: 'btn primary', text: 'Sign up', onclick: () => openAccount('signup') }), h('button', { class: 'btn', text: 'Sign in', onclick: () => openAccount('signin') })));
   $('#linkCard').hidden = true;
 }
@@ -3225,6 +3232,28 @@ $('#club').value = lsGet('fo-club') || '';
   const up = () => $$('.pressing').forEach(b => { b.classList.remove('pressing'); void b.offsetWidth; b.classList.add('released'); setTimeout(() => b.classList.remove('released'), 650); });
   ['pointerup', 'pointercancel', 'dragstart'].forEach(ev => document.addEventListener(ev, up, true));
   document.addEventListener('change', e => { const c = e.target; if (c.type === 'checkbox') { c.classList.remove('ticked'); void c.offsetWidth; c.classList.add('ticked'); } });
+})();
+/* ---------- (i) buttons: tap for the explanation, tap anywhere else to close ---------- */
+(() => {
+  let pop = null, owner = null;
+  const close = () => { if (pop) pop.remove(); if (owner) owner.classList.remove('open'); pop = owner = null; };
+  const open = el => {
+    close(); owner = el; el.classList.add('open');
+    pop = document.createElement('div'); pop.className = 'ipop'; pop.setAttribute('role', 'note'); pop.innerHTML = el.dataset.info;
+    document.body.append(pop);
+    const r = el.getBoundingClientRect(), w = pop.offsetWidth, left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - 20));
+    pop.style.left = left + scrollX + 'px'; pop.style.top = r.bottom + scrollY + 10 + 'px';
+    pop.style.setProperty('--ax', Math.max(8, r.left + r.width / 2 - left - 5) + 'px');
+  };
+  document.addEventListener('click', e => {
+    const i = e.target.closest('.info');
+    if (i) { e.preventDefault(); e.stopPropagation(); if (owner === i) close(); else open(i); return; }   // inside a switch: don't flip it
+    if (pop && !pop.contains(e.target)) close();
+  }, true);
+  window.addEventListener('scroll', close, { passive: true }); window.addEventListener('resize', close);
+  document.querySelectorAll('.info').forEach(i => { i.setAttribute('role', 'button'); i.setAttribute('tabindex', '0'); i.setAttribute('aria-label', 'More info'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('info')) { e.preventDefault(); e.target.click(); } });
+  new MutationObserver(() => document.querySelectorAll('.info:not([role])').forEach(i => { i.setAttribute('role', 'button'); i.setAttribute('tabindex', '0'); i.setAttribute('aria-label', 'More info'); })).observe(document.body, { childList: true, subtree: true });
 })();
 /* ---------- opening screen ---------- */
 (() => {
