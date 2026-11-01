@@ -437,6 +437,24 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
 .hero b{display:block;font-family:var(--disp);font-weight:800;font-size:54px;line-height:1.05;font-variant-numeric:tabular-nums}
 .hero small{display:block;color:var(--mute);font-size:15px}
 .hero:disabled{cursor:default;border-color:var(--line)}
+.hero.avg{text-align:center;padding:18px 16px}
+.hero.avg b{font-size:64px}
+.sess{border-bottom:1px solid var(--line)}
+.sess:last-child{border-bottom:0}
+.sess summary{list-style:none;display:flex;align-items:center;gap:12px;padding:12px 2px;cursor:pointer}
+.sess summary::-webkit-details-marker{display:none}
+.sess summary::after{content:'›';color:var(--mute);font-size:22px;transition:transform .25s ease}
+.sess[open] summary::after{transform:rotate(90deg)}
+.sess .s-date{flex:1;min-width:0}
+.sess .s-date b{display:block;font-size:16px}
+.sess .s-date small,.sess .s-avg small{display:block;color:var(--mute);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sess .s-avg{text-align:right}
+.sess .s-avg b{font-family:var(--disp);font-weight:800;font-size:24px;font-variant-numeric:tabular-nums}
+.sess .tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--lime);color:#101600;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;vertical-align:2px}
+.sess .s-reps{display:flex;flex-wrap:wrap;gap:6px;padding:0 2px 12px}
+.sess .s-reps button{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:9px;padding:6px 9px;font-variant-numeric:tabular-nums;font-size:14px;cursor:pointer}
+.sess .s-reps button.best{border-color:var(--lime);color:var(--lime)}
+.sessmore{width:100%;margin-top:8px}
 .plain{background:#0d141b;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:16px;line-height:1.45}
 .reclist{display:flex;flex-direction:column}
 .recrow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 2px;border-bottom:1px solid #1a2430;text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%}
@@ -590,36 +608,23 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
     </div>
     <div class="seg" id="segStats">
       <button data-v="all" aria-pressed="true">All time</button>
-      <button data-v="week" aria-pressed="false">This week</button>
-      <button data-v="day" aria-pressed="false">Today</button>
+      <button data-v="day" aria-pressed="false">Day</button>
+      <button data-v="week" aria-pressed="false">Week</button>
+      <button data-v="month" aria-pressed="false">Month</button>
     </div>
 
     <div id="statsAll">
-      <button class="hero" id="heroAll"></button>
+      <div class="hero avg" id="heroAll"></div>
       <div class="statgrid" id="tilesAll"></div>
-      <div class="plain" id="plainAll"></div>
-      <div class="card chartcard">
-        <h3 class="hinfo">Spread of times<span class="info" data-info="How many reps landed at each time. Taller bars = more reps at that time."></span></h3>
-        <div class="legend" id="histLegend"></div>
-        <div class="chart" id="hist"></div>
-      </div>
-      <div class="card"><h3>Records</h3><div class="reclist" id="recList"></div></div>
+      <div class="card"><h3 class="hinfo">Sessions<span class="info" data-info="A session is 10 or more reps by one player in one go (less than 45 minutes between reps). Tap one to see its reps."></span></h3><div id="sessAll"></div></div>
       <div class="card tablecard"><h3 class="hinfo">Players<span class="info" data-info="Tap a column heading to sort by it."></span></h3><table class="ptable" id="pTable"></table></div>
-      <div class="card"><h3 class="hinfo">Unusual reps<span class="info" data-info="Reps much faster or slower than most. Tap one to watch it."></span></h3><div class="list" id="outList"></div></div>
-      <details class="card more"><summary>More stats</summary><div class="statgrid" id="moreAll"></div><div class="small muted" id="moreAllNote"></div></details>
     </div>
 
     <div id="statsMe" hidden>
-      <button class="hero" id="heroMe"></button>
+      <div class="hero avg" id="heroMe"></div>
       <div class="statgrid" id="tilesMe"></div>
-      <div class="plain" id="plainMe"></div>
-      <div class="card chartcard">
-        <h3 class="hinfo">Your times, rep by rep<span class="info" data-info="Each dot is one rep, oldest on the left. Higher on the chart = faster."></span></h3>
-        <div class="legend" id="trendLegend"></div>
-        <div class="chart" id="trend"></div>
-      </div>
-      <div class="card"><h3 class="hinfo">Your unusual reps<span class="info" data-info="Reps much faster or slower than your usual. Tap one to watch it."></span></h3><div class="list" id="outMe"></div></div>
-      <details class="card more"><summary>More stats</summary><div class="statgrid" id="moreMe"></div><div class="small muted" id="moreMeNote"></div></details>
+      <div class="card chartcard" id="sessChartCard"><h3 class="hinfo">Average by session<span class="info" data-info="Each dot is one of your sessions, oldest on the left. Higher on the chart = faster."></span></h3><div class="chart" id="sessChart"></div></div>
+      <div class="card"><h3 class="hinfo">Your sessions<span class="info" data-info="Every time you post 10 or more reps in one go (less than 45 minutes between reps) it counts as a session. Tap one to see its reps."></span></h3><div id="sessMe"></div></div>
     </div>
   </section>
 
@@ -3121,7 +3126,7 @@ function collect(snap, map) {
 
 /* ---------- records & statistics ---------- */
 const VZ = { blue: '#3987e5', orange: '#d95926', ink: '#eef3f7', mute: '#8da0b2', grid: '#243140', surface: '#121921' };
-const SF = { range: 'all', who: 'all', sort: 'best', dir: 1 };
+const SF = { range: 'all', who: 'all', sort: 'mean', dir: 1 };
 const fmtS = ms => isFinite(ms) ? (ms / 1000).toFixed(3) : '–';
 const svgEl = (tag, attrs = {}) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
 function quant(sorted, q) {
@@ -3137,9 +3142,34 @@ function summarize(times) {
   const q1 = quant(s, 0.25), q3 = quant(s, 0.75), iqr = q3 - q1;
   return { n, sorted: s, mean, sd, median: quant(s, 0.5), min: s[0], max: s[n - 1], p10: quant(s, 0.1), p90: quant(s, 0.9), q1, q3, iqr, lo: q1 - 1.5 * iqr, hi: q3 + 1.5 * iqr };
 }
-function statRuns(range) {
-  const now = Date.now(), lim = range === 'day' ? 864e5 : range === 'week' ? 6048e5 : Infinity;
-  return attempts.filter(a => typeof a.timeMs === 'number' && !isDisputed(a) && now - (a.createdAt || 0) <= lim);
+function rangeStart(r) {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  if (r === 'day') return +d;
+  if (r === 'week') { d.setDate(d.getDate() - (d.getDay() + 6) % 7); return +d; }   // since Monday
+  if (r === 'month') { d.setDate(1); return +d; }
+  return -Infinity;
+}
+const allRuns = () => attempts.filter(a => typeof a.timeMs === 'number' && !isDisputed(a));
+function statRuns(range) { const t0 = rangeStart(range); return allRuns().filter(a => (a.createdAt || 0) >= t0); }
+/* a session: 10+ reps by one player, less than 45 minutes between reps */
+const SESSION_GAP = 45 * 60e3, SESSION_MIN = 10;
+function sessionsOf(runs) {
+  const by = new Map(), out = [];
+  for (const a of runs) { if (!by.has(a.uid)) by.set(a.uid, []); by.get(a.uid).push(a); }
+  for (const list of by.values()) {
+    list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    let cur = [];
+    const flush = () => {
+      if (cur.length >= SESSION_MIN) {
+        const sm = summarize(cur.map(r => r.timeMs)), last = cur[cur.length - 1];
+        out.push({ uid: cur[0].uid, name: last.handle || 'Player', runs: cur, start: cur[0].createdAt || 0, end: last.createdAt || 0, n: sm.n, mean: sm.mean, min: sm.min });
+      }
+      cur = [];
+    };
+    for (const a of list) { if (cur.length && (a.createdAt || 0) - (cur[cur.length - 1].createdAt || 0) > SESSION_GAP) flush(); cur.push(a); }
+    flush();
+  }
+  return out.sort((a, b) => b.start - a.start);
 }
 function byPlayer(runs) {
   const m = new Map();
@@ -3167,195 +3197,93 @@ function chartTip(box) {
     hide() { tip.hidden = true; }
   };
 }
-function renderHistogram(box, sm, runs) {
+const RANGE_WORD = { all: 'all time', day: 'today', week: 'this week', month: 'this month' };
+function hero(el, label, value, sub) { el.replaceChildren(h('span', { text: label }), h('b', { text: value }), h('small', { text: sub })); }
+const sessDate = ts => { const d = new Date(ts), y = d.getFullYear() !== new Date().getFullYear(); return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: y ? 'numeric' : undefined }); };
+const sessTime = ts => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const sessShown = { all: 10, me: 10 };
+function sessionList(box, list, who, showName) {
   box.replaceChildren();
-  if (sm.n < 2) { box.append(h('div', { class: 'nodata', text: 'Post a few more reps to see the spread.' })); return; }
-  const W = Math.max(280, box.clientWidth || 600), H = 190, ml = 30, mr = 8, mt = 22, mb = 26;
-  const range = sm.max - sm.min, steps = [25, 50, 100, 200, 250, 500, 1000, 2000];
-  const bw = steps.find(st => range / st <= 24) || 2000;
-  const x0 = Math.floor(sm.min / bw) * bw, x1 = (Math.floor(sm.max / bw) + 1) * bw, nb = Math.round((x1 - x0) / bw);
-  const bins = Array.from({ length: nb }, (_, i) => ({ a: x0 + i * bw, b: x0 + (i + 1) * bw, n: 0 }));
-  for (const t of sm.sorted) bins[Math.min(nb - 1, Math.floor((t - x0) / bw))].n++;
-  const maxN = Math.max(...bins.map(b => b.n));
-  const X = t => ml + (t - x0) / (x1 - x0) * (W - ml - mr), Y = n => H - mb - n / maxN * (H - mt - mb);
-  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Histogram of face-off times' });
-  const yStep = maxN <= 5 ? 1 : maxN <= 12 ? 2 : Math.ceil(maxN / 5);
-  for (let v = 0; v <= maxN; v += yStep) {
-    svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: Y(v), y2: Y(v), stroke: VZ.grid, 'stroke-width': 1 }));
-    const tl = svgEl('text', { x: ml - 6, y: Y(v) + 4, 'text-anchor': 'end', fill: VZ.mute, 'font-size': 11 }); tl.textContent = v; svg.append(tl);
-  }
-  const tip = chartTip(box);
-  bins.forEach(bn => {
-    const out = bn.b <= sm.lo || bn.a >= sm.hi;
-    const bx = X(bn.a) + 1, bwPx = Math.max(1, X(bn.b) - X(bn.a) - 2);
-    if (bn.n) {
-      const top = Y(bn.n), r = Math.min(4, bwPx / 2, (H - mb - top));
-      const d = `M${bx},${H - mb} V${top + r} Q${bx},${top} ${bx + r},${top} H${bx + bwPx - r} Q${bx + bwPx},${top} ${bx + bwPx},${top + r} V${H - mb} Z`;
-      svg.append(svgEl('path', { d, fill: out ? VZ.orange : VZ.blue }));
-    }
-    const hit = svgEl('rect', { x: X(bn.a), y: mt, width: X(bn.b) - X(bn.a), height: H - mt - mb, fill: 'transparent', tabindex: bn.n ? 0 : -1 });
-    const showTip = () => tip.show((X(bn.a) + X(bn.b)) / 2 / W * box.clientWidth, Y(bn.n) / H * box.clientHeight, fmtS(bn.a) + '–' + fmtS(bn.b) + ' s', [bn.n + (bn.n === 1 ? ' rep' : ' reps') + (out ? ' · outlier range' : '')]);
-    hit.addEventListener('pointerenter', showTip); hit.addEventListener('pointermove', showTip); hit.addEventListener('focus', showTip);
-    hit.addEventListener('pointerleave', tip.hide); hit.addEventListener('blur', tip.hide);
-    svg.append(hit);
+  if (!list.length) { box.append(h('div', { class: 'nodata', text: who === 'me' ? 'No sessions ' + RANGE_WORD[SF.range] + '. Post 10 or more reps in one go to make one.' : 'No sessions ' + RANGE_WORD[SF.range] + ' yet.' })); return; }
+  const best = list.reduce((b, x) => !b || x.mean < b.mean ? x : b, null);
+  list.slice(0, sessShown[who]).forEach(x => {
+    const bestRun = x.runs.reduce((b, r) => !b || r.timeMs < b.timeMs ? r : b, null);
+    const reps = h('div', { class: 's-reps' }, x.runs.map((r, i) => h('button', { class: r === bestRun ? 'best' : '', title: 'Rep ' + (i + 1) + ': tap to watch', onclick: e => openRun(r.id, e.currentTarget), text: fmtS(r.timeMs) })));
+    box.append(h('details', { class: 'sess' },
+      h('summary', {},
+        h('div', { class: 's-date' }, h('b', {}, sessDate(x.start), list.length > 1 && x === best ? h('span', { class: 'tag', text: 'Best' }) : null),
+          h('small', { text: (showName ? x.name + ' · ' : '') + sessTime(x.start) + ' · ' + x.n + ' reps' })),
+        h('div', { class: 's-avg' }, h('b', { text: fmtS(x.mean) }), h('small', { text: 'avg · best ' + fmtS(x.min) }))),
+      reps));
   });
-  svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: H - mb, y2: H - mb, stroke: VZ.mute, 'stroke-width': 1 }));
-  const tickEvery = Math.max(1, Math.ceil(nb / 6));
-  for (let i = 0; i <= nb; i += tickEvery) {
-    const t = svgEl('text', { x: X(x0 + i * bw), y: H - 8, 'text-anchor': 'middle', fill: VZ.mute, 'font-size': 11 }); t.textContent = fmtS(x0 + i * bw).replace(/0+$/, '').replace(/\.$/, '') + 's'; svg.append(t);
-  }
-  // median and mean reference lines, labelled
-  const refs = [['middle', sm.median, ''], ['avg', sm.mean, '4 3']];
-  const lx = refs.map(([, v]) => X(v)); const close = Math.abs(lx[0] - lx[1]) < 70;
-  refs.forEach(([label, v, dash], i) => {
-    svg.append(svgEl('line', { x1: X(v), x2: X(v), y1: mt - 4, y2: H - mb, stroke: VZ.ink, 'stroke-width': 1.5, 'stroke-dasharray': dash, opacity: 0.85 }));
-    const anchor = close ? (i === 0 ? (lx[0] <= lx[1] ? 'end' : 'start') : (lx[1] < lx[0] ? 'end' : 'start')) : 'middle';
-    const t = svgEl('text', { x: X(v) + (anchor === 'end' ? -4 : anchor === 'start' ? 4 : 0), y: mt - 8, 'text-anchor': anchor, fill: VZ.ink, 'font-size': 11, 'font-weight': 600 }); t.textContent = label + ' ' + fmtS(v); svg.append(t);
-  });
-  box.append(svg);
+  if (list.length > sessShown[who]) box.append(h('button', { class: 'btn sessmore', text: 'Show more sessions (' + (list.length - sessShown[who]) + ')', onclick: () => { sessShown[who] += 10; renderStats(); } }));
 }
-function renderTrend(box, runs) {
+function sessionChart(box, list) {
   box.replaceChildren();
-  const chron = runs.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  if (chron.length < 2) { box.append(h('div', { class: 'nodata', text: chron.length ? 'One rep so far. Post more to see your trend.' : 'Post a rep to start your trend.' })); return null; }
-  const sm = summarize(chron.map(r => r.timeMs)), avgN = 5;
-  const roll = chron.map((r, i) => { const w = chron.slice(Math.max(0, i - avgN + 1), i + 1); return w.reduce((x, q) => x + q.timeMs, 0) / w.length; });
-  const W = Math.max(280, box.clientWidth || 600), H = 200, ml = 40, mr = 10, mt = 14, mb = 26, n = chron.length;
-  let lo = Math.min(...chron.map(r => r.timeMs)), hi = Math.max(...chron.map(r => r.timeMs)); const pad = Math.max(40, (hi - lo) * 0.12); lo -= pad; hi += pad;
-  const X = i => ml + (n === 1 ? 0.5 : i / (n - 1)) * (W - ml - mr), Y = t => mt + (t - lo) / (hi - lo) * (H - mt - mb);
-  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Your face-off times by rep' });
-  const span = hi - lo, st = [25, 50, 100, 200, 250, 500, 1000].find(s2 => span / s2 <= 5) || 1000;
+  const chron = list.slice().sort((a, b) => a.start - b.start), n = chron.length;
+  if (n < 2) { box.append(h('div', { class: 'nodata', text: n ? 'One session so far. Do another to see your trend.' : 'Your sessions show up here.' })); return; }
+  const W = Math.max(280, box.clientWidth || 600), H = 180, ml = 40, mr = 12, mt = 14, mb = 26;
+  let lo = Math.min(...chron.map(x => x.mean)), hi = Math.max(...chron.map(x => x.mean)); const pad = Math.max(30, (hi - lo) * 0.15); lo -= pad; hi += pad;
+  const X = i => ml + i / (n - 1) * (W - ml - mr), Y = t => mt + (t - lo) / (hi - lo) * (H - mt - mb);
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Your average time by session' });
+  const span = hi - lo, st = [25, 50, 100, 200, 250, 500, 1000].find(s2 => span / s2 <= 4) || 1000;
   for (let v = Math.ceil(lo / st) * st; v <= hi; v += st) {
     svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: Y(v), y2: Y(v), stroke: VZ.grid, 'stroke-width': 1 }));
     const t = svgEl('text', { x: ml - 6, y: Y(v) + 4, 'text-anchor': 'end', fill: VZ.mute, 'font-size': 11 }); t.textContent = (v / 1000).toFixed(2); svg.append(t);
   }
-  const xt = Math.max(1, Math.ceil(n / 6));
-  for (let i = 0; i < n; i += xt) { const t = svgEl('text', { x: X(i), y: H - 8, 'text-anchor': 'middle', fill: VZ.mute, 'font-size': 11 }); t.textContent = '#' + (i + 1); svg.append(t); }
-  // personal best (reference line)
-  svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: Y(sm.min), y2: Y(sm.min), stroke: VZ.mute, 'stroke-width': 1, 'stroke-dasharray': '3 4' }));
-  const pb = svgEl('text', { x: W - mr, y: Y(sm.min) - 5, 'text-anchor': 'end', fill: VZ.mute, 'font-size': 11 }); pb.textContent = 'best ' + fmtS(sm.min); svg.append(pb);
-  // rolling average
-  svg.append(svgEl('path', { d: roll.map((v, i) => (i ? 'L' : 'M') + X(i) + ',' + Y(v)).join(' '), fill: 'none', stroke: VZ.ink, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: 0.8 }));
-  // each rep
-  chron.forEach((r, i) => {
-    const out = sm.n >= 4 && (r.timeMs < sm.lo || r.timeMs > sm.hi);
-    svg.append(svgEl('circle', { cx: X(i), cy: Y(r.timeMs), r: 4.5, fill: out ? VZ.orange : VZ.blue, stroke: VZ.surface, 'stroke-width': 2 }));
-  });
-  // crosshair + tooltip: snaps to the nearest rep
-  const hair = svgEl('line', { y1: mt, y2: H - mb, stroke: VZ.mute, 'stroke-width': 1, visibility: 'hidden' });
-  const ring = svgEl('circle', { r: 7, fill: 'none', stroke: VZ.ink, 'stroke-width': 2, visibility: 'hidden' });
-  svg.append(hair, ring);
-  const hit = svgEl('rect', { x: ml, y: 0, width: W - ml - mr, height: H, fill: 'transparent', tabindex: 0 });
-  const tip = chartTip(box);
-  const at = i => {
-    const r = chron[i]; hair.setAttribute('x1', X(i)); hair.setAttribute('x2', X(i)); hair.setAttribute('visibility', 'visible');
-    ring.setAttribute('cx', X(i)); ring.setAttribute('cy', Y(r.timeMs)); ring.setAttribute('visibility', 'visible');
-    const k = box.clientWidth / W;
-    tip.show(X(i) * k, Y(Math.min(r.timeMs, roll[i])) * k, 'Rep ' + (i + 1) + ' · ' + new Date(r.createdAt || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-      [fmtS(r.timeMs) + ' s', avgN + '-rep average ' + fmtS(roll[i]) + ' s']);
+  const xt = Math.max(1, Math.ceil(n / 5));
+  for (let i = 0; i < n; i += xt) { const t = svgEl('text', { x: X(i), y: H - 8, 'text-anchor': i === 0 ? 'start' : 'middle', fill: VZ.mute, 'font-size': 11 }); t.textContent = new Date(chron[i].start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); svg.append(t); }
+  svg.append(svgEl('path', { d: chron.map((x, i) => (i ? 'L' : 'M') + X(i) + ',' + Y(x.mean)).join(' '), fill: 'none', stroke: '#c8ff2e', 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+  chron.forEach((x, i) => svg.append(svgEl('circle', { cx: X(i), cy: Y(x.mean), r: 5, fill: '#c8ff2e', stroke: VZ.surface, 'stroke-width': 2 })));
+  const ring = svgEl('circle', { r: 8, fill: 'none', stroke: VZ.ink, 'stroke-width': 2, visibility: 'hidden' }); svg.append(ring);
+  const hit = svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: 'transparent' }), tip = chartTip(box);
+  const move = e => {
+    const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W, i = Math.round(clamp((x - ml) / (W - ml - mr), 0, 1) * (n - 1)), q = chron[i], k = box.clientWidth / W;
+    ring.setAttribute('cx', X(i)); ring.setAttribute('cy', Y(q.mean)); ring.setAttribute('visibility', 'visible');
+    tip.show(X(i) * k, Y(q.mean) * k, sessDate(q.start), ['Average ' + fmtS(q.mean) + ' s', q.n + ' reps · best ' + fmtS(q.min)]);
   };
-  let cur = n - 1;
-  const move = e => { const rect = svg.getBoundingClientRect(), x = (e.clientX - rect.left) / rect.width * W; cur = Math.round(clamp((x - ml) / (W - ml - mr), 0, 1) * (n - 1)); at(cur); };
   hit.addEventListener('pointermove', move); hit.addEventListener('pointerdown', move);
-  hit.addEventListener('pointerleave', () => { tip.hide(); hair.setAttribute('visibility', 'hidden'); ring.setAttribute('visibility', 'hidden'); });
-  hit.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') { cur = Math.max(0, cur - 1); at(cur); } if (e.key === 'ArrowRight') { cur = Math.min(n - 1, cur + 1); at(cur); } });
-  hit.addEventListener('focus', () => at(cur)); hit.addEventListener('blur', () => tip.hide());
-  svg.append(hit);
-  box.append(svg);
-  return { chron, sm };
-}
-const rangeWord = () => SF.range === 'day' ? 'today' : SF.range === 'week' ? 'this week' : '';
-function hero(el, label, value, sub, onclick) {
-  el.replaceChildren(h('span', { text: label }), h('b', { text: value }), h('small', { text: sub }));
-  el.onclick = onclick || null; el.disabled = !onclick;
-}
-function recRow(label, value, sub, onclick) {
-  return h('button', { class: 'recrow', onclick: onclick || null, style: onclick ? '' : 'cursor:default' },
-    h('b', { text: label }), h('span', { class: 'v', text: value }), h('small', { text: sub }));
-}
-function unusualList(box, runs, sm, emptyText) {
-  box.replaceChildren();
-  const outs = sm.n >= 4 ? runs.filter(a => a.timeMs < sm.lo || a.timeMs > sm.hi).sort((a, b) => Math.abs(b.timeMs - sm.median) - Math.abs(a.timeMs - sm.median)).slice(0, 5) : [];
-  if (!outs.length) { box.append(h('div', { class: 'nodata', text: sm.n >= 4 ? emptyText : 'Needs at least 4 reps.' })); return; }
-  outs.forEach(a => {
-    const d = a.timeMs - sm.median, fast = d < 0;
-    box.append(h('button', { class: 'item', onclick: e => openRun(a.id, e.currentTarget) },
-      h('div', { class: 'rank', text: fast ? '⚡' : '🐢', style: 'font-size:22px' }),
-      h('div', { class: 'who' }, h('b', { text: a.handle || 'Player' }), h('small', { text: fmtS(Math.abs(d)) + ' s ' + (fast ? 'faster' : 'slower') + ' than usual · ' + ago(a.createdAt || Date.now()) })),
-      h('div', { class: 'time', text: fmtS(a.timeMs) }), h('div', { class: 'play', text: '▶' })));
-  });
+  hit.addEventListener('pointerleave', () => { tip.hide(); ring.setAttribute('visibility', 'hidden'); });
+  svg.append(hit); box.append(svg);
 }
 function renderStats() {
   if ($('#v-stats').hidden) return;
   $('#statsAll').hidden = SF.who !== 'all'; $('#statsMe').hidden = SF.who !== 'me';
-  const runs = statRuns(SF.range);
-  if (SF.who === 'all') renderStatsAll(runs); else renderStatsMe(runs);
+  const runs = statRuns(SF.range), t0 = rangeStart(SF.range);
+  const sessions = sessionsOf(allRuns()).filter(x => x.start >= t0);
+  if (SF.who === 'all') renderStatsAll(runs, sessions); else renderStatsMe(runs, sessions);
 }
-function renderStatsAll(runs) {
-  const sm = summarize(runs.map(a => a.timeMs)), players = byPlayer(runs), rw = rangeWord();
-  const best = list => list.reduce((b, a) => !b || a.timeMs < b.timeMs ? a : b, null);
-  const f = best(runs);
-  hero($('#heroAll'), rw ? 'Fastest ' + rw : 'Fastest ever', f ? fmtS(f.timeMs) + ' s' : '–',
-    f ? (f.handle || 'Player') + ' · ' + ago(f.createdAt || Date.now()) + ' · tap to watch' : 'No reps ' + (rw || 'yet') + '. Be the first!', f ? () => openRun(f.id) : null);
-  $('#tilesAll').replaceChildren(statTile('Average', fmtS(sm.mean)), statTile('Middle time', fmtS(sm.median)), statTile('Reps', String(sm.n || 0)));
-  $('#plainAll').textContent = sm.n >= 4
-    ? 'Most reps' + (rw ? ' ' + rw : '') + ' land between ' + fmtS(sm.q1) + ' and ' + fmtS(sm.q3) + ' seconds. ' + players.length + (players.length === 1 ? ' player has' : ' players have') + ' posted.'
-    : sm.n ? 'Post a few more reps to see the usual range.' : 'Nothing posted ' + (rw || 'yet') + '.';
-  legend($('#histLegend'), [['Reps', VZ.blue], ['Unusual', VZ.orange], ['Middle (solid) · average (dashed)', VZ.ink, 'line']]);
-  renderHistogram($('#hist'), sm, runs);
-  // records
-  const rl = $('#recList'); rl.replaceChildren();
-  const most = players.slice().sort((a, b) => b.n - a.n)[0], elig = players.filter(p => p.n >= 5);
-  const bavg = elig.slice().sort((a, b) => a.mean - b.mean)[0], cons = elig.slice().sort((a, b) => a.sd - b.sd)[0];
-  const impr = players.filter(p => p.improve != null && p.improve >= 10).sort((a, b) => b.improve - a.improve)[0];
-  if (!rw) { const t = best(statRuns('day')); rl.append(recRow('Fastest today', t ? fmtS(t.timeMs) + ' s' : '–', t ? (t.handle || 'Player') : 'Nobody yet today', t ? () => openRun(t.id) : null)); }
-  rl.append(
-    recRow('Most reps', most ? String(most.n) : '–', most ? most.name : 'Nobody yet'),
-    recRow('Best average', bavg ? fmtS(bavg.mean) + ' s' : '–', bavg ? bavg.name + ' · ' + bavg.n + ' reps' : 'Needs someone with 5+ reps'),
-    recRow('Most consistent', cons ? '± ' + fmtS(cons.sd) + ' s' : '–', cons ? cons.name + ' · times vary the least' : 'Needs someone with 5+ reps'),
-    recRow('Most improved', impr ? '− ' + fmtS(impr.improve) + ' s' : '–', impr ? impr.name + ' · last 5 vs first 5' : 'Needs someone with 10+ reps'));
-  // players table: just the basics
-  const cols = [['name', 'Player'], ['n', 'Reps'], ['min', 'Best'], ['mean', 'Average']];
-  const key = SF.sort === 'best' ? 'min' : SF.sort;
-  const sorted = players.slice().sort((a, b) => { const va = a[key], vb = b[key]; return (typeof va === 'string' ? va.localeCompare(vb) : (va ?? Infinity) - (vb ?? Infinity)) * SF.dir; });
+function renderStatsAll(runs, sessions) {
+  const sm = summarize(runs.map(a => a.timeMs)), players = byPlayer(runs), rw = RANGE_WORD[SF.range];
+  hero($('#heroAll'), 'Everyone’s average · ' + rw, sm.n ? fmtS(sm.mean) + ' s' : '–', sm.n ? sm.n + ' reps by ' + players.length + (players.length === 1 ? ' player' : ' players') : 'No reps ' + rw + ' yet.');
+  $('#tilesAll').replaceChildren(statTile('Fastest', fmtS(sm.min)), statTile('Reps', String(sm.n || 0)), statTile('Sessions', String(sessions.length)));
+  sessionList($('#sessAll'), sessions, 'all', true);
+  const cols = [['name', 'Player'], ['n', 'Reps'], ['mean', 'Average'], ['min', 'Best']];
+  const sorted = players.slice().sort((a, b) => { const va = a[SF.sort], vb = b[SF.sort]; return (typeof va === 'string' ? va.localeCompare(vb) : (va ?? Infinity) - (vb ?? Infinity)) * SF.dir; });
   const tb = $('#pTable'); tb.replaceChildren();
   tb.append(h('thead', {}, h('tr', {}, cols.map(([k, label]) => {
-    const kk = k === 'min' ? 'best' : k, on = SF.sort === kk;
-    return h('th', { 'aria-sort': on ? (SF.dir > 0 ? 'ascending' : 'descending') : null, onclick: () => { if (SF.sort === kk) SF.dir *= -1; else { SF.sort = kk; SF.dir = k === 'n' ? -1 : 1; } renderStats(); } }, label + (on ? (SF.dir > 0 ? ' ▲' : ' ▼') : ''));
+    const on = SF.sort === k;
+    return h('th', { 'aria-sort': on ? (SF.dir > 0 ? 'ascending' : 'descending') : null, onclick: () => { if (SF.sort === k) SF.dir *= -1; else { SF.sort = k; SF.dir = k === 'n' ? -1 : 1; } renderStats(); } }, label + (on ? (SF.dir > 0 ? ' ▲' : ' ▼') : ''));
   }))));
-  const tbody = h('tbody');
-  if (!sorted.length) tbody.append(h('tr', {}, h('td', { colspan: 4, class: 'nodata', text: 'No reps ' + (rw || 'yet') + '.' })));
-  sorted.forEach(p => tbody.append(h('tr', { class: P.uids.has(p.uid) || p.uid === P.uid ? 'me' : '' },
-    h('td', { text: p.name + (P.uids.has(p.uid) || p.uid === P.uid ? ' (you)' : '') }), h('td', { text: String(p.n) }), h('td', { text: fmtS(p.min) }), h('td', { text: fmtS(p.mean) }))));
+  const tbody = h('tbody'), me = p => P.uids.has(p.uid) || p.uid === P.uid;
+  if (!sorted.length) tbody.append(h('tr', {}, h('td', { colspan: 4, class: 'nodata', text: 'No reps ' + rw + '.' })));
+  sorted.forEach(p => tbody.append(h('tr', { class: me(p) ? 'me' : '' },
+    h('td', { text: p.name + (me(p) ? ' (you)' : '') }), h('td', { text: String(p.n) }), h('td', { text: fmtS(p.mean) }), h('td', { text: fmtS(p.min) }))));
   tb.append(tbody);
-  unusualList($('#outList'), runs, sm, 'No unusual reps right now.');
-  $('#moreAll').replaceChildren(statTile('Fastest', fmtS(sm.min)), statTile('Slowest', fmtS(sm.max)), statTile('Std dev', sm.n > 1 ? fmtS(sm.sd) : '–'),
-    statTile('10th pct', fmtS(sm.p10)), statTile('90th pct', fmtS(sm.p90)), statTile('Middle half', sm.n > 1 ? fmtS(sm.iqr) : '–'));
-  $('#moreAllNote').textContent = 'Std dev: how much times vary. 10th pct: 1 in 10 reps is faster than this. 90th pct: 1 in 10 is slower. Middle half: the width of the range the middle 50% of reps fall in. Unusual = outside that range by more than 1.5× its width.';
 }
-function renderStatsMe(runs) {
-  const mine = runs.filter(isMine), sm = summarize(mine.map(a => a.timeMs)), rw = rangeWord();
-  const players = byPlayer(runs), bests = players.map(p => p.min).sort((a, b) => a - b);
-  const pb = mine.reduce((b, a) => !b || a.timeMs < b.timeMs ? a : b, null);
-  hero($('#heroMe'), rw ? 'Your best ' + rw : 'Your best', pb ? fmtS(pb.timeMs) + ' s' : '–',
-    pb ? '#' + (1 + bests.filter(b => b < pb.timeMs).length) + ' of ' + players.length + ' players · tap to watch' : 'No reps ' + (rw || 'yet') + '. Run a face-off and post it.', pb ? () => openRun(pb.id) : null);
-  $('#tilesMe').replaceChildren(statTile('Your average', fmtS(sm.mean)), statTile('Middle time', fmtS(sm.median)), statTile('Your reps', String(sm.n || 0)));
-  const lines = [];
-  const chron = mine.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  if (chron.length >= 10) {
-    const avg = rs => rs.reduce((x, r) => x + r.timeMs, 0) / rs.length, d = avg(chron.slice(0, 5)) - avg(chron.slice(-5));
-    lines.push(d >= 10 ? '📈 Getting faster: your last 5 reps average ' + fmtS(d) + ' s quicker than your first 5.'
-      : d <= -10 ? '📉 Your last 5 reps average ' + fmtS(-d) + ' s slower than your first 5.' : '➖ Your last 5 reps are about the same as your first 5.');
-  } else if (chron.length) lines.push('Post ' + (10 - chron.length) + ' more rep' + (10 - chron.length === 1 ? '' : 's') + ' to see if you’re getting faster.');
-  if (sm.n >= 3) lines.push('Your times usually vary by about ± ' + fmtS(sm.sd) + ' s.');
-  if (sm.n >= 4) lines.push('Most of your reps land between ' + fmtS(sm.q1) + ' and ' + fmtS(sm.q3) + ' s.');
-  $('#plainMe').textContent = lines.join(' ') || 'Your stats show up here after you post a rep.';
-  legend($('#trendLegend'), [['Each rep', VZ.blue, 'dot'], ['Unusual', VZ.orange, 'dot'], ['5-rep average', VZ.ink, 'line']]);
-  renderTrend($('#trend'), mine);
-  unusualList($('#outMe'), mine, sm, 'None. Nice and steady.');
-  $('#moreMe').replaceChildren(statTile('Fastest', fmtS(sm.min)), statTile('Slowest', fmtS(sm.max)), statTile('Std dev', sm.n > 1 ? fmtS(sm.sd) : '–'),
-    statTile('10th pct', fmtS(sm.p10)), statTile('90th pct', fmtS(sm.p90)), statTile('Middle half', sm.n > 1 ? fmtS(sm.iqr) : '–'));
-  $('#moreMeNote').textContent = 'Std dev: how much your times vary. 10th pct: 1 in 10 of your reps is faster than this. 90th pct: 1 in 10 is slower. Middle half: the width of the range your middle 50% of reps fall in.';
+function renderStatsMe(runs, sessions) {
+  const mine = runs.filter(isMine), sm = summarize(mine.map(a => a.timeMs)), rw = RANGE_WORD[SF.range];
+  const all = summarize(runs.map(a => a.timeMs)), mySess = sessions.filter(x => P.uids.has(x.uid) || x.uid === P.uid);
+  let sub = 'No reps ' + rw + '. Run a face-off and post it.';
+  if (sm.n) {
+    const d = all.mean - sm.mean;
+    sub = sm.n + (sm.n === 1 ? ' rep' : ' reps') + (all.n > sm.n && Math.abs(d) >= 1 ? ' · ' + fmtS(Math.abs(d)) + ' s ' + (d > 0 ? 'faster' : 'slower') + ' than everyone' : '');
+  }
+  hero($('#heroMe'), 'Your average · ' + rw, sm.n ? fmtS(sm.mean) + ' s' : '–', sub);
+  $('#tilesMe').replaceChildren(statTile('Your best', fmtS(sm.min)), statTile('Reps', String(sm.n || 0)), statTile('Sessions', String(mySess.length)));
+  $('#sessChartCard').hidden = mySess.length < 2;
+  if (mySess.length >= 2) sessionChart($('#sessChart'), mySess);
+  sessionList($('#sessMe'), mySess, 'me', false);
 }
 let statsResize = 0;
 window.addEventListener('resize', () => { clearTimeout(statsResize); statsResize = setTimeout(renderStats, 150); });
