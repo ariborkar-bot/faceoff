@@ -859,6 +859,10 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   const db = { collection: c => query(c), doc: p => { const i = p.lastIndexOf('/'); return docRef(p.slice(0, i), p.slice(i + 1)); } };
   const user = {
     id: async () => { const me = account.current(); return me ? me.id : null; }, can: () => true, account, canEdit: () => false, isOwner: () => false,
+    async isAdmin() {                                          // set only in the database (public.admins)
+      if (!account.current()) return false;
+      try { const r = await rest('rpc/is_admin', { method: 'POST', body: '{}' }); return r.ok ? (await r.json()) === true : false; } catch { return false; }
+    },
     ids: async () => [...(account.current() ? [account.current().id] : []), ...await Promise.all(allSecrets().map(sha))],   // every identity that's yours
     deviceCode: () => secret.match(/.{1,8}/g).join('-'),       // share this to link another device
     link(code) {                                               // a code from your other device: post as that player from now on
@@ -876,7 +880,11 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       if (!r.ok) await fail(r, 'Uploading the clip');
       return { id: path, url: window.assetUrl(path), sizeBytes: blob.size, contentType: type };
     },
-    async delete() { return { deleted: false }; },
+    async delete(id) {                                          // your own clip, or any clip if you're an admin
+      if (!id || !account.current()) return { deleted: false };
+      const r = await fetch(SB_URL + '/storage/v1/object/clips/' + encodeURIComponent(id), { method: 'DELETE', headers: { ...H, ...(await authH()) } });
+      return { deleted: r.ok };
+    },
     async list() { return { assets: [], usage: {} }; }
   };
   window.assetUrl = id => SB_URL + '/storage/v1/object/public/clips/' + id;
@@ -920,7 +928,7 @@ function ago(ts) {
 function showNotice(msg) { const n = $('#notice'); n.textContent = msg; n.hidden = !msg; }
 
 /* ---------- platform capabilities ---------- */
-const P = { db: null, user: null, assets: null, uid: null, uids: new Set(), canWrite: null, canEdit: false };
+const P = { db: null, user: null, assets: null, uid: null, uids: new Set(), canWrite: null, canEdit: false, admin: false };
 const isMine = a => !!a && (a.uid === P.uid || P.uids.has(a.uid));
 async function cap(name) { try { return (await window.claude?.use(name)) ?? null; } catch { return null; } }
 
@@ -2655,7 +2663,7 @@ async function deleteRun(a, btn) {
 function rowEl(a, rank) {
   const item = rowItem(a, rank);
   if (window.pendingDel && pendingDel.has(a.id)) { const x = h('div'); x.hidden = true; return x; }
-  if (!isMine(a) || !P.db) return item;
+  if (!(isMine(a) || P.admin) || !P.db) return item;
   // your reps: swipe left to show Delete (swipe back, or tap anywhere else, to hide it)
   const del = h('button', { class: 'rowdel', 'aria-label': 'Delete this rep', title: 'Delete this rep', tabindex: '-1' }, h('span', { text: '🗑' }), h('small', { text: 'Delete' }));
   del.append(h('i', { class: 'delprog' }));
@@ -2733,7 +2741,7 @@ function softDelete(a, line) {
   const timer = setTimeout(async () => {
     pendingDel.delete(a.id); t.classList.add('out'); setTimeout(() => t.remove(), 260);
     try { await P.db.doc('attempts/' + a.id).delete(); try { await P.assets?.delete(a.asset); } catch {} attempts = attempts.filter(x => x.id !== a.id); renderBoard(); }
-    catch (e) { renderBoard(); toast(e && e.code === 'permission_denied' ? 'That rep was posted from another device or account' : 'Couldn’t delete it. Check your connection and try again.'); }
+    catch (e) { renderBoard(); toast(e && e.code === 'permission_denied' ? (P.admin ? 'Couldn’t delete it: admin access didn’t go through. Sign out and back in.' : 'That rep was posted from another device or account') : 'Couldn’t delete it. Check your connection and try again.'); }
   }, 4000);
   pendingDel.set(a.id, timer);
   $('.undo-btn', t).onclick = () => { clearTimeout(timer); pendingDel.delete(a.id); t.remove(); renderBoard(); toast('Kept it'); };
@@ -2962,7 +2970,7 @@ function rxRelease(e) {
 const acct = () => (P.user && P.user.account && P.user.account.current()) || null;
 function renderAccount() {
   const me = acct(), b = $('#btnAcct'), has = !!(P.user && P.user.account);
-  b.hidden = !has; b.textContent = me ? '@' + me.username : 'Sign in'; b.classList.toggle('in', !!me);
+  b.hidden = !has; b.textContent = me ? '@' + me.username + (P.admin ? ' · admin' : '') : 'Sign in'; b.classList.toggle('in', !!me);
   $('#postAs').textContent = me ? me.username : 'Sign in to post';
   $('#btnPost').textContent = me ? 'Post to leaderboard' : 'Sign up to save this rep';
   const c = $('#acctCard'); c.replaceChildren(); c.hidden = !has;
@@ -2974,9 +2982,14 @@ function renderAccount() {
       h('div', { class: 'row stretch', style: 'margin-top:12px' }, h('button', { class: 'btn primary', text: 'Sign up', onclick: () => openAccount('signup') }), h('button', { class: 'btn', text: 'Sign in', onclick: () => openAccount('signin') })));
   $('#linkCard').hidden = true;
 }
+async function checkAdmin() {
+  try { P.admin = !!(P.user && P.user.isAdmin && await P.user.isAdmin()); } catch { P.admin = false; }
+  document.body.classList.toggle('is-admin', P.admin);
+}
 async function onAccountChanged() {
   try { P.uid = await P.user.id(); } catch { P.uid = null; }
   try { P.uids = new Set(await P.user.ids()); } catch {}
+  await checkAdmin();
   renderAccount(); animRows = false; renderBoard();
 }
 /* every time the app opens signed out: ask to sign up so your stats are saved */
@@ -3103,7 +3116,7 @@ function openRun(id, fromEl) {
   };
   likeBtn.onclick = () => toggleDoc('likes', likes, a.id, likeBtn);
   flagBtn.onclick = () => toggleDoc('flags', flags, a.id, flagBtn, 'Flagged for review. Three flags mark a run as disputed.');
-  const del = (isMine(a) || P.canEdit) ? h('button', { class: 'btn danger', text: '🗑 Delete', onclick: async () => { if (await deleteRun(a, del)) closeModal(); } }) : null;
+  const del = (isMine(a) || P.canEdit || P.admin) ? h('button', { class: 'btn danger', text: '🗑 Delete', onclick: async () => { if (await deleteRun(a, del)) closeModal(); } }) : null;
   const pRoot = h('div');
   const sheet = h('div', { class: 'sheet repview' },
     h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:8px;flex-wrap:nowrap' },
@@ -3445,6 +3458,7 @@ $('#club').value = lsGet('fo-club') || '';
   P.db = db; P.user = user; P.assets = assets;
   try { P.uid = user ? await user.id() : null; } catch { P.uid = null; }
   try { P.uids = new Set(user && user.ids ? await user.ids() : [P.uid].filter(Boolean)); } catch { P.uids = new Set([P.uid].filter(Boolean)); }
+  checkAdmin().then(() => { if (P.admin) { renderAccount(); animRows = false; renderBoard(); } });
   renderLink(); movePill();
   if (user && user.account) {
     renderAccount(); user.account.onChange(onAccountChanged);
