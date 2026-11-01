@@ -445,7 +445,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   <section id="v-run" hidden>
     <div class="card" id="cCam">
       <h2>Face-off</h2>
-      <div class="muted small" id="camHelp">Prop your phone up low, facing you. Tap <b>Start</b>, put the ball and your stick head in the outline, and hold still: <b>Down, Set</b>, then the whistle.</div>
+      <div class="muted small" id="camHelp">Prop your phone up low, facing you. Tap <b>Start</b>, set the ball down with your stick head on the ground behind it, anywhere in view, and hold still: <b>Down, Set</b>, then the whistle.</div>
       <div id="camOff">
         <button class="btn primary" id="btnCamOn" style="width:100%;margin-top:12px">Start camera</button>
       </div>
@@ -569,8 +569,6 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <div class="small err" id="voiceStartMsg"></div>
       <label class="sw"><span><b>Call false starts</b><small>Moving after “Set”, before the whistle.</small></span><input type="checkbox" id="chkFs"><i></i></label>
       <label class="sw"><span><b>Partner's stick too</b><small>Check for a second stick in front of the ball.</small></span><input type="checkbox" id="chkPartner"><i></i></label>
-      <div style="margin-top:10px"><label for="rngSize">Outline size</label><input type="range" id="rngSize" min="0.5" max="2" step="0.05"></div>
-      <div><label for="rngY">Outline height</label><input type="range" id="rngY" min="0.25" max="0.9" step="0.01"></div>
       <button class="btn" id="btnFlip" style="width:100%;margin-top:10px">Switch front / back camera</button>
     </div>
     <button class="btn" id="btnSetDone" style="width:100%">Done</button>
@@ -1006,7 +1004,7 @@ const STILL = 6;         // average frame-to-frame change below which the setup 
 const FS_MOVE = 22, FS_BIG = 45;   // after "Set": clear movement of the ball or stick head twice in a row, or one big jump
 const C = {
   stream: null, facing: lsGet('fo-facing') || 'user', state: 'off', timer: 0, wake: null, masks: null, dw: 0, dh: 0,
-  size: +(lsGet('fo-size') || 1.25), y: +(lsGet('fo-y') || 0.66), side: +(lsGet('fo-side') || 1),
+  size: 1.25, y: 0.6, side: +(lsGet('fo-side') || 1),
   partner: lsGet('fo-partner') === '1', fs: lsGet('fo-fs') !== '0',
   occ: { ball: 0, ring: 0, headL: 0, headR: 0, partner: 1 }, ballOk: false, headOk: false, partnerOk: true, track: null,
   motion: 99, aligned: false, stillSince: 0, phase: '', fsHits: 0, prev: null, cur: null, setSnap: null, graceUntil: 0,
@@ -1077,11 +1075,23 @@ function buildMasks(w, h) {
     if (u || d <= r) union.push(p);
   }
   C.prev = null;
-  return { ball, ring, headL, headR, headLow, partner, union, ground: groundIdx(w, h, G), G };
+  // ground samples spread over the lower 3/4 of the picture (a grid of patches; the middle of their colours wins)
+  const grid = []; grid.boxes = [];
+  const bw = Math.max(6, Math.round(w / 10)), bh = Math.max(6, Math.round(h / 12));
+  for (let gy = 0; gy < 4; gy++) for (let gx = 0; gx < 5; gx++) {
+    const x0 = Math.round((gx + 0.5) * w / 5 - bw / 2), y0 = Math.round(h * (0.3 + gy * 0.17) - bh / 2), b = [];
+    for (let y = Math.max(0, y0); y < Math.min(h, y0 + bh); y += 2) for (let x = Math.max(0, x0); x < Math.min(w, x0 + bw); x += 2) { b.push(y * w + x); grid.push(y * w + x); }
+    if (b.length) grid.boxes.push(b);
+  }
+  return { ball, ring, headL, headR, headLow, partner, union, ground: grid, G };
 }
 /* the ground's colour: median of each patch, then the middle of those, so one patch landing on paint or a shoe can't fool it */
 function groundColor(px, idx) {
   if (!idx.boxes || idx.boxes.length < 2) return medianColor(px, idx);
+  if (idx.boxes.length > 4) {                                 // many patches: most common colour family wins (median per channel)
+    const ms = idx.boxes.map(b => medianColor(px, b));
+    return [0, 1, 2].map(c => { const v = ms.map(m => m[c]).sort((a, b) => a - b); return v[v.length >> 1]; });
+  }
   const ms = idx.boxes.map(b => medianColor(px, b));
   return [0, 1, 2].map(c => { const v = ms.map(m => m[c]).sort((a, b) => a - b); return v[v.length >> 1]; });
 }
@@ -1119,44 +1129,28 @@ function pocketPath(x, hd, dir) {
   x.bezierCurveTo(X(0.1), Y(-0.42), X(0.45), Y(-0.3), X(0.6), Y(0));
   x.closePath();
 }
+/* No outline to line up with: once the app spots your ball and stick (anywhere in view), it marks them */
 function drawOverlay() {
   const W = ov.width, H = ov.height, x = ov.getContext('2d');
   x.clearRect(0, 0, W, H);
-  const G = geom(W, H), lw = Math.max(3, Math.min(W, H) * 0.007);
-  const go = C.state === 'seq' || C.state === 'track' || C.aligned;
-  const partial = C.occ.headL >= HEAD_MIN || C.occ.headR >= HEAD_MIN;
-  const style = (ok, part) => {
-    x.strokeStyle = go ? '#c8ff2e' : ok ? '#c8ff2e' : part ? '#ffb020' : 'rgba(255,255,255,.85)';
-    x.setLineDash([]);                                   // solid so the stick and ball shapes read clearly
-  };
-  x.lineWidth = lw; x.lineJoin = 'round';
-  const drawStick = (hd, dir, ok, part, showOther) => {
-    style(ok, part); x.fillStyle = 'rgba(0,0,0,.18)';
-    stickPath(x, hd, dir); x.fill(); x.stroke();
-    const dash = x.getLineDash(), w0 = x.lineWidth;
-    x.lineWidth = w0 * 0.6; x.globalAlpha = 0.55; pocketPath(x, hd, dir); x.stroke();
-    // until a shaft is found it can go either way: hint the other side faintly
-    if (showOther) {
-      x.setLineDash([lw * 1.5, lw * 2]); x.globalAlpha = 0.35;
-      x.beginPath(); x.moveTo(hd.cx - dir * hd.rx * 1.1, hd.cy); x.lineTo(hd.cx - dir * hd.rx * 3.9, hd.cy); x.stroke();
-    }
-    x.globalAlpha = 1; x.lineWidth = w0; x.setLineDash(dash);
-  };
-  const sc = W / (C.dw || W), hf = C.headFit;
-  const headShown = C.headIn && hf ? { cx: hf.cx * sc, cy: hf.cy * sc, rx: G.head.rx, ry: G.head.ry, dir: G.head.dir } : G.head;
-  const dir = (C.stickInfo && C.stickInfo.dir) || 1;
-  drawStick(headShown, dir, C.headOk, partial || C.headIn, !C.headOk);
-  const pf = C.partnerFit, partShown = G.partner && pf && C.occ.partner >= HEAD_MIN ? { cx: pf.cx * sc, cy: pf.cy * sc, rx: G.partner.rx, ry: G.partner.ry, dir: G.partner.dir } : G.partner;
-  if (G.partner) drawStick(partShown, -dir, C.partnerOk, false, false);
-  if (!go) {                                    // the ball and stick can be anywhere in here
-    const b0 = G.ball; x.save(); x.setLineDash([lw * 1.2, lw * 2.2]); x.globalAlpha = 0.28; x.strokeStyle = '#fff'; x.lineWidth = lw * 0.6;
-    x.beginPath(); x.roundRect ? x.roundRect(b0.cx - 3.8 * b0.r, b0.cy - 2.8 * b0.r, 7.6 * b0.r, 5.6 * b0.r, b0.r) : x.rect(b0.cx - 3.8 * b0.r, b0.cy - 2.8 * b0.r, 7.6 * b0.r, 5.6 * b0.r); x.stroke(); x.restore();
+  const sc = W / (C.dw || W), lw = Math.max(3, Math.min(W, H) * 0.006), bi = C.ballInfo && C.ballOk ? C.ballInfo : null;
+  if (!bi) return;
+  const go = C.state === 'seq' || C.state === 'track' || C.aligned, col = go ? '#c8ff2e' : '#ffb020';
+  x.lineWidth = lw; x.lineJoin = 'round'; x.strokeStyle = col;
+  // the ball
+  const br = (C.lastGood && C.aligned ? C.lastGood.br : bi.r) * sc * 1.25;
+  x.beginPath(); x.arc(bi.cx * sc, bi.cy * sc, br, 0, Math.PI * 2); x.stroke();
+  // the stick head, where it was found
+  const hf = C.headFit;
+  if (hf) {
+    const hd = { cx: hf.cx * sc, cy: hf.cy * sc, rx: hf.rx * sc * 1.08, ry: hf.ry * sc * 1.15 }, dir = (C.stickInfo && C.stickInfo.dir) || 1;
+    x.strokeStyle = C.headOk ? col : '#ffb020'; x.globalAlpha = 0.9;
+    stickPath(x, hd, dir); x.stroke(); x.globalAlpha = 1;
   }
-  const b = G.ball;
-  style(C.ballOk, !C.ballOk && C.ballInfo && C.ballInfo.reason !== 'empty');
-  const bi = C.ballInfo && C.ballInfo.ok ? C.ballInfo : null;
-  x.beginPath(); x.arc(bi ? bi.cx * sc : b.cx, bi ? bi.cy * sc : b.cy, bi ? Math.max(bi.r * sc * 1.15, b.r * 0.7) : b.r, 0, Math.PI * 2); x.fillStyle = 'rgba(0,0,0,.18)'; x.fill(); x.stroke();
-  x.setLineDash([]);
+  // a small label: ✓ when it's all there
+  const tag = go ? '✓' : hf ? 'stick?' : 'ball';
+  x.font = `800 ${Math.round(lw * 6)}px system-ui, sans-serif`; x.fillStyle = col; x.textAlign = 'center';
+  x.fillText(tag, bi.cx * sc, bi.cy * sc + br + lw * 7);
 }
 function sizeStage() {
   const W = lv.videoWidth || 1280, H = lv.videoHeight || 720, st = $('#camStage');
@@ -1251,17 +1245,17 @@ function groundedCheck(px, W, H, fit, ball, br, g, shaftLow) {
     n++; if (fgDist(px, (y * W + x) * 4, C.pal) > T_G) f++;
   }
   const band = n ? f / n : 0;
-  return { ok: band >= 0.25 || (shaftLow != null && shaftLow >= ball.cy - 0.8 * br), band };
+  return { ok: band >= 0.25 || (shaftLow != null && shaftLow >= ball.cy - 1.0 * br), band };
 }
-function ballBlob(px, W, H, G, g, excl) {
-  const { cx, cy, r } = G.ball, RX = 3.8 * r, RY = 2.8 * r;                 // the search area around the circle
-  const x0 = Math.max(0, Math.floor(cx - RX)), x1 = Math.min(W - 1, Math.ceil(cx + RX)), y0 = Math.max(0, Math.floor(cy - RY)), y1 = Math.min(H - 1, Math.ceil(cy + RY));
-  const ww = x1 - x0 + 1, hh = y1 - y0 + 1;
-  // the cleaned-up mask is the same for every try on this frame: build it once
-  if (!ballBlob.cache || ballBlob.cache.px !== px || ballBlob.cache.g !== g) {
-    const raw = ballMask(px, W, g, x0, y0, ww, hh);
-    ballBlob.cache = { px, g, raw, m: openMask(raw, ww, hh, r) };
-  }
+function ballBlob(px, W, H, G, g, excl, opt = {}) {
+  const { cx, cy, r } = G.ball, RX = 3.8 * r, RY = 2.8 * r;                 // the search area: around a spot, or the whole picture
+  const x0 = opt.full ? 0 : Math.max(0, Math.floor(cx - RX)), x1 = opt.full ? W - 1 : Math.min(W - 1, Math.ceil(cx + RX));
+  const y0 = opt.full ? 0 : Math.max(0, Math.floor(cy - RY)), y1 = opt.full ? H - 1 : Math.min(H - 1, Math.ceil(cy + RY));
+  const ww = x1 - x0 + 1, hh = y1 - y0 + 1, wkey = [x0, y0, ww, hh, Math.round(r)].join();
+  // the cleaned-up mask is the same for every try on this frame and area: build it once
+  if (!ballBlob.cache || ballBlob.cache.px !== px || ballBlob.cache.g !== g) ballBlob.cache = { px, g, win: {} };
+  if (!ballBlob.cache.win[wkey]) { const raw = ballMask(px, W, g, x0, y0, ww, hh); ballBlob.cache.win[wkey] = { raw, m: openMask(raw, ww, hh, opt.full ? 0.7 * r : r) }; }
+  const wc = ballBlob.cache.win[wkey];
   if (!ballBlob.order || ballBlob.order.key !== [x0, y0, ww, hh, cx, cy].join()) {          // pixels nearest the circle first
     const d = new Float32Array(ww * hh), o = new Int32Array(ww * hh);
     for (let p = 0; p < o.length; p++) { o[p] = p; d[p] = Math.hypot(p % ww + x0 - cx, ((p / ww) | 0) + y0 - cy); }
@@ -1269,11 +1263,11 @@ function ballBlob(px, W, H, G, g, excl) {
   }
   let m;
   if (excl && excl.length) {                                                                // cut a stick head's spot away, then clean up again
-    m = Uint8Array.from(ballBlob.cache.raw);
+    m = Uint8Array.from(wc.raw);
     for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) { const p = y * ww + x; if (m[p] && excl.some(e => e && inEll(x + x0, y + y0, e))) m[p] = 0; }
     m = openMask(m, ww, hh, r);
-  } else m = Uint8Array.from(ballBlob.cache.m);
-  return ballSearch(px, W, G, m, x0, y0, ww, hh, r, cx, cy, excl);
+  } else m = Uint8Array.from(wc.m);
+  return ballSearch(px, W, G, m, x0, y0, ww, hh, r, cx, cy, excl, opt);
 }
 /* things that aren't ground (a different tint, or brighter), with thin things removed */
 function ballMask(px, W, g, x0, y0, ww, hh) {
@@ -1300,7 +1294,8 @@ function openMask(m0, ww, hh, r) {
   for (let i = 0; i < m.length; i++) m[i] = m[i] & opened[i];
   return m;
 }
-function ballSearch(px, W, G, m, x0, y0, ww, hh, r, cx, cy, excl) {
+function ballSearch(px, W, G, m, x0, y0, ww, hh, r, cx, cy, excl, opt = {}) {
+  const found = [], fails = [];
   // try each blob in the area, nearest the circle first, and keep the first one that looks like a ball
   const tint = i => { const s2 = px[i] + px[i + 1] + px[i + 2] + 1; return [px[i] / s2, px[i + 1] / s2]; };
   const at = p => (((p / ww) | 0) + y0) * W * 4 + ((p % ww) + x0) * 4;
@@ -1308,7 +1303,7 @@ function ballSearch(px, W, G, m, x0, y0, ww, hh, r, cx, cy, excl) {
   for (const seed of ballBlob.order.o) {
     if (!m[seed] || visited[seed]) continue;
     any = true;
-    if (++tries > 14) break;
+    if (++tries > (opt.full ? 60 : 14)) break;
     // the blob's tint from the area around the seed (shading changes brightness, not tint)
     let tr = 0, tg = 0, tn = 0; const sx0 = seed % ww, sy0 = (seed / ww) | 0;
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const X = sx0 + dx, Y = sy0 + dy; if (X < 0 || Y < 0 || X >= ww || Y >= hh || !m[Y * ww + X]) continue; const t = tint(at(Y * ww + X)); tr += t[0]; tg += t[1]; tn++; }
@@ -1324,10 +1319,19 @@ function ballSearch(px, W, G, m, x0, y0, ww, hh, r, cx, cy, excl) {
       const lp = lumA(p);
       for (const j of [x > 0 ? p - 1 : -1, x < ww - 1 ? p + 1 : -1, y > 0 ? p - ww : -1, y < hh - 1 ? p + ww : -1]) if (j >= 0 && m[j] && !visited[j] && sameTint(j) && Math.abs(lumA(j) - lp) < 40) { visited[j] = 1; q.push(j); }
     }
-    const cut = !!(excl && excl.length), res = judgeBlob(px, list, n, sx, sy, bx0, bx1, by0, by1, edge, r, tr, tg, tint, at, ww, cut);
-    if (res.ok) { const bcx = sx / n + x0, bcy = sy / n + y0; return { ok: true, cx: bcx, cy: bcy, n, r: cut ? (bx1 - bx0 + 1) / 2 : Math.sqrt(n / Math.PI) }; }
-    if (!firstFail && n >= 0.25 * Math.PI * r * r) firstFail = Object.assign(res, { cx: sx / n + x0, cy: sy / n + y0 });
+    if (opt.full && n < 0.2 * Math.PI * (0.45 * r) ** 2) continue;            // specks
+    const rr = opt.full ? Math.min(Math.max(Math.sqrt(n / Math.PI), 0.45 * r), 2.0 * r) : r;   // whole picture: judge it at its own size
+    const cut = !!(excl && excl.length), res = judgeBlob(px, list, n, sx, sy, bx0, bx1, by0, by1, edge, rr, tr, tg, tint, at, ww, cut);
+    if (res.ok) {
+      const b = { ok: true, cx: sx / n + x0, cy: sy / n + y0, n, r: cut ? (bx1 - bx0 + 1) / 2 : Math.sqrt(n / Math.PI) };
+      if (!opt.all) return b;
+      found.push(b); if (found.length >= 4) break;
+    } else if (n >= 0.25 * Math.PI * (opt.full ? 0.45 * r : r) ** 2) {
+      fails.push(Object.assign(res, { cx: sx / n + x0, cy: sy / n + y0, n, bx0: bx0 + x0, bx1: bx1 + x0, by0: by0 + y0, by1: by1 + y0 }));
+      if (!firstFail) firstFail = fails[fails.length - 1];
+    }
   }
+  if (opt.all) return { ok: found.length > 0, list: found, fails };
   return firstFail || { ok: false, reason: any ? 'small' : 'empty' };
 }
 function judgeBlob(px, list, n, sx, sy, bx0, bx1, by0, by1, edge, r, tr, tg, tint, at, ww, cut) {
@@ -1406,8 +1410,9 @@ function texAt(px, W, H, x, y) {
   return (Math.abs(L(i + 4) - L(i - 4)) + Math.abs(L(i + W * 4) - L(i - W * 4))) / 6;
 }
 function groundTexture(px, W, H, idx) {
-  let s = 0, n = 0; for (let k = 0; k < idx.length; k += 3) { const p = idx[k]; s += texAt(px, W, H, p % W, (p / W) | 0); n++; }
-  return n ? s / n : 0;
+  const boxes = idx.boxes && idx.boxes.length ? idx.boxes : [idx], per = [];
+  for (const b of boxes) { let s = 0, n = 0; for (let k = 0; k < b.length; k += 2) { const p = b[k]; s += texAt(px, W, H, p % W, (p / W) | 0); n++; } if (n) per.push(s / n); }
+  per.sort((a, b) => a - b); return per.length ? per[per.length >> 1] : 0;     // a typical patch of ground, not the busiest
 }
 /* A stick head isn't a plain blob: its walls and mesh make lots of edges inside it (a shoe, phone, bag or towel doesn't) */
 function headTexture(px, W, H, hd, ballC, br) {
@@ -1429,7 +1434,7 @@ function verifyStick(px, W, H, hd, r, g, ballC) {
 }
 function statusHint() {
   const o = C.occ, b = C.ballInfo || {}, mark = ok => ok ? 'Ball ✓' : 'Ball ✗';
-  const ballWhy = { outside: 'bring the ball closer to the circle', empty: 'put the ball near the circle', small: 'put the ball near the circle', big: 'something bigger than a ball is there (hand or foot?)', shape: 'that doesn’t look like a ball' }[b.reason] || 'put the ball near the circle';
+  const ballWhy = { outside: 'move the ball fully into view', empty: 'put the ball down where the camera can see it', small: 'put the ball down where the camera can see it', big: 'something bigger than a ball is there (hand or foot?)', shape: 'that doesn’t look like a ball' }[b.reason] || 'put the ball down where the camera can see it';
   let stickWhy = '';
   if (!C.headOk) {
     if (!C.headIn) stickWhy = 'put your stick head behind the ball';
@@ -1440,83 +1445,104 @@ function statusHint() {
   if (C.ballOk && C.headOk) return C.partnerOk ? 'Ball ✓ · Stick ✓' : 'Ball ✓ · Stick ✓ · partner’s stick goes in front of the ball';
   return mark(C.ballOk) + ' · ' + (C.headOk ? 'Stick ✓' : 'Stick ✗') + ': ' + (!C.ballOk ? ballWhy : stickWhy);
 }
-function analyze(px) {
-  const M = C.masks, g = groundColor(px, M.ground);
-  const gB = groundOf(px, M.ground.behind, g), gF = groundOf(px, M.ground.front, g);   // ground behind the ball / in front of it
+/* the spots around a ball of radius r: where a stick head (behind it) and a partner's (in front) would lie */
+function localGeom(cx, cy, r) {
+  const rx = 2 * r, ry = r, touch = 0.25 * r;
+  return { ball: { cx, cy, r }, head: { cx, cy: cy - r + touch - ry, rx, ry, dir: C.side }, partner: C.partner ? { cx, cy: cy + r - touch + ry, rx, ry, dir: -C.side } : null };
+}
+/* is there a stick (and partner's stick) on the ground at this ball? */
+function stickAt(px, W, H, Gb, ball, g) {
+  const gi = groundIdx(W, H, Gb), gB = groundOf(px, gi.behind, g), gF = groundOf(px, gi.front, g);
   C.pal = [g, gB];
-  C.gTex = groundTexture(px, C.dw, C.dh, M.ground);
-  const far = idx => {
-    if (!idx.length) return 0;
-    let n = 0;
-    for (const p of idx) { const i = p * 4; if (Math.abs(px[i] - g[0]) + Math.abs(px[i + 1] - g[1]) + Math.abs(px[i + 2] - g[2]) > T_G) n++; }
-    return n / idx.length;
-  };
-  C.occ = { ball: far(M.ball), ring: far(M.ring), headL: far(M.headL), headR: far(M.headR), headLow: far(M.headLow), partner: M.partner.length ? far(M.partner) : 1 };
-  const G = C.masks.G, W = C.dw, H = C.dh;
-  // the ball, anywhere in the area (if it's merged with a white stick head, cut the head away and look again)
-  let ball = ballBlob(px, W, H, G, g, null);
-  if (!ball.ok) {
-    const tries = [];
-    for (const a of [C.lastGood && C.lastGood.ball, G.ball, ball.cx != null ? ball : null]) {
-      if (!a) continue;
-      const guess = findHead(px, W, H, G, gB, a, G.ball.r);
-      if (guess && Math.min(guess.occL, guess.occR) >= HEAD_MIN) tries.push([guess]);
-      if (G.partner) {
-        const pg = findHead(px, W, H, G, [g, gF], a, G.ball.r, G.partner), pgs = pg && Math.min(pg.occL, pg.occR) >= HEAD_MIN ? [pg, G.partner] : [G.partner];
-        for (const p of pgs) { tries.push([p]); if (guess) tries.push([guess, p]); }
-      }
-    }
-    if (C.lastGood) tries.push([C.lastGood.head]);
-    tries.push([G.head]);
-    for (const ex of tries) { const b2 = ballBlob(px, W, H, G, g, ex); if (b2.ok) { ball = b2; break; } }
-  }
-  C.ballInfo = ball; C.ballOk = ball.ok;
-  const anchor = ball.ok ? ball : G.ball, br = ball.ok ? Math.max(ball.r, 0.7 * G.ball.r) : G.ball.r;
-  // the stick head, anywhere behind/around the ball
-  const cands = findHeads(px, W, H, G, gB, anchor, br), isIn = f => f.occL >= HEAD_MIN && f.occR >= HEAD_MIN && f.occLow >= 0.25;
+  const br = Gb.ball.r, anchor = ball;
+  const cands = findHeads(px, W, H, Gb, gB, anchor, br), isIn = f => f.occL >= HEAD_MIN && f.occR >= HEAD_MIN && f.occLow >= 0.25;
   let pick = null, nth = 0;
   for (const f of cands) {
     if (!isIn(f)) continue;                                                     // something there…
     if (nth >= 4) break;
-    const st = verifyStick(px, W, H, f, G.ball.r, gB, anchor);                  // …that's a stick…
+    const st = verifyStick(px, W, H, f, br, gB, anchor);                        // …that's a stick…
     if (nth++ > 0 && st.score < 0.85) st.shaft = false;
     const gr = st.shaft ? groundedCheck(px, W, H, f, anchor, br, gB, st.low) : { ok: false };   // …and part of it is on the ground
     const rank = (st.shaft ? 2 : 0) + (gr.ok ? 1 : 0);
     if (!pick || rank > pick.rank) pick = { f, st, gr, rank };
     if (rank === 3) break;
   }
-  const fit = pick ? pick.f : cands[0];
-  C.headFit = fit;
-  C.occ.headL = fit.occL; C.occ.headR = fit.occR; C.occ.headLow = fit.occLow;
+  let partnerOk = true, partnerFit = null;
+  if (Gb.partner) {
+    const pcs = findHeads(px, W, H, Gb, [g, gF], anchor, br, Gb.partner);
+    partnerOk = false; partnerFit = pcs[0]; let k = 0;
+    for (const f of pcs) {
+      if (Math.min(f.occL, f.occR) < HEAD_MIN) continue;
+      if (k >= 4) break;
+      const st = verifyStick(px, W, H, f, br, gF, anchor);
+      if (st.shaft && (k === 0 || st.score >= 0.85)) { partnerFit = f; partnerOk = true; break; }
+      k++;
+    }
+  }
+  return { Gb, gB, cands, pick, partnerOk, partnerFit, score: (pick ? pick.rank : 0) + (partnerOk ? 0.5 : 0) };
+}
+function analyze(px) {
+  const M = C.masks, W = C.dw, H = C.dh, g = groundColor(px, M.ground), r0 = M.G.ball.r;
+  C.gTex = groundTexture(px, W, H, M.ground);
+  // every ball-like thing in view, nearest where the ball was last seen (or the middle) first
+  const near = C.lastGood ? C.lastGood.ball : { cx: W / 2, cy: H * 0.6 };
+  const all = ballBlob(px, W, H, { ball: { cx: near.cx, cy: near.cy, r: r0 } }, g, null, { full: true, all: true });
+  // look closely at each spot: judged against the usual ball size there; a white ball touching a white stick head
+  // looks like one big blob, so cut the head away and look again
+  const A0 = Math.PI * r0 * r0, balls = [];
+  const spots = [...(C.lastGood ? [{ cx: C.lastGood.ball.cx, cy: C.lastGood.ball.cy, r: C.lastGood.br }] : []),
+    ...all.list.map(b => ({ cx: b.cx, cy: b.cy, r: r0, cand: b })),
+    ...all.fails.filter(f => f.n >= 0.5 * A0 && f.n < 14 * A0).sort((a, b) => Math.abs(Math.log(a.n / (2.5 * A0))) - Math.abs(Math.log(b.n / (2.5 * A0)))).slice(0, 3).map(f => ({ cx: f.cx, cy: f.cy, r: r0, low: f.by1 != null ? { cx: f.cx, cy: f.by1 - 0.95 * r0 } : null }))];
+  const lookAt = (cx, cy, r, extra) => {
+    const Gs = localGeom(cx, cy, r);
+    let b2 = ballBlob(px, W, H, Gs, g, null);
+    if (b2.ok && Math.hypot(b2.cx - cx, b2.cy - cy) <= 2.5 * r) return b2;
+    const gi = groundIdx(W, H, Gs), gB = groundOf(px, gi.behind, g), gF = groundOf(px, gi.front, g), tries = [];
+    for (const a2 of [{ cx, cy }, { cx, cy: cy + 0.9 * r }, ...(extra || [])]) {
+      const guess = findHead(px, W, H, Gs, gB, a2, r);
+      if (guess && Math.min(guess.occL, guess.occR) >= HEAD_MIN) tries.push([guess]);
+      if (Gs.partner) { const pg = findHead(px, W, H, Gs, [g, gF], a2, r, Gs.partner); if (pg) { tries.push([pg]); if (guess) tries.push([guess, pg]); } }
+    }
+    tries.push([Gs.head]);
+    for (const ex of tries) { const t = ballBlob(px, W, H, Gs, g, ex); if (t.ok) return t; }
+    return null;
+  };
+  for (const sp of spots.slice(0, 6)) {
+    if (balls.some(b => Math.hypot(b.cx - sp.cx, b.cy - sp.cy) < 1.2 * r0)) continue;
+    let b2 = lookAt(sp.cx, sp.cy, sp.r, sp.low ? [sp.low] : null);
+    if (!b2 && sp.low) b2 = lookAt(sp.low.cx, sp.low.cy, sp.r);          // a merged blob: the ball is its bottom end
+    if (b2) balls.push(b2);
+    else if (sp.cand && sp.cand.r >= 0.45 * r0 && sp.cand.r <= 1.3 * r0) balls.push(sp.cand);   // a ball a bit bigger or smaller than usual
+    if (balls.length >= 3) break;
+  }
+  // check for a stick at each ball; keep the best
+  let best = null;
+  for (const b of balls.slice(0, 3)) {
+    // stick-head size from the usual ball size, unless this ball is clearly nearer or farther than usual
+    const rb = b.r > 1.3 * r0 || b.r < 0.65 * r0 ? Math.max(b.r, 0.45 * r0) : r0, res = stickAt(px, W, H, localGeom(b.cx, b.cy, rb), b, g);
+    if (!best || res.score > best.score) best = Object.assign(res, { ball: b, br: rb });
+    if (res.score >= 3.5) break;
+  }
+  const nearFail = all.fails.find(f => f.n < 6 * A0 && f.n > 0.6 * A0);   // something ball-ish but wrong (a hand, a shoe…)
+  const ball = best ? best.ball : nearFail ? Object.assign({ ok: false }, nearFail) : { ok: false, reason: 'empty' };
+  C.ballInfo = ball; C.ballOk = !!best;
+  C.geom = best ? best.Gb : null;
+  const pick = best && best.pick, fit = pick ? pick.f : (best && best.cands[0]) || null;
+  C.headFit = pick ? fit : null;
+  C.occ = { headL: fit ? fit.occL : 0, headR: fit ? fit.occR : 0, headLow: fit ? fit.occLow : 0, partner: best && best.partnerFit ? Math.min(best.partnerFit.occL, best.partnerFit.occR) : 0 };
   C.headIn = !!pick;
   C.stickInfo = pick ? pick.st : { shaft: false, score: 0, dir: C.stickInfo ? C.stickInfo.dir : 1 };
   C.groundInfo = pick ? pick.gr : { ok: false };
   C.headOk = !!pick && pick.rank === 3;
-  if (G.partner) {
-    const pcs = findHeads(px, W, H, G, [g, gF], anchor, br, G.partner);   // must stand out from both
-    let pf = pcs[0], ok = false, k = 0;
-    for (const f of pcs) {
-      if (Math.min(f.occL, f.occR) < HEAD_MIN) continue;
-      if (k >= 4) break;
-      const st = verifyStick(px, W, H, f, G.ball.r, gF, anchor);
-      if (st.shaft && (k === 0 || st.score >= 0.85)) { pf = f; ok = true; break; }
-      k++;
-    }
-    C.partnerFit = pf; C.occ.partner = Math.min(pf.occL, pf.occR); C.partnerOk = ok;
-  } else { C.partnerOk = true; C.partnerFit = null; }
+  C.partnerOk = best ? best.partnerOk : !C.partner; C.partnerFit = best ? best.partnerFit : null;
   C.aligned = C.ballOk && C.headOk && C.partnerOk;
   if (C.aligned && C.lastGood && C.alignedSince) {                       // same ball and stick as last time, not something flickering
-    const r0 = G.ball.r, jb = Math.hypot(ball.cx - C.lastGood.ball.cx, ball.cy - C.lastGood.ball.cy), jh = Math.hypot(fit.cx - C.lastGood.head.cx, fit.cy - C.lastGood.head.cy);
-    if (jb > 0.8 * r0 || jh > 1.0 * r0) C.alignedSince = 0;
+    const rr = best.br, jb = Math.hypot(ball.cx - C.lastGood.ball.cx, ball.cy - C.lastGood.ball.cy), jh = Math.hypot(fit.cx - C.lastGood.head.cx, fit.cy - C.lastGood.head.cy);
+    if (jb > 0.8 * rr || jh > 1.0 * rr) C.alignedSince = 0;
   }
   C.alignedSince = C.aligned ? (C.alignedSince || performance.now()) : 0;
-  if (C.aligned) C.lastGood = { ball: Object.assign({}, ball), head: Object.assign({}, fit), br, t: performance.now() };
-  const cur = new Float32Array(M.union.length); let m = 0;
-  for (let k = 0; k < M.union.length; k++) {
-    const i = M.union[k] * 4; cur[k] = (px[i] + px[i + 1] + px[i + 2]) / 3;
-    if (C.prev) m += Math.abs(cur[k] - C.prev[k]);
-  }
-  C.motion = C.prev ? m / Math.max(1, M.union.length) : 99; C.prev = cur; C.cur = cur;
+  if (C.aligned) C.lastGood = { ball: Object.assign({}, ball), head: Object.assign({}, fit), br: best.br, t: performance.now() };
+  C.motion = 0;
 }
 const camBusy = () => C.state === 'scan' || C.state === 'inpos' || C.state === 'seq' || C.state === 'track';
 function camTick() {
@@ -1547,7 +1573,7 @@ function softLum(px, W, H, rad) {
 /* At "Set": remember what the ball and the stick head look like, exactly where they are. */
 function snapSet(px) {
   const W = C.dw, H = C.dh, G = C.masks.G, LG = C.lastGood;
-  const now = C.aligned ? { ball: C.ballInfo, head: C.headFit, br: Math.max(C.ballInfo.r, 0.7 * G.ball.r) } : LG;
+  const now = C.aligned ? { ball: C.ballInfo, head: C.headFit, br: C.lastGood ? C.lastGood.br : C.ballInfo.r } : LG;
   const b = now ? now.ball : G.ball, br = now ? now.br : G.ball.r, hf = now ? now.head : G.head;
   C.setBall = now ? now.ball : null;
   const ball = [], head = [];
@@ -1556,9 +1582,9 @@ function snapSet(px) {
     if (Math.hypot(x - b.cx, y - b.cy) <= 1.15 * br) ball.push(p);
     else if (((x - hf.cx) / (hf.rx * 1.05)) ** 2 + ((y - hf.cy) / (hf.ry * 1.05)) ** 2 <= 1) head.push(p);
   }
-  const rad = Math.max(1, Math.round(0.15 * G.ball.r)), S = softLum(px, W, H, rad);
+  const rad = Math.max(1, Math.round(0.15 * br)), S = softLum(px, W, H, rad);
   const pick = idx => Float32Array.from(idx, p => S[p]);
-  C.setSnap = { ball, head, b0: pick(ball), h0: pick(head), g0: pick(C.masks.ground), rad, shift: Math.max(2, Math.round(0.2 * G.ball.r)) };
+  C.setSnap = { ball, head, b0: pick(ball), h0: pick(head), g0: pick(C.masks.ground), rad, shift: Math.max(2, Math.round(0.2 * br)) };
 }
 /* How much have the ball and stick head changed since "Set"? A change in the overall light is taken out, and so is
    a wobble of a pixel or two (shaky hands, the phone settling): only a real move counts. */
@@ -1898,9 +1924,20 @@ function decideControl(frames, m) {
       if (start < 0) { start = i; count = 0; }
       count++; gap = 0;
       if (count >= need) {
-        // back up to the first frame the stick was already around the ball…
-        let s = start;
-        while (s > 0 && frames[s - 1].found && frames[s - 1].ew && Math.hypot(frames[s - 1].x - m.cx, frames[s - 1].y - m.cy) > 0.6 * m.rb) s--;
+        // back up to the first frame the ball was already in the stick: the head around it (fully or partly) and the
+        // ball on its way off the spot; a frame or two where the head hides the ball while scooping counts too
+        let s = start, hidden = 0;
+        while (s > 0) {
+          const q = frames[s - 1];
+          if (q.found) {
+            const d = Math.hypot(q.x - m.cx, q.y - m.cy);
+            if ((q.ew || q.enc >= 3) && d > 0.5 * m.rb) { s--; hidden = 0; continue; }
+            break;
+          }
+          if (++hidden > 1) break;
+          s--;
+        }
+        while (s < start && !frames[s].found) s++;           // start on a frame where the ball was actually seen in the head
         // …and the ball got there between the frame before and that frame
         return s > 0 ? (frames[s - 1].t + frames[s].t) / 2 : frames[s].t;
       }
@@ -2252,7 +2289,7 @@ async function showCamRep(file, info) {
   openRepScreen(file, info.recDur);
   S.beep = Math.max(0, info.beepFile);
   const ms = info.controlT == null ? null : Math.round(info.controlT * 1000);
-  if (!info.hasModel) failRep("Couldn't find the ball at Go. Keep the ball in the circle and the phone low and steady.");
+  if (!info.hasModel) failRep("Couldn't find the ball at Go. Keep the ball in view and the phone low and steady.");
   else if (ms == null) failRep("Didn't see the ball get picked up in your pocket, so this rep has no time. (Lost face-offs aren't timed.)");
   else if (ms < 120 || ms > 15000) failRep("That timing doesn't look right (" + fmtMs(ms) + " s), so it wasn't counted. Try another rep.");
   else {
@@ -2313,7 +2350,7 @@ async function loadClip(file, opts = {}) {
   if (!res.ok && res.reason !== 'stalled') { res = await findControl(v, S.beep, S.dur, { autoFind: true }, prog); if (S.job !== job) return; }
   S.player.busy(false);
   if (!res.ok) return failRep(
-    res.reason === 'noball' ? "Couldn't find the ball at the whistle. Keep the ball in the circle and the phone low and steady."
+    res.reason === 'noball' ? "Couldn't find the ball at the whistle. Keep the ball in view and the phone low and steady."
     : res.reason === 'nocontrol' ? "Didn't see the ball get picked up in your pocket, so this rep has no time. (Lost face-offs aren't timed.)"
     : "This browser couldn't play the clip back to time it. Use the app's camera instead: it times you live.");
   S.control = Math.round(res.t * 1000) / 1000;
@@ -3136,10 +3173,7 @@ $('#btnGear').onclick = () => switchTab($('#v-settings').hidden ? 'settings' : l
 $('#btnSetDone').onclick = () => switchTab(lastTab);
 renderSettings();
 const geomChanged = () => { C.masks = null; if (C.stream) drawOverlay(); };
-$('#rngSize').value = C.size; $('#rngY').value = C.y;
 $('#chkPartner').checked = C.partner; $('#chkFs').checked = C.fs;
-$('#rngSize').oninput = e => { C.size = +e.target.value; lsSet('fo-size', C.size); geomChanged(); };
-$('#rngY').oninput = e => { C.y = +e.target.value; lsSet('fo-y', C.y); geomChanged(); };
 $('#chkPartner').onchange = e => { C.partner = e.target.checked; lsSet('fo-partner', C.partner ? '1' : '0'); geomChanged(); };
 $('#chkFs').onchange = e => { C.fs = e.target.checked; lsSet('fo-fs', C.fs ? '1' : '0'); };
 document.addEventListener('visibilitychange', () => { if (document.hidden && C.state === 'seq') backToWait('Paused while the app was in the background.'); });
