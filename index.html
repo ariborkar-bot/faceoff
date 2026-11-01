@@ -190,6 +190,12 @@ nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacit
 .camctl.simple{display:flex;margin-top:12px}.camctl.simple .btn{flex:1;min-height:56px;font-size:24px}
 .voicehint{text-align:center;margin-top:8px;color:var(--mute);font-size:14px}
 .voicehint.live{color:var(--lime)}
+.repmode{max-width:340px;margin:6px auto 0;padding:12px 16px;border:1px solid var(--line);border-radius:16px;background:var(--panel2);transition:border-color .25s ease,box-shadow .25s ease}
+.repmode:has(input:checked){border-color:var(--lime);box-shadow:0 0 18px rgba(200,255,46,.18)}
+#camOn~.repmode{margin-top:12px}
+.rephint{margin:12px 0 0;padding:10px 12px;border-radius:12px;background:rgba(200,255,46,.08);border:1px solid rgba(200,255,46,.35);color:var(--lime);text-align:center;font-size:14px}
+.rephint.heard{animation:repHeard .5s ease}
+@keyframes repHeard{0%{transform:scale(1)}40%{transform:scale(1.04);background:rgba(200,255,46,.22)}100%{transform:scale(1)}}
 .rx-mode{display:flex;justify-content:center;margin:12px 0 0}
 .info{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-left:8px;border-radius:50%;border:1.5px solid var(--mute);color:var(--mute);
   font:italic 700 13px/1 Georgia,serif;cursor:pointer;vertical-align:middle;text-transform:none;letter-spacing:0;flex:none;-webkit-tap-highlight-color:transparent;transition:background .2s,color .2s,border-color .2s,transform .15s var(--spring)}
@@ -220,7 +226,7 @@ nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacit
 .bigstart.open .bs-core{animation:bsOpen .45s cubic-bezier(.5,0,.75,0) forwards}
 @keyframes bsTurn{from{transform:rotate(0)}to{transform:rotate(90deg)}}
 @keyframes bsOpen{0%{transform:scale(1);opacity:1}100%{transform:scale(3.2);opacity:0}}
-#camOff{padding-bottom:40px}
+#camOff{padding-bottom:44px}
 @keyframes bsPulse{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.45);opacity:0}}
 @keyframes bsFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-2deg)}}
 @keyframes bsBlink{0%,100%{opacity:1}50%{opacity:.55}}
@@ -538,6 +544,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
         </div>
         <div class="voicehint" id="voiceHint" hidden>🎙 Or just say <b>“Start”</b></div>
       </div>
+      <label class="sw repmode" id="repModeBox"><span><b>Rep mode</b><small>After each rep say “Board” or “Next” and the next rep starts</small></span><input type="checkbox" id="setRepMode"><i></i></label>
       <div class="small err" id="camMsg" style="margin-top:8px"></div>
     </div>
 
@@ -559,6 +566,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
         <div class="bar" id="barWrap" hidden><i id="bar"></i></div>
         <div class="small muted" id="postMsg" style="margin-top:6px"></div>
       </div>
+      <div class="rephint" id="repHint" hidden></div>
       <button class="btn" id="btnReset" style="width:100%;margin-top:10px">Next rep</button>
     </div>
   </section>
@@ -888,7 +896,7 @@ const isMine = a => !!a && (a.uid === P.uid || P.uids.has(a.uid));
 async function cap(name) { try { return (await window.claude?.use(name)) ?? null; } catch { return null; } }
 
 /* ---------- settings (kept on this device) ---------- */
-const SET = Object.assign({ whistle: true, voice: true, voiceStart: false, rxSignal: 'whistle' }, (() => { try { return JSON.parse(localStorage.getItem('fo-settings') || '{}'); } catch { return {}; } })());
+const SET = Object.assign({ whistle: true, voice: true, voiceStart: false, repMode: false, rxSignal: 'whistle' }, (() => { try { return JSON.parse(localStorage.getItem('fo-settings') || '{}'); } catch { return {}; } })());
 const saveSet = () => { try { localStorage.setItem('fo-settings', JSON.stringify(SET)); } catch {} };
 /* ---------- audio: the phone's own voice for Down / Set, a referee's whistle for Go ---------- */
 const BEEP_HZ = 2000;
@@ -2498,6 +2506,11 @@ async function post() {
   if (P.canWrite === false) { msg.textContent = 'Your access to this page is view-only, so you can’t post. Ask the owner for Contributor access.'; msg.classList.add('err'); return; }
   if (!P.assets) { msg.textContent = 'Video uploads aren’t available for your account on this page.'; msg.classList.add('err'); return; }
   lsSet('fo-club', club);
+  const ft0 = (S.file.type || '').split(';')[0];
+  if (SET.repMode && S.file.size < 18e6 && (ft0 === 'video/mp4' || ft0 === 'video/webm')) {
+    const job = { blob: S.file, type: ft0, beep: S.beep, control: S.control, ms, handle, club };
+    resetRun(); nextRep(); uploadInBackground(job); return;
+  }
   S.busy = true; $('#btnPost').disabled = true; $('#barWrap').hidden = false;
   const bar = $('#bar'); const setBar = f => bar.style.width = Math.round(f * 100) + '%';
   try {
@@ -2526,7 +2539,7 @@ async function post() {
       asset: up.id, createdAt: Date.now(), v: 1
     });
     setBar(1); toast('Posted: ' + fmtMs(ms) + ' s');
-    resetRun(); switchTab('board');
+    resetRun(); if (SET.repMode) nextRep(); else switchTab('board');
   } catch (e) {
     msg.className = 'small err';
     const code = e && e.code;
@@ -2535,6 +2548,35 @@ async function post() {
       : (e && e.message) ? 'Could not post: ' + e.message : 'Could not post. Try again.';
     $('#barWrap').hidden = true;
   } finally { S.busy = false; $('#btnPost').disabled = false; }
+}
+
+/* rep mode: the clip uploads while you take your next rep */
+let bgPosts = 0;
+async function uploadInBackground(job) {
+  bgPosts++; toast('Posting ' + fmtMs(job.ms) + ' s…');
+  try {
+    const up = await P.assets.upload(job.blob, { type: job.type });
+    await P.db.collection('attempts').add({
+      uid: P.uid, handle: job.handle, club: job.club, timeMs: job.ms,
+      beepAt: Math.round(job.beep * 1000) / 1000, controlAt: Math.round(job.control * 1000) / 1000,
+      asset: up.id, createdAt: Date.now(), v: 1
+    });
+    toast('Posted: ' + fmtMs(job.ms) + ' s');
+  } catch (e) {
+    toast('Couldn’t post your ' + fmtMs(job.ms) + ' s rep' + (e && e.message ? ': ' + e.message : '') + '.');
+  } finally { bgPosts--; }
+}
+function nextRep() {
+  $('#cCam').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  if (C.stream && (C.state === 'wait' || C.state === 'hold')) { unlockAudio(false); camSequence(); }
+}
+function renderRepHint() {
+  const el = $('#repHint'), on = SET.repMode && !$('#cMark').hidden;
+  el.hidden = !on; if (!on) return;
+  const canPost = S.ms != null && !S.busy;
+  const txt = S.busy ? 'Posting…' : canPost ? '🎙 Say “Board” to post it, or “Next” to skip. The next rep starts right away.' : '🎙 Say “Next” for another rep.';
+  if (el.textContent !== txt) el.textContent = txt;
+  $('#btnReset').textContent = 'Next rep';
 }
 
 /* ---------- leaderboard ---------- */
@@ -2749,10 +2791,36 @@ $('#btnLink').onclick = () => {
 };
 /* ---------- voice start: say "Start" (and "Stop" to cancel) ---------- */
 const VOICE = { supported: !!(window.SpeechRecognition || window.webkitSpeechRecognition), rec: null, on: false, lastFire: 0 };
-function voiceWanted() { return SET.voiceStart && C.stream && !document.hidden && !$('#v-run').hidden && !$('#cCam').hidden && (C.state === 'wait' || C.state === 'hold' || camBusy()); }
+function voiceMode() {
+  if (!(SET.voiceStart || SET.repMode) || !C.stream || document.hidden || $('#v-run').hidden) return null;
+  if (!$('#cMark').hidden) return SET.repMode && !S.busy && !$('.auth-modal') ? 'result' : null;
+  if ($('#cCam').hidden) return null;
+  if (C.state === 'wait' || C.state === 'hold') return 'wait';
+  if (camBusy() && C.phase !== 'set' && C.phase !== 'go' && C.state !== 'track') return 'busy';   // not while you're holding still or racing for the ball
+  return null;
+}
+function voiceHeard(t) {
+  const m = voiceMode();
+  if (m === 'result') {
+    if (/\b(board|boards|bored|leaderboard|leader board|post|post it)\b/.test(t)) {
+      if (S.ms == null) { toast('This rep has no time to post. Say “Next”.'); return true; }
+      $('#repHint').classList.remove('heard'); void $('#repHint').offsetWidth; $('#repHint').classList.add('heard');
+      post(); return true;
+    }
+    if (/\b(next|nexts|next one|next rep|skip)\b/.test(t)) { resetRun(); nextRep(); return true; }
+    return false;
+  }
+  if (m === 'wait') {
+    if (/\b(start|starts|started|go ahead)\b/.test(t) || (SET.repMode && /\b(next|nexts|next one|next rep)\b/.test(t))) { unlockAudio(false); camSequence(); return true; }
+    return false;
+  }
+  if (m === 'busy' && /\b(stop|cancel)\b/.test(t)) { backToWait('Cancelled. Say “Start” when you’re ready.'); return true; }
+  return false;
+}
 function voiceTick() {
-  if (!VOICE.supported) return;
-  const want = voiceWanted() && C.phase !== 'set' && C.phase !== 'go' && C.state !== 'track';   // not while you're holding still or racing for the ball
+  renderRepHint();
+  if (!VOICE.supported || VOICE.denied) return;
+  const want = !!voiceMode();
   if (want && !VOICE.on) {
     try {
       const R = window.SpeechRecognition || window.webkitSpeechRecognition, r = new R();
@@ -2761,12 +2829,11 @@ function voiceTick() {
         for (let i = ev.resultIndex; i < ev.results.length; i++) {
           const t = (ev.results[i][0].transcript || '').toLowerCase(), now = performance.now();
           if (now - VOICE.lastFire < 1500) continue;
-          if (/\b(start|starts|started|go ahead)\b/.test(t) && (C.state === 'wait' || C.state === 'hold')) { VOICE.lastFire = now; unlockAudio(false); camSequence(); }
-          else if (/\b(stop|cancel)\b/.test(t) && camBusy()) { VOICE.lastFire = now; backToWait('Cancelled. Say “Start” when you’re ready.'); }
+          if (voiceHeard(t)) VOICE.lastFire = now;
         }
       };
       r.onend = () => { VOICE.on = false; VOICE.rec = null; };
-      r.onerror = e => { VOICE.on = false; if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { SET.voiceStart = false; saveSet(); renderSettings(); toast('Voice start needs microphone and speech permission'); } };
+      r.onerror = e => { VOICE.on = false; if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { VOICE.denied = true; SET.voiceStart = false; saveSet(); renderSettings(); toast('Voice needs microphone and speech permission' + (SET.repMode ? '. Rep mode still works with the buttons.' : '')); } };
       r.start(); VOICE.rec = r; VOICE.on = true;
     } catch { VOICE.on = false; }
   } else if (!want && VOICE.on && VOICE.rec) { try { VOICE.rec.stop(); } catch {} VOICE.on = false; }
@@ -3337,12 +3404,20 @@ $('#btnCamGo').onclick = () => {
 };
 function renderSettings() {
   $('#setWhistle').checked = SET.whistle; $('#setVoice').checked = SET.voice; $('#setVoiceStart').checked = SET.voiceStart;
-  $('#voiceHint').hidden = !SET.voiceStart;
+  $('#setRepMode').checked = SET.repMode;
+  const vh = $('#voiceHint'); vh.hidden = !(SET.voiceStart || SET.repMode);
+  vh.innerHTML = SET.repMode ? '🎙 Rep mode: say <b>“Start”</b>, then <b>“Board”</b> or <b>“Next”</b> after each rep' : '🎙 Or just say <b>“Start”</b>';
+  renderRepHint();
 }
+$('#setRepMode').onchange = e => {
+  SET.repMode = e.target.checked; VOICE.denied = false; saveSet(); renderSettings(); unlockAudio(true);
+  if (SET.repMode && !VOICE.supported) toast('This browser can’t listen for words, so use the buttons. Try Chrome or Safari for voice.');
+  else toast(SET.repMode ? 'Rep mode on: say “Board” or “Next” after each rep' : 'Rep mode off');
+};
 $('#setWhistle').onchange = e => { SET.whistle = e.target.checked; saveSet(); };
 $('#setVoice').onchange = e => { SET.voice = e.target.checked; saveSet(); };
 $('#setVoiceStart').onchange = e => {
-  SET.voiceStart = e.target.checked; saveSet(); renderSettings(); $('#voiceStartMsg').textContent = '';
+  SET.voiceStart = e.target.checked; VOICE.denied = false; saveSet(); renderSettings(); $('#voiceStartMsg').textContent = '';
   if (SET.voiceStart && !VOICE.supported) { $('#voiceStartMsg').textContent = 'This browser can’t listen for words. Try Chrome or Safari.'; }
 };
 $('#btnGear').onclick = () => switchTab($('#v-settings').hidden ? 'settings' : lastTab);
@@ -3353,7 +3428,7 @@ $('#chkPartner').checked = C.partner; $('#chkFs').checked = C.fs;
 $('#chkPartner').onchange = e => { C.partner = e.target.checked; lsSet('fo-partner', C.partner ? '1' : '0'); geomChanged(); };
 $('#chkFs').onchange = e => { C.fs = e.target.checked; lsSet('fo-fs', C.fs ? '1' : '0'); };
 document.addEventListener('visibilitychange', () => { if (document.hidden && C.state === 'seq') backToWait('Paused while the app was in the background.'); });
-$('#btnReset').onclick = () => resetRun();
+$('#btnReset').onclick = () => { resetRun(); if (SET.repMode) nextRep(); };
 $('#btnPost').onclick = post;
 $('#club').value = lsGet('fo-club') || '';
 
