@@ -213,8 +213,13 @@ nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacit
 .bigstart .bs-label{position:absolute;left:50%;bottom:-6px;transform:translate(-50%,100%);font-family:var(--disp);font-weight:800;font-size:22px;letter-spacing:.12em;text-transform:uppercase;color:var(--lime);white-space:nowrap;animation:bsBlink 2.4s ease-in-out infinite}
 .bigstart:hover .bs-core{transform:scale(1.04);box-shadow:0 0 0 8px rgba(200,255,46,.18),0 0 60px rgba(200,255,46,.5),inset 0 0 30px rgba(200,255,46,.2)}
 .bigstart:active .bs-core{transform:scale(.93)}
-.bigstart.launch .bs-core{animation:bsLaunch .5s cubic-bezier(.5,0,.75,0) forwards}
-.bigstart.launch .bs-ring{animation:bsPulse .5s ease-out forwards}
+.bigstart.launch .bs-core img{animation:bsTurn .5s cubic-bezier(.6,-0.3,.3,1.3) forwards}
+.bigstart.launch .bs-core{box-shadow:0 0 0 10px rgba(200,255,46,.25),0 0 80px rgba(200,255,46,.7),inset 0 0 40px rgba(200,255,46,.3)}
+.bigstart.launch .bs-ring{animation:bsPulse .6s ease-out forwards}
+.bigstart.launch .bs-label{animation:none;opacity:0;transition:opacity .2s}
+.bigstart.open .bs-core{animation:bsOpen .45s cubic-bezier(.5,0,.75,0) forwards}
+@keyframes bsTurn{from{transform:rotate(0)}to{transform:rotate(90deg)}}
+@keyframes bsOpen{0%{transform:scale(1);opacity:1}100%{transform:scale(3.2);opacity:0}}
 #camOff{padding-bottom:40px}
 @keyframes bsPulse{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.45);opacity:0}}
 @keyframes bsFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-2deg)}}
@@ -1077,7 +1082,7 @@ const C = {
   motion: 99, aligned: false, stillSince: 0, phase: '', fsHits: 0, prev: null, cur: null, setSnap: null, graceUntil: 0,
   recStart: 0, beepAt: 0, recSettings: null
 };
-let camRun = 0, liveRec = null, liveChunks = [];
+let camRun = 0, liveRec = null, liveChunks = [], camLaunch = null;
 const lv = $('#lv'), ov = $('#ov');
 const dcv = document.createElement('canvas'), dctx = dcv.getContext('2d', { willReadFrequently: true });
 const setCue = (t, cls) => {
@@ -1214,10 +1219,6 @@ function drawOverlay() {
     x.strokeStyle = C.headOk ? col : '#ffb020'; x.globalAlpha = 0.9;
     stickPath(x, hd, dir); x.stroke(); x.globalAlpha = 1;
   }
-  // a small label: ✓ when it's all there
-  const tag = go ? '✓' : hf ? 'stick?' : 'ball';
-  x.font = `800 ${Math.round(lw * 6)}px system-ui, sans-serif`; x.fillStyle = col; x.textAlign = 'center';
-  x.fillText(tag, bi.cx * sc, bi.cy * sc + br + lw * 7);
 }
 function sizeStage() {
   const W = lv.videoWidth || 1280, H = lv.videoHeight || 720, st = $('#camStage');
@@ -1245,6 +1246,7 @@ async function camOn() {
   if (!lv.videoWidth) await once(lv, 'loadedmetadata');
   sizeStage();
   const m = C.facing === 'user'; lv.classList.toggle('mirror', m); ov.classList.toggle('mirror', m);
+  if (camLaunch) { await camLaunch; camLaunch = null; }
   $('#camOff').hidden = true; $('#camOn').hidden = false; $('#camMsg').textContent = '';
   { const st = $('#camStage'); st.classList.remove('reveal'); void st.offsetWidth; st.classList.add('reveal'); }   // the camera irises open
   try { C.wake = await navigator.wakeLock?.request('screen'); } catch {}
@@ -1521,8 +1523,9 @@ function statusHint() {
     else if (!(C.stickInfo && C.stickInfo.shaft)) stickWhy = 'that doesn’t look like a stick: lay it flat with the shaft out to the side';
     else stickWhy = 'put your stick down: part of it has to touch the ground';
   }
-  if (C.ballOk && C.headOk) return C.partnerOk ? 'Ball ✓ · Stick ✓' : 'Ball ✓ · Stick ✓ · partner’s stick goes in front of the ball';
-  return mark(C.ballOk) + ' · ' + (C.headOk ? 'Stick ✓' : 'Stick ✗') + ': ' + (!C.ballOk ? ballWhy : stickWhy);
+  if (C.ballOk && C.headOk) return C.partnerOk ? 'In position' : 'Partner’s stick goes in front of the ball';
+  const msg = !C.ballOk ? ballWhy : stickWhy;
+  return msg.charAt(0).toUpperCase() + msg.slice(1);
 }
 /* the spots around a ball of radius r: where a stick head (behind it) and a partner's (in front) would lie */
 function localGeom(cx, cy, r) {
@@ -1638,8 +1641,8 @@ function camTick() {
   { const sp = $('#btnCamGo span'); const t = camBusy() ? 'Cancel' : 'Start'; if (sp && sp.textContent !== t) sp.textContent = t; $('#btnCamGo').classList.toggle('cancel', camBusy()); }
   analyze(px);
   { const st = $('#camStage'); st.classList.toggle('scanning', (C.state === 'wait' || C.state === 'scan') && !C.aligned); st.classList.toggle('locked', !!C.aligned || C.state === 'seq'); st.classList.toggle('racing', C.state === 'track'); }
-  if (C.state === 'wait') setStatus(C.aligned ? 'Ball ✓ · Stick ✓ In position. Press Start' : statusHint());
-  else if (C.state === 'scan') setStatus(C.aligned ? 'Ball ✓ · Stick ✓ Hold it…' : statusHint());
+  if (C.state === 'wait') setStatus(C.aligned ? 'In position. Press Start' : statusHint());
+  else if (C.state === 'scan') setStatus(C.aligned ? 'Hold it…' : statusHint());
   else if (C.state === 'seq' && C.phase === 'set' && C.fs && C.setSnap) {
     const d = setChange(px);
     if (d.max > FS_BIG) falseStart(d);
@@ -3318,7 +3321,10 @@ $$('#segWho button').forEach(b => b.onclick = () => { SF.who = b.dataset.v; $$('
 $('#btnCamOn').onclick = () => {
   const b = $('#btnCamOn'); unlockAudio(true);
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return camOn();
-  b.classList.add('launch'); setTimeout(() => b.classList.remove('launch'), 700);
+  // the logo turns a quarter turn, then opens up into the camera
+  b.classList.add('launch'); b.disabled = true;
+  camLaunch = new Promise(res => setTimeout(() => { b.classList.add('open'); setTimeout(res, 380); }, 520));
+  camLaunch.then(() => setTimeout(() => { b.classList.remove('launch', 'open'); b.disabled = false; }, 600));
   camOn();
 };
 $('#btnSound').onclick = async () => { unlockAudio(true); await speakDone('Down'); await sleep(400); await speakDone('Set'); await sleep(800); if (SET.whistle) playWhistle(); else speak('Go'); };
