@@ -629,14 +629,14 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
     <div id="statsAll">
       <div class="hero avg" id="heroAll"></div>
       <div class="card chartcard"><h3 class="hinfo">Spread of times<span class="info" data-info="How the times are spread out. The box holds the middle half of the reps, and the line inside it is the middle rep. The ◆ is the average. The lines out the sides reach the fastest and slowest normal reps; dots are unusual ones. Further left = faster. A shorter box = more consistent."></span></h3><div class="chart" id="boxAll"></div></div>
-      <div class="card"><h3 class="hinfo">Sessions<span class="info" data-info="A session is 10 or more reps by one player in one go (less than 45 minutes between reps). Tap one to see its reps."></span></h3><div id="sessAll"></div></div>
+      <div class="card"><h3 class="hinfo">Sessions<span class="info" data-info="A session is 5 or more reps by one player in one go (less than 45 minutes between reps). Tap one to see its reps."></span></h3><div id="sessAll"></div></div>
       <div class="card tablecard"><h3 class="hinfo">Players<span class="info" data-info="Tap a column heading to sort by it."></span></h3><table class="ptable" id="pTable"></table></div>
     </div>
 
     <div id="statsMe" hidden>
       <div class="hero avg" id="heroMe"></div>
       <div class="card chartcard"><h3 class="hinfo">You vs everyone<span class="info" data-info="How the times are spread out. The box holds the middle half of the reps, and the line inside it is the middle rep. The ◆ is the average. The lines out the sides reach the fastest and slowest normal reps; dots are unusual ones. Further left = faster. A shorter box = more consistent."></span></h3><div class="chart" id="boxMe"></div></div>
-      <div class="card"><h3 class="hinfo">Your sessions<span class="info" data-info="Every time you post 10 or more reps in one go (less than 45 minutes between reps) it counts as a session. Tap one to see its reps."></span></h3><div id="sessMe"></div></div>
+      <div class="card"><h3 class="hinfo">Your sessions<span class="info" data-info="Every time you post 5 or more reps in one go (less than 45 minutes between reps) it counts as a session. Tap one to see its reps."></span></h3><div id="sessMe"></div></div>
     </div>
   </section>
 
@@ -3169,7 +3169,7 @@ function rangeStart(r) {
 const allRuns = () => attempts.filter(a => typeof a.timeMs === 'number' && !isDisputed(a));
 function statRuns(range) { const t0 = rangeStart(range); return allRuns().filter(a => (a.createdAt || 0) >= t0); }
 /* a session: 10+ reps by one player, less than 45 minutes between reps */
-const SESSION_GAP = 45 * 60e3, SESSION_MIN = 10;
+const SESSION_GAP = 45 * 60e3, SESSION_MIN = 5;
 function sessionsOf(runs) {
   const by = new Map(), out = [];
   for (const a of runs) { if (!by.has(a.uid)) by.set(a.uid, []); by.get(a.uid).push(a); }
@@ -3221,7 +3221,7 @@ const sessTime = ts => new Date(ts).toLocaleTimeString(undefined, { hour: 'numer
 const sessShown = { all: 10, me: 10 };
 function sessionList(box, list, who, showName) {
   box.replaceChildren();
-  if (!list.length) { box.append(h('div', { class: 'nodata', text: who === 'me' ? 'No sessions ' + RANGE_WORD[SF.range] + '. Post 10 or more reps in one go to make one.' : 'No sessions ' + RANGE_WORD[SF.range] + ' yet.' })); return; }
+  if (!list.length) { box.append(h('div', { class: 'nodata', text: who === 'me' ? 'No sessions ' + RANGE_WORD[SF.range] + '. Post 5 or more reps in one go to make one.' : 'No sessions ' + RANGE_WORD[SF.range] + ' yet.' })); return; }
   const best = list.reduce((b, x) => !b || x.mean < b.mean ? x : b, null);
   list.slice(0, sessShown[who]).forEach(x => {
     const bestRun = x.runs.reduce((b, r) => !b || r.timeMs < b.timeMs ? r : b, null);
