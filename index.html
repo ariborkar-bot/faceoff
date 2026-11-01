@@ -3218,12 +3218,11 @@ const RANGE_WORD = { all: 'all time', day: 'today', week: 'this week', month: 't
 function hero(el, label, value, sub) { el.replaceChildren(h('span', { text: label }), h('b', { text: value }), h('small', { text: sub })); }
 const sessDate = ts => { const d = new Date(ts), y = d.getFullYear() !== new Date().getFullYear(); return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: y ? 'numeric' : undefined }); };
 const sessTime = ts => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-const sessShown = { all: 10, me: 10 };
 function sessionList(box, list, who, showName) {
   box.replaceChildren();
   if (!list.length) { box.append(h('div', { class: 'nodata', text: who === 'me' ? 'No sessions ' + RANGE_WORD[SF.range] + '. Post 5 or more reps in one go to make one.' : 'No sessions ' + RANGE_WORD[SF.range] + ' yet.' })); return; }
   const best = list.reduce((b, x) => !b || x.mean < b.mean ? x : b, null);
-  list.slice(0, sessShown[who]).forEach(x => {
+  list.forEach(x => {
     const bestRun = x.runs.reduce((b, r) => !b || r.timeMs < b.timeMs ? r : b, null);
     const reps = h('div', { class: 's-reps' }, x.runs.map((r, i) => h('button', { class: r === bestRun ? 'best' : '', title: 'Rep ' + (i + 1) + ': tap to watch', onclick: e => openRun(r.id, e.currentTarget), text: fmtS(r.timeMs) })));
     box.append(h('details', { class: 'sess' },
@@ -3233,7 +3232,6 @@ function sessionList(box, list, who, showName) {
         h('div', { class: 's-avg' }, h('b', { text: fmtS(x.mean) }), h('small', { text: 'average' }))),
       reps));
   });
-  if (list.length > sessShown[who]) box.append(h('button', { class: 'btn sessmore', text: 'Show more sessions (' + (list.length - sessShown[who]) + ')', onclick: () => { sessShown[who] += 10; renderStats(); } }));
 }
 function boxPlot(box, rows) {
   box.replaceChildren();
