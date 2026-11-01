@@ -35,6 +35,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 .rowdel{min-width:48px;padding:0 10px;font-size:18px;border-radius:12px}.rowdel.sure{min-width:auto;background:var(--red);border-color:var(--red);color:#fff;font-size:14px;font-weight:700}
 .code{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;word-break:break-all;flex:1;min-width:0}
 .brand-em{height:46px;width:auto;display:block}.brand-wm{height:26px;width:auto;display:block}
+@media(max-width:430px){.brand-em{height:36px}.brand-wm{height:20px}.hdr-r{gap:6px}}
 /* ================= motion ================= */
 :root{--spring:cubic-bezier(.2,.9,.25,1.15);--ease:cubic-bezier(.2,.8,.2,1)}
 @keyframes viewIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -134,10 +135,10 @@ input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
 .rx-hist span{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:13px;font-variant-numeric:tabular-nums;animation:pbIn .35s var(--spring) both}
 .rx-hist span.best{border-color:var(--lime);color:var(--lime)}
 .rx-hist span.fsx{color:var(--red);border-color:#5a2a25}
-#tabs button{flex:1 1 0;min-width:0;font-size:17px;padding:10px 2px}
-@media(max-width:480px){#tabs button{font-size:14px;letter-spacing:0;padding:10px 0}}
+#tabs button{flex:1 1 auto;min-width:0;font-size:17px;padding:10px 4px}
+@media(max-width:480px){#tabs button{font-size:13.5px;letter-spacing:0;padding:10px 0}}
 @media(max-width:360px){#tabs button{font-size:12.5px}}
-.acct-btn{min-height:38px;padding:6px 12px;font-weight:700;max-width:44vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct-btn{min-height:38px;padding:6px 12px;font-weight:700;max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acct-btn.in{background:var(--panel2);color:var(--lime);border-color:#3a4d18}
 .acct-name{font-family:var(--disp);font-weight:800;font-size:22px;color:var(--lime);padding:8px 0}
 .auth{width:100%;max-width:420px}
@@ -154,9 +155,26 @@ input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
 .auth .err{font-size:14px;margin-top:10px;min-height:1.2em}
 .auth .go{width:100%;margin-top:14px}
 .auth .link{background:none;border:0;color:var(--blue);padding:8px 0;font-size:14px;text-decoration:underline}
+.auth .link.later{display:block;width:100%;text-align:center;color:var(--mute);margin-top:4px}
+.modal.auth-modal .auth{animation:sheetIn .4s var(--ease) both}
 .auth .pw{position:relative}.auth .pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--mute);font-size:13px;padding:6px}
 .acct-card .who{font-family:var(--disp);font-weight:800;font-size:26px;text-transform:none}
 .modal.auth-modal{align-items:center}
+.gear{min-height:38px;width:42px;padding:0;font-size:20px;line-height:1}
+.gear.on{background:var(--ink);color:#0a0e12}
+nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacity .25s ease}
+.sw{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink);margin:0}
+.sw span{display:flex;flex-direction:column;gap:2px}.sw small{color:var(--mute);font-size:13px}
+.sw input{position:absolute;opacity:0;pointer-events:none}
+.sw i{flex:none;width:52px;height:30px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);position:relative;transition:background .25s ease}
+.sw i::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#8da0b2;transition:transform .3s var(--spring),background .25s}
+.sw input:checked+i{background:var(--lime);border-color:var(--lime)}
+.sw input:checked+i::after{transform:translateX(22px);background:#101600}
+.sw input:focus-visible+i{outline:2px solid var(--blue);outline-offset:2px}
+.camctl.simple{display:flex;margin-top:12px}.camctl.simple .btn{flex:1;min-height:56px;font-size:24px}
+.voicehint{text-align:center;margin-top:8px;color:var(--mute);font-size:14px}
+.voicehint.live{color:var(--lime)}
+.rx-mode{display:flex;justify-content:center;margin:12px 0 0}
 /* opening screen: the logo, then the sticks fly out, the circle opens and the app appears */
 @property --hole{syntax:'<length>';inherits:false;initial-value:0px}
 #splash{position:fixed;inset:0;z-index:100;background:#000;display:grid;place-items:center;--hole:0px;
@@ -388,7 +406,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
 <div class="wrap">
   <header>
     <div class="brand"><img class="brand-em" src="brand/emblem-sm.png" alt=""><img class="brand-wm" src="brand/wordmark.png" alt="FO &amp; GO"></div>
-    <div class="hdr-r"><div class="muted small" id="whoami"></div><button class="btn acct-btn" id="btnAcct" hidden>Sign in</button><button class="btn-install" id="btnInstall" hidden>Install</button></div>
+    <div class="hdr-r"><div class="muted small" id="whoami"></div><button class="btn acct-btn" id="btnAcct" hidden>Sign in</button><button class="btn gear" id="btnGear" aria-label="Settings" title="Settings">⚙︎</button><button class="btn-install" id="btnInstall" hidden>Install</button></div>
   </header>
 
   <nav role="tablist" id="tabs">
@@ -423,8 +441,8 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   <!-- RUN -->
   <section id="v-run" hidden>
     <div class="card" id="cCam">
-      <h2>Face-off cam</h2>
-      <div class="muted small">Prop your phone up low, facing you (front camera, so you can see the screen). Press <b>Start</b>. When it says <b>Down</b>, put the ball in the circle with your stick head <b>on the ground right behind it</b>. The ball and stick just need to be in the area around the outline, with part of your stick touching the ground. Hold that position for a quarter second and it says <b>Set</b>; then, after a random 0.5–2 s, the <b>whistle</b> blows. After “Set”, hold still until the whistle or it's a false start. <b>Turn your volume all the way up.</b> The app checks it's really a ball and a stick: lay the stick flat with the shaft out to the side. On a painted line, use a yellow or orange ball (white on white paint can't be told apart). The app times you from the whistle to the moment the ball is in your pocket.</div>
+      <h2>Face-off</h2>
+      <div class="muted small" id="camHelp">Prop your phone up low, facing you. Tap <b>Start</b>, put the ball and your stick head in the outline, and hold still: <b>Down, Set</b>, then the whistle.</div>
       <div id="camOff">
         <button class="btn primary" id="btnCamOn" style="width:100%;margin-top:12px">Start camera</button>
       </div>
@@ -437,40 +455,13 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
           <div class="cue" id="cue"></div>
           <div class="camstatus" id="camStatus">Starting…</div>
         </div>
-        <div class="camctl">
+        <div class="camctl simple">
           <button class="btn primary" id="btnCamGo">Start</button>
-          <button class="btn" id="btnSound">Test sound</button>
-          <button class="btn" id="btnFlip">Flip camera</button>
         </div>
-        <div class="setgrid">
-          <div><label for="rngSize">Outline size</label><input type="range" id="rngSize" min="0.5" max="2" step="0.05"></div>
-          <div><label for="rngY">Outline height</label><input type="range" id="rngY" min="0.25" max="0.9" step="0.01"></div>
-          <div class="checks">
-            <label><input type="checkbox" id="chkPartner"> Partner's stick too</label>
-            <label><input type="checkbox" id="chkFs"> Call false starts</label>
-          </div>
-        </div>
-        <button class="btn" id="btnCamOff" style="margin-top:10px;width:100%">Turn camera off</button>
+        <div class="voicehint" id="voiceHint" hidden>🎙 Or just say <b>“Start”</b></div>
       </div>
       <div class="small err" id="camMsg" style="margin-top:8px"></div>
     </div>
-
-    <details class="card" id="cAlt">
-      <summary>Other ways: upload a video, or blow the whistle from a second device</summary>
-      <div class="muted small" style="margin-top:10px">If this page can't use your camera, film with any camera app while another device runs the whistle below. Keep the sound on so the whistle is in the video.</div>
-      <div class="station" id="station"><div class="big" id="stBig">Ready</div><div class="muted small" id="stSub">3 s… Down… Set… whistle</div></div>
-      <div class="row stretch" style="margin-top:12px">
-        <button class="btn" id="btnBeep">Start</button>
-        <button class="btn" id="btnTest">Test whistle</button>
-      </div>
-      <div class="row stretch" style="margin-top:10px">
-        <button class="btn" id="btnCam">Phone camera app</button>
-        <button class="btn" id="btnLib">Choose a video</button>
-      </div>
-      <input type="file" id="inCam" accept="video/*" capture="environment" hidden>
-      <input type="file" id="inLib" accept="video/*" hidden>
-      <div class="small muted" id="clipMsg" style="margin-top:8px"></div>
-    </details>
 
     <div class="card" id="cMark" hidden>
       <h2>Your rep</h2>
@@ -540,7 +531,11 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   <section id="v-react" hidden>
     <div class="card rx-card">
       <h2>Reaction practice</h2>
-      <div class="muted small">Press and hold the pad. You'll hear <b>Down</b>, <b>Set</b>, then the <b>whistle</b>: let go as fast as you can. Let go early and it's a false start. Just practice: nothing is saved or posted.</div>
+      <div class="muted small">Press and hold the pad. <b>Down</b>, <b>Set</b>, then GO: let go as fast as you can. Let go early and it's a false start. Just practice: nothing is saved.</div>
+      <div class="rx-mode"><div class="seg" id="rxMode" style="margin:0">
+        <button data-v="whistle" aria-pressed="true">🔊 Whistle</button>
+        <button data-v="visual" aria-pressed="false">👀 No whistle</button>
+      </div></div>
       <div class="rx-pad" id="rxPad" role="button" aria-label="Hold, then let go on the whistle" tabindex="0">
         <div class="rx-ring"></div>
         <div class="rx-big" id="rxBig">HOLD</div>
@@ -554,6 +549,28 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <div class="rx-hist" id="rxHist"></div>
       <button class="btn" id="rxClear" style="width:100%;margin-top:10px">Clear</button>
     </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="v-settings" hidden>
+    <div class="card">
+      <h2>Sounds</h2>
+      <label class="sw"><span><b>Whistle</b><small>The whistle that starts each rep. Off: it says “Go” instead (or shows GO if voice is off too).</small></span><input type="checkbox" id="setWhistle"><i></i></label>
+      <label class="sw"><span><b>Voice calls</b><small>“Down”, “Set” and “False start”.</small></span><input type="checkbox" id="setVoice"><i></i></label>
+      <button class="btn" id="btnSound" style="width:100%;margin-top:6px">Test sounds</button>
+      <div class="muted small" style="margin-top:8px">Turn your phone's volume all the way up.</div>
+    </div>
+    <div class="card">
+      <h2>Face-off</h2>
+      <label class="sw"><span><b>Voice start</b><small>Say “Start” instead of tapping. “Stop” cancels.</small></span><input type="checkbox" id="setVoiceStart"><i></i></label>
+      <div class="small err" id="voiceStartMsg"></div>
+      <label class="sw"><span><b>Call false starts</b><small>Moving after “Set”, before the whistle.</small></span><input type="checkbox" id="chkFs"><i></i></label>
+      <label class="sw"><span><b>Partner's stick too</b><small>Check for a second stick in front of the ball.</small></span><input type="checkbox" id="chkPartner"><i></i></label>
+      <div style="margin-top:10px"><label for="rngSize">Outline size</label><input type="range" id="rngSize" min="0.5" max="2" step="0.05"></div>
+      <div><label for="rngY">Outline height</label><input type="range" id="rngY" min="0.25" max="0.9" step="0.01"></div>
+      <button class="btn" id="btnFlip" style="width:100%;margin-top:10px">Switch front / back camera</button>
+    </div>
+    <button class="btn" id="btnSetDone" style="width:100%">Done</button>
   </section>
 
   <!-- MINE -->
@@ -599,15 +616,33 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   const authFetch = (path, body, extra = {}) => fetch(SB_URL + '/auth/v1/' + path, { method: extra.method || 'POST', headers: { ...H, 'Content-Type': 'application/json', ...(extra.token ? { Authorization: 'Bearer ' + extra.token } : {}) }, body: body ? JSON.stringify(body) : undefined });
   const authErr = async r => { let j = {}; try { j = await r.json(); } catch {} const m = j.msg || j.error_description || j.message || j.error || ('error ' + r.status); return Object.assign(new Error(m), { status: r.status, code: j.error_code || j.code || '' }); };
   let refreshing = null;
-  async function token() {                                    // a fresh access token, or null when signed out
+  const stored = () => { try { return JSON.parse(localStorage.getItem('fo-session') || 'null'); } catch { return null; } };
+  /* Stay signed in: the access pass is renewed with the refresh pass whenever it's close to running out.
+     Only a refresh pass the server definitely rejects signs you out; no signal, a slow network or another
+     open tab having just renewed it never does. */
+  async function renew() {
+    const rt = session && session.refresh_token; if (!rt) return;
+    let r;
+    try { r = await authFetch('token?grant_type=refresh_token', { refresh_token: rt }); } catch { return; }   // offline: keep the session, try later
+    if (r.ok) { const j = await r.json(); saveSession({ ...j, user: j.user || session.user }); return; }
+    const other = stored();                                    // another tab may have renewed it a moment ago
+    if (other && other.refresh_token && other.refresh_token !== rt) { session = other; return; }
+    if (r.status === 400 || r.status === 401 || r.status === 403) {
+      let j = {}; try { j = await r.json(); } catch {}
+      if (/refresh_token_not_found|invalid.*refresh|refresh.*(revoked|expired|not found)|session_not_found|user_not_found/i.test((j.error_code || '') + ' ' + (j.msg || j.error_description || j.message || ''))) { saveSession(null); authChanged(); }
+    }
+  }
+  async function token(force) {                               // a fresh access token, or null when signed out
     if (!session) return null;
-    if (session.expires_at - 60 > Date.now() / 1000) return session.access_token;
-    if (!refreshing) refreshing = (async () => {
-      const r = await authFetch('token?grant_type=refresh_token', { refresh_token: session.refresh_token });
-      if (r.ok) saveSession(await r.json()); else if (r.status >= 400 && r.status < 500) { saveSession(null); authChanged(); }
-    })().finally(() => { refreshing = null; });
+    if (!force && session.expires_at - 120 > Date.now() / 1000) return session.access_token;
+    if (!refreshing) refreshing = renew().finally(() => { refreshing = null; });
     await refreshing; return session ? session.access_token : null;
   }
+  // keep it fresh while the app is open, when it comes back to the front, and in step with other tabs
+  setInterval(() => { if (session && !document.hidden) token(); }, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && session) token(); });
+  window.addEventListener('storage', e => { if (e.key === 'fo-session') { const was = !!session; session = stored(); if (was !== !!session) authChanged(); } });
+  if (session) setTimeout(() => token(), 500);
   const authSubs = new Set(); const authChanged = () => authSubs.forEach(f => { try { f(); } catch {} });
   const authH = async () => { const t = await token(); return t ? { Authorization: 'Bearer ' + t } : {}; };
   async function claimOld() {                                 // reps this device posted before accounts: make them yours
@@ -779,6 +814,9 @@ const P = { db: null, user: null, assets: null, uid: null, uids: new Set(), canW
 const isMine = a => !!a && (a.uid === P.uid || P.uids.has(a.uid));
 async function cap(name) { try { return (await window.claude?.use(name)) ?? null; } catch { return null; } }
 
+/* ---------- settings (kept on this device) ---------- */
+const SET = Object.assign({ whistle: true, voice: true, voiceStart: false, rxSignal: 'whistle' }, (() => { try { return JSON.parse(localStorage.getItem('fo-settings') || '{}'); } catch { return {}; } })());
+const saveSet = () => { try { localStorage.setItem('fo-settings', JSON.stringify(SET)); } catch {} };
 /* ---------- audio: the phone's own voice for Down / Set, a referee's whistle for Go ---------- */
 const BEEP_HZ = 2000;
 let actx = null, speechPrimed = false;
@@ -849,6 +887,7 @@ function ctxToPerf(t) {
 /* same voice as the first version: the phone's built-in voice, a little slower and lower */
 /* say a word and resolve once it has been said (end event, or a time limit if the phone doesn't report it) */
 function speakDone(word, maxMs = 1000) {
+  if (!SET.voice) return sleep(450);
   return new Promise(res => {
     const t0 = performance.now(); let done = false;
     const fin = () => { if (done) return; done = true; const wait = Math.max(0, 250 - (performance.now() - t0)); setTimeout(res, wait); };
@@ -864,6 +903,7 @@ function speakDone(word, maxMs = 1000) {
   });
 }
 function speak(word) {
+  if (!SET.voice) return;
   try {
     const ss = window.speechSynthesis; if (!ss) return;
     const u = new SpeechSynthesisUtterance(word);
@@ -872,7 +912,7 @@ function speak(word) {
   } catch {}
 }
 /* Start → "Down" → in position for 0.25 s → "Set" → random 0.5–2 s → whistle (Go) */
-const HOLD_MS = 250, SET_MIN = 500, SET_RANGE = 1500, SCAN_TIMEOUT = 90000, STATION_SETTLE_MS = 3000;
+const HOLD_MS = 750, SET_MIN = 500, SET_RANGE = 1500, SCAN_TIMEOUT = 90000, STATION_SETTLE_MS = 3000;
 /* Listens to the microphone for the moment "Go" is actually heard (the true start of the clock).
    Returns the performance-clock time (ms) of the first sound after arm(). */
 function makeOnsetDetector(stream) {
@@ -916,6 +956,23 @@ function makeOnsetDetector(stream) {
     stop() { clearInterval(timer); try { src.disconnect(); an.disconnect(); mute.disconnect(); } catch {} }
   };
 }
+/* The Go signal the settings ask for: whistle; or the voice saying "Go"; or (both off) just GO on screen */
+function goSignal(det) {
+  if (SET.whistle) return whistleGo(det);
+  if (SET.voice) return new Promise(res => {
+    const callPerf = performance.now(); let startPerf = null; det && det.arm(callPerf);
+    try { const ss = window.speechSynthesis, u = new SpeechSynthesisUtterance('Go'); u.rate = 0.9; u.pitch = 0.8; u.volume = 1; u.onstart = () => { startPerf = performance.now(); }; ss.resume(); ss.speak(u); } catch {}
+    const iv = setInterval(() => {
+      const m = det && det.result(), now = performance.now();
+      if ((m != null && now > m + 120) || now - callPerf > 1300) {
+        clearInterval(iv); det && det.disarm();
+        if (m != null && m > callPerf - 20) res({ perf: m, method: 'mic' });
+        else res({ perf: startPerf != null ? startPerf + ((actx && (actx.outputLatency || actx.baseLatency)) || 0) * 1000 : callPerf + 150, method: 'speech' });
+      }
+    }, 20);
+  });
+  return new Promise(res => requestAnimationFrame(t => requestAnimationFrame(() => res({ perf: t + 16, method: 'screen' }))));
+}
 /* Blow the whistle and find out exactly when it was heard: the microphone hears it start (catches any speaker
    delay); if the mic missed it, the audio clock says when it was played. */
 function whistleGo(det) {
@@ -938,28 +995,6 @@ const COUNT_S = 3;
 
 /* ---------- second-device whistle station (fallback) ---------- */
 let beepRun = 0;
-async function runStation() {
-  const st = $('#station'), big = $('#stBig'), sub = $('#stSub'), btn = $('#btnBeep');
-  if (btn.dataset.running) { beepRun++; resetStation(); return; }
-  unlockAudio(true);
-  const me = ++beepRun; btn.dataset.running = '1'; btn.textContent = 'Cancel';
-  const live = () => me === beepRun;
-  for (let i = COUNT_S; i > 0; i--) { st.className = 'station'; big.textContent = String(i); sub.textContent = 'Get in position'; await sleep(1000); if (!live()) return; }
-  big.textContent = 'Down'; sub.textContent = 'Get set'; speak('Down');
-  await sleep(STATION_SETTLE_MS); if (!live()) return;
-  st.className = 'station set'; big.textContent = 'Set'; sub.textContent = 'Wait for it…';
-  await speakDone('Set'); if (!live()) return;
-  await sleep(SET_MIN + Math.random() * SET_RANGE); if (!live()) return;
-  playWhistle(); st.className = 'station go'; big.textContent = 'GO'; sub.textContent = '';
-  await sleep(1500); if (!live()) return;
-  st.className = 'station'; big.textContent = 'Done'; sub.textContent = 'Stop recording, then add your clip';
-  delete btn.dataset.running; btn.textContent = 'Run again';
-}
-function resetStation() {
-  const btn = $('#btnBeep'); delete btn.dataset.running; btn.textContent = 'Start';
-  $('#station').className = 'station'; $('#stBig').textContent = 'Ready'; $('#stSub').textContent = '3 s… Down… Set… whistle';
-}
-
 /* ---------- face-off cam: outline, auto-start, recording ---------- */
 const T_G = 70;          // colour difference from the ground that counts as "something is here"
 const BALL_MIN = 0.45;   // share of the ball circle that must be filled
@@ -967,7 +1002,7 @@ const HEAD_MIN = 0.3;    // share of EACH half of the stick-head outline that mu
 const STILL = 6;         // average frame-to-frame change below which the setup is "still"
 const FS_MOVE = 22, FS_BIG = 45;   // after "Set": clear movement of the ball or stick head twice in a row, or one big jump
 const C = {
-  stream: null, facing: 'user', state: 'off', timer: 0, wake: null, masks: null, dw: 0, dh: 0,
+  stream: null, facing: lsGet('fo-facing') || 'user', state: 'off', timer: 0, wake: null, masks: null, dw: 0, dh: 0,
   size: +(lsGet('fo-size') || 1.25), y: +(lsGet('fo-y') || 0.66), side: +(lsGet('fo-side') || 1),
   partner: lsGet('fo-partner') === '1', fs: lsGet('fo-fs') !== '0',
   occ: { ball: 0, ring: 0, headL: 0, headR: 0, partner: 1 }, ballOk: false, headOk: false, partnerOk: true, track: null,
@@ -1139,8 +1174,7 @@ async function camOn() {
     });
   } catch (e) {
     C.stream = null;
-    $('#camMsg').textContent = "This page wasn't allowed to use your camera" + (e && e.name === 'NotAllowedError' ? ' (permission was blocked)' : '') + '. Use “Other ways” below: record with your camera app while a second device beeps, or upload a clip.';
-    $('#cAlt').open = true; return;
+    $('#camMsg').textContent = "This page wasn't allowed to use your camera" + (e && e.name === 'NotAllowedError' ? ' (permission was blocked). Allow camera and microphone for this site in your browser settings, then try again.' : '.'); return;
   }
   ensureCtx();
   lv.srcObject = C.stream; lv.play().catch(() => {});
@@ -1362,10 +1396,33 @@ function shaftScore(px, W, H, hd, r, g, dir, ballC) {
   }
   return { score: best, low: bestLow };
 }
+/* how "busy" an area looks: average brightness change between neighbouring pixels */
+function texAt(px, W, H, x, y) {
+  if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) return 0;
+  const i = (y * W + x) * 4, L = j => px[j] + px[j + 1] + px[j + 2];
+  return (Math.abs(L(i + 4) - L(i - 4)) + Math.abs(L(i + W * 4) - L(i - W * 4))) / 6;
+}
+function groundTexture(px, W, H, idx) {
+  let s = 0, n = 0; for (let k = 0; k < idx.length; k += 3) { const p = idx[k]; s += texAt(px, W, H, p % W, (p / W) | 0); n++; }
+  return n ? s / n : 0;
+}
+/* A stick head isn't a plain blob: its walls and mesh make lots of edges inside it (a shoe, phone, bag or towel doesn't) */
+function headTexture(px, W, H, hd, ballC, br) {
+  let s = 0, n = 0, busy = 0;
+  for (let y = Math.max(1, Math.floor(hd.cy - hd.ry)); y <= Math.min(H - 2, Math.ceil(hd.cy + hd.ry)); y++)
+    for (let x = Math.max(1, Math.floor(hd.cx - hd.rx)); x <= Math.min(W - 2, Math.ceil(hd.cx + hd.rx)); x++) {
+      if (((x - hd.cx) / hd.rx) ** 2 + ((y - hd.cy) / hd.ry) ** 2 > 0.85) continue;      // inside, off the outer edge
+      if (ballC && Math.hypot(x - ballC.cx, y - ballC.cy) < 1.15 * br) continue;
+      const t = texAt(px, W, H, x, y); s += t; n++; if (t > 18) busy++;
+    }
+  return n ? { mean: s / n, busy: busy / n } : { mean: 0, busy: 0 };
+}
 function verifyStick(px, W, H, hd, r, g, ballC) {
   const right = shaftScore(px, W, H, hd, r, g, 1, ballC), left = shaftScore(px, W, H, hd, r, g, -1, ballC);
   const sc = Math.max(right.score, left.score), useR = right.score >= left.score;
-  return { shaft: sc >= 0.7, score: sc, dir: useR ? 1 : -1, low: (useR ? right : left).low };
+  const tx = headTexture(px, W, H, hd, ballC, r), gt = C.gTex || 0;
+  const meshy = tx.busy >= 0.25 && tx.mean >= Math.max(12, 2.5 * gt);
+  return { shaft: sc >= 0.75 && meshy, score: sc, line: sc >= 0.75, meshy, tex: tx, dir: useR ? 1 : -1, low: (useR ? right : left).low };
 }
 function statusHint() {
   const o = C.occ, b = C.ballInfo || {}, mark = ok => ok ? 'Ball ✓' : 'Ball ✗';
@@ -1373,6 +1430,7 @@ function statusHint() {
   let stickWhy = '';
   if (!C.headOk) {
     if (!C.headIn) stickWhy = 'put your stick head behind the ball';
+    else if (C.stickInfo && C.stickInfo.line && !C.stickInfo.meshy) stickWhy = 'that doesn’t look like a stick head (no mesh or sidewalls seen)';
     else if (!(C.stickInfo && C.stickInfo.shaft)) stickWhy = 'that doesn’t look like a stick: lay it flat with the shaft out to the side';
     else stickWhy = 'put your stick down: part of it has to touch the ground';
   }
@@ -1383,6 +1441,7 @@ function analyze(px) {
   const M = C.masks, g = groundColor(px, M.ground);
   const gB = groundOf(px, M.ground.behind, g), gF = groundOf(px, M.ground.front, g);   // ground behind the ball / in front of it
   C.pal = [g, gB];
+  C.gTex = groundTexture(px, C.dw, C.dh, M.ground);
   const far = idx => {
     if (!idx.length) return 0;
     let n = 0;
@@ -1443,6 +1502,10 @@ function analyze(px) {
     C.partnerFit = pf; C.occ.partner = Math.min(pf.occL, pf.occR); C.partnerOk = ok;
   } else { C.partnerOk = true; C.partnerFit = null; }
   C.aligned = C.ballOk && C.headOk && C.partnerOk;
+  if (C.aligned && C.lastGood && C.alignedSince) {                       // same ball and stick as last time, not something flickering
+    const r0 = G.ball.r, jb = Math.hypot(ball.cx - C.lastGood.ball.cx, ball.cy - C.lastGood.ball.cy), jh = Math.hypot(fit.cx - C.lastGood.head.cx, fit.cy - C.lastGood.head.cy);
+    if (jb > 0.8 * r0 || jh > 1.0 * r0) C.alignedSince = 0;
+  }
   C.alignedSince = C.aligned ? (C.alignedSince || performance.now()) : 0;
   if (C.aligned) C.lastGood = { ball: Object.assign({}, ball), head: Object.assign({}, fit), br, t: performance.now() };
   const cur = new Float32Array(M.union.length); let m = 0;
@@ -1619,7 +1682,7 @@ async function camSequence() {
   if (!model) model = buildBallModel(snap.px, snap.W, snap.H, { autoFind: true });
   C.phase = 'go'; C.state = 'track';
   C.track = model ? startLiveTrack(model) : null;
-  const goP = whistleGo(C.onset);
+  const goP = goSignal(C.onset);
   setCue('GO', 'go');
   const tGo = performance.now();
   let controlAbs = null, goInfo = null;
@@ -2094,11 +2157,10 @@ function resetRun(loading) {
   Object.assign(S, { file: null, url: null, dur: 0, beep: null, control: null, autoBeep: null, ms: null, busy: false, opts: null, job: S.job + 1 });
   $('#cMark').hidden = true; $('#postBox').hidden = true;
   if (!loading) {
-    $('#cCam').hidden = false; $('#cAlt').hidden = false;
+    $('#cCam').hidden = false;
     if (C.stream && C.state !== 'off') backToWait('Reset, then press Start');
   }
-  $('#clipMsg').textContent = ''; $('#postMsg').textContent = ''; $('#barWrap').hidden = true;
-  $('#inCam').value = ''; $('#inLib').value = '';
+  $('#postMsg').textContent = ''; $('#barWrap').hidden = true;
 }
 function setAuto(msg, cls) { const a = $('#autoMsg'); a.hidden = !msg; a.textContent = msg; a.className = 'automsg' + (cls ? ' ' + cls : ''); }
 function showResult() {
@@ -2135,7 +2197,7 @@ function celebrate(box, ms) {
 function failRep(msg) { S.ms = null; S.control = null; showResult(); setAuto(msg, 'fail'); $('#postBox').hidden = true; S.player && S.player.refresh(); }
 function openRepScreen(file, dur) {
   S.file = file; S.url = URL.createObjectURL(file); S.dur = dur;
-  $('#cMark').hidden = false; $('#cCam').hidden = true; $('#cAlt').hidden = true;
+  $('#cMark').hidden = false; $('#cCam').hidden = true;
   $('#cMark').scrollIntoView({ block: 'start' });
   S.player = makePlayer($('#repPlayer'), { src: S.url, dur, getMarks: () => ({ b: S.beep, c: S.control }) });
 }
@@ -2192,10 +2254,10 @@ async function loadClip(file, opts = {}) {
   setAuto('Loading clip…', 'work');
   const loaded = v.readyState >= 1 || await waitEv(v, 'loadedmetadata', 10000);
   if (S.job !== job) return;
-  if (!loaded) { resetRun(); $('#clipMsg').textContent = "This browser can't play that video. Try a different file, or set your phone camera to “Most Compatible” (H.264)."; return; }
+  if (!loaded) { resetRun(); toast("This browser can't play that video."); return; }
   await fixDuration(v);
   S.dur = isFinite(v.duration) ? v.duration : 60; S.player.setDur(S.dur);
-  if (S.dur > 180) { resetRun(); $('#clipMsg').textContent = 'Clips must be under 3 minutes. Trim it and try again.'; return; }
+  if (S.dur > 180) { resetRun(); toast('Clips must be under 3 minutes.'); return; }
   setAuto('Listening for the whistle…', 'work');
   const t = await detectBeep(file);
   if (S.job !== job) return;
@@ -2437,6 +2499,32 @@ $('#btnLink').onclick = () => {
   if (!P.user.link($('#linkIn').value)) { toast('That code doesn’t look right (48 letters and numbers)'); return; }
   toast('Linked. Reloading…'); setTimeout(() => location.reload(), 700);
 };
+/* ---------- voice start: say "Start" (and "Stop" to cancel) ---------- */
+const VOICE = { supported: !!(window.SpeechRecognition || window.webkitSpeechRecognition), rec: null, on: false, lastFire: 0 };
+function voiceWanted() { return SET.voiceStart && C.stream && !document.hidden && !$('#v-run').hidden && !$('#cCam').hidden && (C.state === 'wait' || C.state === 'hold' || camBusy()); }
+function voiceTick() {
+  if (!VOICE.supported) return;
+  const want = voiceWanted() && C.phase !== 'set' && C.phase !== 'go' && C.state !== 'track';   // not while you're holding still or racing for the ball
+  if (want && !VOICE.on) {
+    try {
+      const R = window.SpeechRecognition || window.webkitSpeechRecognition, r = new R();
+      r.continuous = true; r.interimResults = true; r.lang = 'en-US';
+      r.onresult = ev => {
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+          const t = (ev.results[i][0].transcript || '').toLowerCase(), now = performance.now();
+          if (now - VOICE.lastFire < 1500) continue;
+          if (/\b(start|starts|started|go ahead)\b/.test(t) && (C.state === 'wait' || C.state === 'hold')) { VOICE.lastFire = now; unlockAudio(false); camSequence(); }
+          else if (/\b(stop|cancel)\b/.test(t) && camBusy()) { VOICE.lastFire = now; backToWait('Cancelled. Say “Start” when you’re ready.'); }
+        }
+      };
+      r.onend = () => { VOICE.on = false; VOICE.rec = null; };
+      r.onerror = e => { VOICE.on = false; if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { SET.voiceStart = false; saveSet(); renderSettings(); toast('Voice start needs microphone and speech permission'); } };
+      r.start(); VOICE.rec = r; VOICE.on = true;
+    } catch { VOICE.on = false; }
+  } else if (!want && VOICE.on && VOICE.rec) { try { VOICE.rec.stop(); } catch {} VOICE.on = false; }
+  $('#voiceHint').classList.toggle('live', VOICE.on);
+}
+setInterval(voiceTick, 400);
 /* ---------- reaction practice: hold, Down, Set, whistle, let go (nothing saved) ---------- */
 const RX = { run: 0, state: 'idle', goPerf: 0, times: [], fs: 0 };
 function rxShow(big, sub, cls) {
@@ -2460,8 +2548,13 @@ async function rxStart(e) {
   RX.state = 'set'; rxShow('SET', 'Wait for the whistle…', 'holding set');
   await speakDone('Set'); if (!alive()) return;
   await sleep(400 + Math.random() * 2600); if (!alive()) return;         // practice: 0.4–3 s to the whistle (face-off stays 0.5–2 s)
-  RX.goPerf = ctxToPerf(playWhistle()); RX.state = 'go';
-  setTimeout(() => { if (me === RX.run && RX.state === 'go') rxShow('GO', 'Let go!', 'holding go'); }, Math.max(0, RX.goPerf - performance.now()));
+  if (SET.rxSignal !== 'visual') {
+    RX.goPerf = ctxToPerf(playWhistle()); RX.state = 'go';
+    setTimeout(() => { if (me === RX.run && RX.state === 'go') rxShow('GO', 'Let go!', 'holding go'); }, Math.max(0, RX.goPerf - performance.now()));
+  } else {                                                    // no whistle: the clock starts when the pad turns green on screen
+    RX.goPerf = Infinity; RX.state = 'go'; rxShow('GO', 'Let go!', 'holding go');
+    requestAnimationFrame(t => { if (me === RX.run) RX.goPerf = Math.min(performance.now(), t + 16); });
+  }
   setTimeout(() => { if (me === RX.run && RX.state === 'go') { RX.state = 'idle'; rxShow('TOO SLOW', 'Hold to try again', 'fs'); } }, 3000);
 }
 /* when the finger came off: the event's own time if it's on the same clock as performance.now() (older Safari used the date) */
@@ -2512,6 +2605,9 @@ function rxRelease(e) {
   document.addEventListener('visibilitychange', () => { if (document.hidden) { finger = null; mouseId = null; rxCancelled(); } });
   pad.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!e.repeat) rxStart(e); } });
   pad.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); rxRelease(e); } });
+  const setMode = v => { SET.rxSignal = v; saveSet(); $$('#rxMode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v)); };
+  $$('#rxMode button').forEach(b => b.onclick = () => { setMode(b.dataset.v); rxCancel(); });
+  setMode(SET.rxSignal === 'visual' ? 'visual' : 'whistle');
   $('#rxClear').onclick = () => { RX.times = []; RX.fs = 0; rxStats(); $('#rxHist').replaceChildren(); rxCancel(); rxShow('HOLD', 'Press and hold here'); };
 }
 /* ---------- accounts: email, username, password ---------- */
@@ -2535,7 +2631,14 @@ async function onAccountChanged() {
   try { P.uids = new Set(await P.user.ids()); } catch {}
   renderAccount(); animRows = false; renderBoard();
 }
-function openAccount(mode = 'signup', why = '', after = null) {
+/* every time the app opens signed out: ask to sign up so your stats are saved */
+async function welcomePrompt() {
+  for (let i = 0; i < 60 && document.getElementById('splash'); i++) await sleep(100);   // after the opening animation
+  await sleep(250);
+  if (acct() || document.querySelector('.auth')) return;
+  openAccount('signup', 'Sign up to save all your stats: your reps, times and history, on any device you sign in on.', null, true);
+}
+function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
   const A = P.user && P.user.account; if (!A) return;
   let m = mode;
   const sheet = h('div', { class: 'sheet auth' }), modal = h('div', { class: 'modal auth-modal', onclick: e => { if (e.target === modal) close(); } }, sheet);
@@ -2617,6 +2720,7 @@ function openAccount(mode = 'signup', why = '', after = null) {
     sheet.append(form);
     if (m === 'signin') sheet.append(h('button', { class: 'link', type: 'button', text: 'Forgot your password?', onclick: () => { m = 'forgot'; draw(); } }));
     if (m === 'forgot') sheet.append(h('button', { class: 'link', type: 'button', text: 'Back to sign in', onclick: () => { m = 'signin'; draw(); } }));
+    if (welcome && (m === 'signup' || m === 'signin')) sheet.append(h('button', { class: 'link later', type: 'button', text: 'Not now, just look around', onclick: close }));
     setTimeout(() => (email || pw) && (email || pw).focus(), 50);
   };
   draw(); document.body.append(modal);
@@ -2932,17 +3036,21 @@ window.addEventListener('resize', () => { clearTimeout(statsResize); statsResize
 
 /* ---------- tabs & wiring ---------- */
 function movePill() {
-  const nav = $('#tabs'), on = $('#tabs button[aria-selected=true]'); if (!nav || !on) return;
+  const nav = $('#tabs'), on = $('#tabs button[aria-selected=true]'); if (!nav) return;
+  if (!on) { const pl = $('.nav-pill', nav); if (pl) pl.style.opacity = '0'; return; }
   let pill = $('.nav-pill', nav); if (!pill) { pill = h('span', { class: 'nav-pill' }); nav.prepend(pill); nav.classList.add('pilled'); }
-  pill.style.left = on.offsetLeft + 'px'; pill.style.width = on.offsetWidth + 'px';
+  pill.style.left = on.offsetLeft + 'px'; pill.style.width = on.offsetWidth + 'px'; pill.style.opacity = '1';
 }
 window.addEventListener('resize', movePill);
+let lastTab = 'board';
 function switchTab(name) {
   const prev = $('#tabs button[aria-selected=true]')?.dataset.tab;
   $$('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === name));
   movePill();
-  if (name !== 'run' && C.stream) closeCam();
-  $('#v-board').hidden = name !== 'board'; $('#v-run').hidden = name !== 'run'; $('#v-me').hidden = name !== 'me'; $('#v-stats').hidden = name !== 'stats'; $('#v-react').hidden = name !== 'react';
+  if (name !== 'run' && name !== 'settings' && C.stream) closeCam();
+  if (name !== 'settings') lastTab = name;
+  $('#v-board').hidden = name !== 'board'; $('#v-run').hidden = name !== 'run'; $('#v-me').hidden = name !== 'me'; $('#v-stats').hidden = name !== 'stats'; $('#v-react').hidden = name !== 'react'; $('#v-settings').hidden = name !== 'settings';
+  $('#btnGear').classList.toggle('on', name === 'settings');
   if (name !== 'react') rxCancel();
   if (name === 'stats') renderStats();
   if (prev !== name) {
@@ -2962,19 +3070,28 @@ seg('segMode', 'mode'); seg('segRange', 'range');
 $$('#segStats button').forEach(b => b.onclick = () => { SF.range = b.dataset.v; $$('#segStats button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
 $$('#segWho button').forEach(b => b.onclick = () => { SF.who = b.dataset.v; $$('#segWho button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
 
-$('#btnBeep').onclick = runStation;
-$('#btnTest').onclick = () => { unlockAudio(true); playWhistle(); toast('Whistle test'); };
-$('#btnCam').onclick = () => $('#inCam').click();
 $('#btnCamOn').onclick = camOn;
-$('#btnCamOff').onclick = closeCam;
-$('#btnSound').onclick = async () => { unlockAudio(true); await speakDone('Down'); await sleep(400); await speakDone('Set'); await sleep(800); playWhistle(); };
-$('#btnFlip').onclick = () => { C.facing = C.facing === 'user' ? 'environment' : 'user'; camOn(); };
+$('#btnSound').onclick = async () => { unlockAudio(true); await speakDone('Down'); await sleep(400); await speakDone('Set'); await sleep(800); if (SET.whistle) playWhistle(); else speak('Go'); };
+$('#btnFlip').onclick = () => { C.facing = C.facing === 'user' ? 'environment' : 'user'; lsSet('fo-facing', C.facing); toast(C.facing === 'user' ? 'Front camera' : 'Back camera'); if (C.stream) camOn(); };
 $('#btnCamGo').onclick = () => {
   if (!C.stream) return;
   unlockAudio(true);                       // every Start tap re-arms the voice and the beep
   if (camBusy()) backToWait('Cancelled. Press Start when you’re ready.');
   else if (C.state === 'wait' || C.state === 'hold') camSequence();
 };
+function renderSettings() {
+  $('#setWhistle').checked = SET.whistle; $('#setVoice').checked = SET.voice; $('#setVoiceStart').checked = SET.voiceStart;
+  $('#voiceHint').hidden = !SET.voiceStart;
+}
+$('#setWhistle').onchange = e => { SET.whistle = e.target.checked; saveSet(); };
+$('#setVoice').onchange = e => { SET.voice = e.target.checked; saveSet(); };
+$('#setVoiceStart').onchange = e => {
+  SET.voiceStart = e.target.checked; saveSet(); renderSettings(); $('#voiceStartMsg').textContent = '';
+  if (SET.voiceStart && !VOICE.supported) { $('#voiceStartMsg').textContent = 'This browser can’t listen for words. Try Chrome or Safari.'; }
+};
+$('#btnGear').onclick = () => switchTab($('#v-settings').hidden ? 'settings' : lastTab);
+$('#btnSetDone').onclick = () => switchTab(lastTab);
+renderSettings();
 const geomChanged = () => { C.masks = null; if (C.stream) drawOverlay(); };
 $('#rngSize').value = C.size; $('#rngY').value = C.y;
 $('#chkPartner').checked = C.partner; $('#chkFs').checked = C.fs;
@@ -2983,9 +3100,6 @@ $('#rngY').oninput = e => { C.y = +e.target.value; lsSet('fo-y', C.y); geomChang
 $('#chkPartner').onchange = e => { C.partner = e.target.checked; lsSet('fo-partner', C.partner ? '1' : '0'); geomChanged(); };
 $('#chkFs').onchange = e => { C.fs = e.target.checked; lsSet('fo-fs', C.fs ? '1' : '0'); };
 document.addEventListener('visibilitychange', () => { if (document.hidden && C.state === 'seq') backToWait('Paused while the app was in the background.'); });
-$('#btnLib').onclick = () => $('#inLib').click();
-$('#inCam').onchange = e => loadClip(e.target.files[0]);
-$('#inLib').onchange = e => loadClip(e.target.files[0]);
 $('#btnReset').onclick = () => resetRun();
 $('#btnPost').onclick = post;
 $('#club').value = lsGet('fo-club') || '';
@@ -3002,6 +3116,7 @@ $('#club').value = lsGet('fo-club') || '';
     renderAccount(); user.account.onChange(onAccountChanged);
     if (user.account.recovering) openAccount('newpw');
     else if (user.account.linkError) toast(user.account.linkError);
+    else if (!user.account.current()) welcomePrompt();
   }
   try { P.canWrite = user ? user.can('data.write') : null; } catch { P.canWrite = null; }
   try { P.canEdit = !!(user && user.canEdit()); } catch {}
