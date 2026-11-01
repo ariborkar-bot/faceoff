@@ -2060,20 +2060,20 @@ function makePlayer(root, o) {
   };
   const applyVol = () => {
     if (volSet) v.volume = Math.min(1, vol); else if (gain) gain.gain.value = vol;
-    v.muted = vol === 0 ? true : v.muted;
-    bSnd.textContent = v.muted || vol === 0 ? '🔇' : vol < 0.5 ? '🔈' : '🔊';
-    bSnd.classList.toggle('needtap', v.muted && vol > 0);
+    bSnd.textContent = vol < 0.5 ? '🔈' : '🔊';
+    bSnd.classList.toggle('needtap', v.muted);
   };
-  const volIn = h('input', { type: 'range', class: 'pl-vol', min: '0', max: '1', step: '0.05', 'aria-label': 'Volume', orient: 'vertical' });
+  const volIn = h('input', { type: 'range', class: 'pl-vol', min: '0.1', max: '1', step: '0.05', 'aria-label': 'Volume', orient: 'vertical' });   // no mute: it always plays with sound
   volIn.value = String(vol);
   const volPop = h('div', { class: 'pl-volpop', hidden: true }, volIn);
-  volIn.addEventListener('input', () => { vol = +volIn.value; lsSet('fo-vol', vol); if (vol > 0) { v.muted = false; unlockAudio(false); hookGain(); } applyVol(); });
+  volIn.addEventListener('input', () => { vol = Math.max(0.1, +volIn.value); lsSet('fo-vol', vol); v.muted = false; unlockAudio(false); hookGain(); applyVol(); });
   ['pointerdown', 'click'].forEach(ev => volPop.addEventListener(ev, e => e.stopPropagation()));
-  const bSnd = h('button', { class: 'pl-snd', 'aria-label': 'Sound and volume', title: 'Volume', text: '🔊', onclick: e => {
-    e.stopPropagation(); unlockAudio(false);
-    if (v.muted && vol > 0) { v.muted = false; hookGain(); applyVol(); }        // first tap after the phone blocked sound: turn it on
-    volPop.hidden = !volPop.hidden;
+  const bSnd = h('button', { class: 'pl-snd', 'aria-label': 'Volume', title: 'Volume', text: '🔊', onclick: e => {
+    e.stopPropagation(); unlockAudio(false); volPop.hidden = !volPop.hidden;
   } });
+  // if the browser only let it start silently, the sound comes on with your next tap anywhere on the player
+  const soundOn = () => { if (v.muted) { v.muted = false; unlockAudio(false); hookGain(); applyVol(); } };
+  root.addEventListener('pointerdown', soundOn, true);
   bSnd.addEventListener('pointerdown', e => e.stopPropagation());
   document.addEventListener('pointerdown', e => { if (!volPop.hidden && !volPop.contains(e.target) && e.target !== bSnd) volPop.hidden = true; });
   let corsTried = false, retrying = false;
