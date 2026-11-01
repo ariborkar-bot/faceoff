@@ -479,7 +479,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <h2>Your rep</h2>
       <div class="automsg work" id="autoMsg">Timing your rep…</div>
       <div id="repPlayer" style="margin-top:10px"></div>
-      <div class="result"><div class="muted small">Face-off time</div><div class="n" id="vTime">–</div><div class="small muted">Timed by the app: from Go to the ball in your pocket</div></div>
+      <div class="result"><div class="muted small hinfo" style="justify-content:center">Face-off time<span class="info" data-info="Timed by the app: from the whistle to the moment the ball is in your pocket."></span></div><div class="n" id="vTime">–</div></div>
 
       <div id="postBox" style="margin-top:14px" hidden>
         <div class="row stretch">
@@ -514,13 +514,13 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <div class="statgrid" id="tilesAll"></div>
       <div class="plain" id="plainAll"></div>
       <div class="card chartcard">
-        <h3>Spread of times</h3>
+        <h3 class="hinfo">Spread of times<span class="info" data-info="How many reps landed at each time. Taller bars = more reps at that time."></span></h3>
         <div class="legend" id="histLegend"></div>
         <div class="chart" id="hist"></div>
       </div>
       <div class="card"><h3>Records</h3><div class="reclist" id="recList"></div></div>
-      <div class="card tablecard"><h3>Players</h3><div class="small muted">Tap a column to sort.</div><table class="ptable" id="pTable"></table></div>
-      <div class="card"><h3>Unusual reps</h3><div class="small muted" style="margin-bottom:8px">Much faster or slower than most reps. Tap one to watch it.</div><div class="list" id="outList"></div></div>
+      <div class="card tablecard"><h3 class="hinfo">Players<span class="info" data-info="Tap a column heading to sort by it."></span></h3><table class="ptable" id="pTable"></table></div>
+      <div class="card"><h3 class="hinfo">Unusual reps<span class="info" data-info="Reps much faster or slower than most. Tap one to watch it."></span></h3><div class="list" id="outList"></div></div>
       <details class="card more"><summary>More stats</summary><div class="statgrid" id="moreAll"></div><div class="small muted" id="moreAllNote"></div></details>
     </div>
 
@@ -529,12 +529,11 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <div class="statgrid" id="tilesMe"></div>
       <div class="plain" id="plainMe"></div>
       <div class="card chartcard">
-        <h3>Your times, rep by rep</h3>
-        <div class="small muted">Higher on the chart = faster.</div>
+        <h3 class="hinfo">Your times, rep by rep<span class="info" data-info="Each dot is one rep, oldest on the left. Higher on the chart = faster."></span></h3>
         <div class="legend" id="trendLegend"></div>
         <div class="chart" id="trend"></div>
       </div>
-      <div class="card"><h3>Your unusual reps</h3><div class="small muted" style="margin-bottom:8px">Much faster or slower than your usual. Tap one to watch it.</div><div class="list" id="outMe"></div></div>
+      <div class="card"><h3 class="hinfo">Your unusual reps<span class="info" data-info="Reps much faster or slower than your usual. Tap one to watch it."></span></h3><div class="list" id="outMe"></div></div>
       <details class="card more"><summary>More stats</summary><div class="statgrid" id="moreMe"></div><div class="small muted" id="moreMeNote"></div></details>
     </div>
   </section>
@@ -592,7 +591,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
     <div class="list" id="meList"></div>
     <details class="card" id="linkCard" hidden>
       <summary><b>Use FO &amp; GO on more than one device?</b></summary>
-      <div class="muted small" style="margin:8px 0">Each device (and the installed app vs. Safari) is its own player until you link them. Copy this device's code, then paste it on your other device: reps from both count as yours there, and you can delete them from either one.</div>
+      <div class="muted small hinfo" style="margin:8px 0">For reps posted before accounts<span class="info" data-info="Each device (and the installed app vs. Safari) was its own player before accounts. Copy this device's code, then paste it on your other device: reps from both count as yours there."></span></div>
       <div class="row" style="gap:8px;flex-wrap:wrap"><code id="myCode" class="code"></code><button class="btn" id="btnCopyCode">Copy code</button></div>
       <label for="linkIn" style="display:block;margin-top:12px">Code from your other device</label>
       <div class="row" style="gap:8px"><input id="linkIn" placeholder="xxxxxxxx-xxxxxxxx-…" autocomplete="off" style="flex:1"><button class="btn primary" id="btnLink">Link</button></div>
