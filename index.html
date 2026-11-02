@@ -950,8 +950,21 @@ function ensureCtx() {
 function primeSpeech() {
   try { const ss = window.speechSynthesis; if (!ss) return; const u = new SpeechSynthesisUtterance('ready'); u.volume = 0; ss.speak(u); speechPrimed = true; } catch {}
 }
+/* iPhone: plain Web Audio follows the ring/silent switch. Reaction practice has no mic running, so ask for
+   "playback" audio (sound on even in silent mode, like a video). Older iPhones: a silent looping <audio> does the same. */
+let wantPlayback = false, silentEl = null;
+const SILENT_WAV = 'data:audio/wav;base64,UklGRvQHAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YdAHAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+function playbackAudio(on) {
+  wantPlayback = on;
+  try { if ('audioSession' in navigator) { navigator.audioSession.type = on ? 'playback' : 'auto'; return; } } catch {}
+  if (!on) { if (silentEl) silentEl.pause(); return; }
+  if (!silentEl) { silentEl = new Audio(SILENT_WAV); silentEl.loop = true; silentEl.setAttribute('playsinline', ''); }
+  silentEl.play().catch(() => {});
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && silentEl) silentEl.pause(); });
 function unlockAudio(force) {
   if (force || !speechPrimed) primeSpeech();
+  if (wantPlayback) playbackAudio(true);
   const c = ensureCtx();
   try { const s = c.createBufferSource(); s.buffer = c.createBuffer(1, 1, 22050); s.connect(c.destination); s.start(0); } catch {}
 }
@@ -1274,6 +1287,7 @@ function sizeStage() {
   C.masks = null;
 }
 async function camOn() {
+  playbackAudio(false);
   unlockAudio(true);
   closeCam(true);
   try {
@@ -2904,7 +2918,11 @@ async function rxStart(e) {
   RX.state = 'set'; rxShow('SET', 'Wait for the whistle…', 'holding set');
   await speakDone('Set'); if (!alive()) return;
   await sleep(400 + Math.random() * 2600); if (!alive()) return;         // practice: 0.4–3 s to the whistle (face-off stays 0.5–2 s)
-  if (SET.rxSignal !== 'visual') {
+  if (SET.rxSignal !== 'visual' && actx && actx.state !== 'running') {
+    // the phone paused the app's audio and pressing the pad can't restart it: say Go and show it, time from the screen
+    speak('Go'); RX.goPerf = Infinity; RX.state = 'go'; rxShow('GO', 'Let go!', 'holding go');
+    requestAnimationFrame(t => { if (me === RX.run) RX.goPerf = Math.min(performance.now(), t + 16); });
+  } else if (SET.rxSignal !== 'visual') {
     RX.goPerf = ctxToPerf(playWhistle()); RX.state = 'go';
     setTimeout(() => { if (me === RX.run && RX.state === 'go') rxShow('GO', 'Let go!', 'holding go'); }, Math.max(0, RX.goPerf - performance.now()));
   } else {                                                    // no whistle: the clock starts when the pad turns green on screen
@@ -3334,6 +3352,7 @@ function switchTab(name) {
   $('#v-board').hidden = name !== 'board'; $('#v-run').hidden = name !== 'run'; $('#v-me').hidden = name !== 'me'; $('#v-stats').hidden = name !== 'stats'; $('#v-react').hidden = name !== 'react'; $('#v-settings').hidden = name !== 'settings';
   $('#btnGear').classList.toggle('on', name === 'settings');
   if (name !== 'react') rxCancel();
+  playbackAudio(name === 'react');
   if (name === 'stats') renderStats();
   if (prev !== name) {
     const v = $('#v-' + name); if (v) { v.classList.remove('view-in'); void v.offsetWidth; v.classList.add('view-in'); }
