@@ -179,6 +179,15 @@ input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
 .acct-card .who{font-family:var(--disp);font-weight:800;font-size:26px;text-transform:none}
 .modal.auth-modal{align-items:center}
 .gear{min-height:38px;width:42px;padding:0;font-size:20px;line-height:1}
+/* pull down to refresh */
+html,body{overscroll-behavior-y:contain}
+.ptr{position:fixed;left:50%;top:0;z-index:25;width:40px;height:40px;margin-left:-20px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);color:var(--lime);display:grid;place-items:center;font-size:22px;box-shadow:0 6px 18px rgba(0,0,0,.45);transform:translateY(-60px);opacity:0;pointer-events:none}
+.ptr.ready{background:var(--lime);color:#101600;border-color:var(--lime)}
+.ptr.spin i{animation:refSpin .7s linear infinite}
+.ptr i{display:block;font-style:normal;line-height:1}
+@keyframes refSpin{to{transform:rotate(360deg)}}
+#brandHome{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .2s var(--spring)}
+#brandHome:active{transform:scale(.94)}
 .gear.on{background:var(--ink);color:#0a0e12}
 nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacity .25s ease}
 .sw{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink);margin:0}
@@ -540,7 +549,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
 </div></div>
 <div class="wrap">
   <header>
-    <div class="brand"><img class="brand-em" src="brand/emblem-sm.png" alt=""><img class="brand-wm" src="brand/wordmark.png" alt="FO &amp; GO"></div>
+    <div class="brand" id="brandHome" role="button" tabindex="0" aria-label="Home" title="Home"><img class="brand-em" src="brand/emblem-sm.png" alt=""><img class="brand-wm" src="brand/wordmark.png" alt="FO &amp; GO"></div>
     <div class="hdr-r"><div class="muted small" id="whoami"></div><button class="btn acct-btn" id="btnAcct" hidden>Sign in</button><button class="btn gear" id="btnGear" aria-label="Settings" title="Settings">⚙︎</button><button class="btn-install" id="btnInstall" hidden>Install</button></div>
   </header>
 
@@ -892,7 +901,8 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       }
     };
   }
-  const db = { collection: c => query(c), doc: p => { const i = p.lastIndexOf('/'); return docRef(p.slice(0, i), p.slice(i + 1)); } };
+  const db = { collection: c => query(c), doc: p => { const i = p.lastIndexOf('/'); return docRef(p.slice(0, i), p.slice(i + 1)); },
+    refresh: () => Promise.all([...cache.entries()].filter(([, k]) => k.subs.size).map(([c]) => refresh(c))) };   // reload everything that's on screen
   const user = {
     id: async () => { const me = account.current(); return me ? me.id : null; }, can: () => true, account, canEdit: () => false, isOwner: () => false,
     async adminUsers() {                                       // admins only (checked in the database)
@@ -3646,6 +3656,57 @@ $('#setVoiceStart').onchange = e => {
   SET.voiceStart = e.target.checked; VOICE.denied = false; saveSet(); renderSettings(); $('#voiceStartMsg').textContent = '';
   if (SET.voiceStart && !VOICE.supported) { $('#voiceStartMsg').textContent = 'This browser can’t listen for words. Try Chrome or Safari.'; }
 };
+/* top-left logo: home (the Board) */
+const goHome = () => { switchTab('board'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+$('#brandHome').onclick = goHome;
+$('#brandHome').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goHome(); } };
+/* refresh: reload the board, likes and flags (and the admin list), and pick up a new version of the app if there is one */
+let wantReload = false;
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('controllerchange', () => { if (wantReload) location.reload(); });
+let refreshing = false;
+async function refreshAll() {
+  if (refreshing) return; refreshing = true; let ok = true;
+  try {
+    await Promise.all([
+      P.db && P.db.refresh ? P.db.refresh() : null,
+      !$('#v-settings').hidden && P.admin ? loadAdminUsers() : null,
+      P.user ? checkAdmin() : null
+    ]);
+  } catch { ok = false; }
+  try {
+    const reg = 'serviceWorker' in navigator && await navigator.serviceWorker.getRegistration();
+    if (reg) { wantReload = !C.stream; await reg.update(); if ((reg.installing || reg.waiting) && !C.stream) { toast('Updating the app…'); setTimeout(() => location.reload(), 1500); } }
+  } catch {}
+  refreshing = false; animRows = true; renderBoard(); renderStats();
+  if (!ok) toast('Couldn’t refresh. Check your connection.');
+}
+{ // pull down from the top of any page (not on the camera, the reaction pad, or an open sheet)
+  const ind = h('div', { class: 'ptr', 'aria-hidden': 'true' }, h('i', { text: '↻' })); document.body.append(ind);
+  const TRIG = 70, MAX = 110;
+  let y0 = null, x0 = 0, pull = 0, active = false;
+  const blocked = t => !!(t.closest && t.closest('#rxPad, #camOn, .modal, .auth-modal, .doors, input, textarea, .pl-seek, .chart'));
+  const show = d => { const k = Math.min(1, d / TRIG); ind.style.opacity = String(Math.min(1, k * 1.2)); ind.style.transform = `translateY(${Math.min(d, MAX) * 0.8 - 40 + 12}px) rotate(${d * 3}deg)`; ind.classList.toggle('ready', d >= TRIG); };
+  const hide = () => { ind.style.transition = 'transform .3s ease, opacity .3s ease'; ind.style.transform = 'translateY(-60px)'; ind.style.opacity = '0'; ind.classList.remove('ready', 'spin'); setTimeout(() => { ind.style.transition = ''; }, 320); };
+  document.addEventListener('touchstart', e => {
+    if (refreshing || e.touches.length !== 1 || window.scrollY > 0 || blocked(e.target) || document.querySelector('.modal, .auth-modal')) { y0 = null; return; }
+    y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; pull = 0; active = false;
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (y0 == null) return;
+    const dy = e.touches[0].clientY - y0, dx = Math.abs(e.touches[0].clientX - x0);
+    if (!active) { if (dy > 8 && dy > dx * 1.5 && window.scrollY <= 0) active = true; else if (dy < -4 || dx > 12) { y0 = null; return; } else return; }
+    pull = Math.max(0, (dy - 8) * 0.6); show(pull);
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+  const end = async () => {
+    if (y0 == null) return; y0 = null; if (!active) return; active = false;
+    if (pull < TRIG) { hide(); return; }
+    ind.style.transition = 'transform .2s ease'; ind.style.transform = 'translateY(24px)'; ind.classList.remove('ready'); ind.classList.add('spin');
+    if (navigator.vibrate) try { navigator.vibrate(15); } catch {}
+    const t0 = performance.now(); await refreshAll(); await sleep(Math.max(0, 600 - (performance.now() - t0))); hide();
+  };
+  document.addEventListener('touchend', end); document.addEventListener('touchcancel', () => { if (y0 != null) { y0 = null; active = false; hide(); } });
+}
 $('#btnGear').onclick = () => switchTab($('#v-settings').hidden ? 'settings' : lastTab);
 $('#btnSetDone').onclick = () => switchTab(lastTab);
 renderSettings();
