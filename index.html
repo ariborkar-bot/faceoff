@@ -482,6 +482,25 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
 .sess .s-reps button{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:9px;padding:6px 9px;font-variant-numeric:tabular-nums;font-size:14px;cursor:pointer}
 .sess .s-reps button.best{border-color:var(--lime);color:var(--lime)}
 .sessmore{width:100%;margin-top:8px}
+/* profiles */
+.avatar{flex:none;border-radius:50%;object-fit:cover;background:var(--panel2);border:2px solid var(--line);display:grid;place-items:center;font-family:var(--disp);font-weight:800;color:var(--lime)}
+.search{width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:11px 12px;font-size:16px;margin:0 0 6px}
+.prof-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left}
+.prof-item .who{flex:1;min-width:0}.prof-item .who small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prof-item .prof-n{color:var(--mute);min-width:52px;text-align:right}
+.prof-head{display:flex;align-items:center;gap:16px}.prof-head h2{margin:0 0 4px;font-size:26px;overflow-wrap:anywhere}
+.btn.back{margin-bottom:10px}
+.prof-card{display:flex;align-items:center;gap:14px}
+.prof-card .pc-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.prof-card .pc-mid b{font-size:18px}.prof-card .pc-mid small{color:var(--mute);overflow-wrap:anywhere}
+.chip{align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}
+.chip.pub{border-color:var(--lime);color:var(--lime)}
+.prof-edit .pe-top{display:flex;align-items:center;gap:16px;margin:8px 0 6px}
+.prof-edit .pe-pbtns{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.prof-edit select{width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:11px 12px;font-size:16px}
+.prof-edit label.sw{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:12px;padding:10px 0;border-bottom:0;font-size:15px;color:var(--ink)}
+.prof-edit label.sw small{display:block;font-weight:400;margin-top:3px}
+#segMine{margin-top:4px}
 .viewas{position:sticky;top:0;z-index:12;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:#2a1d05;border:1px solid #ffb020;color:#ffd27a;font-size:14px}
 .viewas .btn{padding:6px 14px;font-size:14px}
 #admSearch{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:10px 12px;font-size:16px}
@@ -560,10 +579,10 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
 
   <div class="viewas" id="viewAs" hidden><span>👁 Viewing as <b id="viewAsName"></b> · read-only</span><button class="btn" id="btnViewAsExit">Exit</button></div>
   <nav role="tablist" id="tabs">
-    <button role="tab" data-tab="board" aria-selected="true">Board</button>
     <button role="tab" data-tab="run" aria-selected="false">Face-off</button>
-    <button role="tab" data-tab="stats" aria-selected="false">Stats</button>
     <button role="tab" data-tab="react" aria-selected="false">React</button>
+    <button role="tab" data-tab="board" aria-selected="true">Board</button>
+    <button role="tab" data-tab="stats" aria-selected="false">Stats</button>
     <button role="tab" data-tab="me" aria-selected="false">Mine</button>
   </nav>
 
@@ -646,26 +665,30 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   <section id="v-stats" hidden>
     <div class="seg seg-big" id="segWho">
       <button data-v="all" aria-pressed="true">Everyone</button>
-      <button data-v="me" aria-pressed="false">Me</button>
+      <button data-v="profiles" aria-pressed="false">Profiles</button>
     </div>
-    <div class="seg" id="segStats">
+
+    <div id="statsAll">
+      <div class="seg" id="segStats">
       <button data-v="all" aria-pressed="true">All time</button>
       <button data-v="day" aria-pressed="false">Day</button>
       <button data-v="week" aria-pressed="false">Week</button>
       <button data-v="month" aria-pressed="false">Month</button>
-    </div>
-
-    <div id="statsAll">
+      </div>
       <div class="hero avg" id="heroAll"></div>
-      <div class="card chartcard"><h3 class="hinfo">Spread of times<span class="info" data-info="How the times are spread out. The box holds the middle half of the reps, and the line inside it is the middle rep. The ◆ is the average. The lines out the sides reach the fastest and slowest normal reps; dots are unusual ones. Further left = faster. A shorter box = more consistent."></span></h3><div class="chart" id="boxAll"></div></div>
+      <div class="card chartcard"><h3 class="hinfo">Spread of times<span class="info" data-info="How the times are spread out. The box holds the middle half of the reps, and the line inside it is the middle rep. The ◆ is the average. The lines out the sides reach the fastest and slowest normal reps; arrows at the edge mean a few reps are off the chart. Further left = faster. A shorter box = more consistent."></span></h3><div class="chart" id="boxAll"></div></div>
+      <div class="card chartcard"><h3 class="hinfo">Average by session<span class="info" data-info="Each line is one player, each dot one of their sessions (5+ reps in one go), oldest on the left. Higher = faster. Tap the chart to see a session."></span></h3><div class="legend" id="trendAllLegend"></div><div class="chart" id="trendAll"></div></div>
       <div class="card"><h3 class="hinfo">Sessions<span class="info" data-info="A session is 5 or more reps by one player in one go (less than 45 minutes between reps). Tap one to see its reps."></span></h3><div id="sessAll"></div></div>
       <div class="card tablecard"><h3 class="hinfo">Players<span class="info" data-info="Tap a column heading to sort by it."></span></h3><table class="ptable" id="pTable"></table></div>
     </div>
 
-    <div id="statsMe" hidden>
-      <div class="hero avg" id="heroMe"></div>
-      <div class="card chartcard"><h3 class="hinfo">You vs everyone<span class="info" data-info="How the times are spread out. The box holds the middle half of the reps, and the line inside it is the middle rep. The ◆ is the average. The lines out the sides reach the fastest and slowest normal reps; dots are unusual ones. Further left = faster. A shorter box = more consistent."></span></h3><div class="chart" id="boxMe"></div></div>
-      <div class="card"><h3 class="hinfo">Your sessions<span class="info" data-info="Every time you post 5 or more reps in one go (less than 45 minutes between reps) it counts as a session. Tap one to see its reps."></span></h3><div id="sessMe"></div></div>
+    <div id="statsProfiles" hidden>
+      <div id="profListWrap">
+        <input type="search" id="profSearch" class="search" placeholder="Search players, teams, schools" autocomplete="off">
+        <div class="small muted" id="profCount"></div>
+        <div class="list" id="profList"></div>
+      </div>
+      <div id="profView" hidden></div>
     </div>
   </section>
 
@@ -721,11 +744,18 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   <!-- MINE -->
   <section id="v-me" hidden>
     <div class="card acct-card" id="acctCard"></div>
-    <div class="stats">
-      <div class="stat"><b id="mBest">–</b><span>My best (s)</span></div>
-      <div class="stat"><b id="mRank">–</b><span>My rank</span></div>
-      <div class="stat"><b id="mRuns">0</b><span>My runs</span></div>
+    <div class="card prof-card" id="profCard" hidden></div>
+    <div class="seg" id="segMine">
+      <button data-v="all" aria-pressed="true">All time</button>
+      <button data-v="day" aria-pressed="false">Day</button>
+      <button data-v="week" aria-pressed="false">Week</button>
+      <button data-v="month" aria-pressed="false">Month</button>
     </div>
+    <div class="hero avg" id="heroMe"></div>
+    <div class="card chartcard"><h3 class="hinfo">You vs everyone<span class="info" data-info="How the times are spread out. The box holds the middle half of the reps, and the line inside it is the middle rep. The ◆ is the average. The lines out the sides reach the fastest and slowest normal reps; arrows at the edge mean a few reps are off the chart. Further left = faster. A shorter box = more consistent."></span></h3><div class="chart" id="boxMe"></div></div>
+    <div class="card chartcard"><h3 class="hinfo">Your average by session<span class="info" data-info="Each dot is one of your sessions (5+ reps in one go), oldest on the left. Higher = faster. Tap the chart to see a session."></span></h3><div class="chart" id="trendMe"></div></div>
+    <div class="card"><h3 class="hinfo">Your sessions<span class="info" data-info="Every time you post 5 or more reps in one go (less than 45 minutes between reps) it counts as a session. Tap one to see its reps."></span></h3><div id="sessMe"></div></div>
+    <h3 class="sec">Your reps</h3>
     <div class="list" id="meList"></div>
     <details class="card" id="linkCard" hidden>
       <summary><b>Use FO &amp; GO on more than one device?</b></summary>
@@ -915,6 +945,31 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       if (!r.ok) await fail(r, 'Loading users');
       return await r.json();
     },
+    profile: {                                                 // public/private profile with team, school, grad class and photo
+      async listPublic() {
+        const r = await rest('profiles?is_public=eq.true&select=id,username,team,school,grad_year,avatar&order=username.asc&limit=1000');
+        if (!r.ok) await fail(r, 'Loading profiles'); return await r.json();
+      },
+      async mine() {
+        const me = account.current(); if (!me) return null;
+        const r = await rest('profiles?id=eq.' + me.id + '&select=id,username,is_public,team,school,grad_year,avatar');
+        if (!r.ok) await fail(r, 'Loading your profile'); return (await r.json())[0] || null;
+      },
+      async update(fields) {
+        const me = account.current(); if (!me) throw Object.assign(new Error('Sign in first'), { code: 'unauthenticated' });
+        const r = await rest('profiles?id=eq.' + me.id, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ ...fields, updated_at: new Date().toISOString() }) });
+        if (!r.ok) await fail(r, 'Saving your profile'); return (await r.json())[0] || null;
+      },
+      async uploadPhoto(blob) {                                // a small square JPEG made by the app
+        const me = account.current(); if (!me) throw Object.assign(new Error('Sign in first'), { code: 'unauthenticated' });
+        const path = me.id + '/' + rid() + rid() + '.jpg';
+        const r = await fetch(SB_URL + '/storage/v1/object/avatars/' + path, { method: 'POST', headers: { ...H, ...(await authH()), 'Content-Type': 'image/jpeg', 'x-upsert': 'false', 'cache-control': '31536000' }, body: blob });
+        if (!r.ok) await fail(r, 'Uploading the photo');
+        return path;
+      },
+      async deletePhoto(path) { if (!path) return; try { await fetch(SB_URL + '/storage/v1/object/avatars/' + path, { method: 'DELETE', headers: { ...H, ...(await authH()) } }); } catch {} },
+      photoUrl: path => path ? SB_URL + '/storage/v1/object/public/avatars/' + path : ''
+    },
     async isAdmin() {                                          // set only in the database (public.admins)
       if (!account.current()) return false;
       try { const r = await rest('rpc/is_admin', { method: 'POST', body: '{}' }); return r.ok ? (await r.json()) === true : false; } catch { return false; }
@@ -1099,6 +1154,7 @@ function speak(word) {
   } catch {}
 }
 /* Start → "Down" → in position for 0.25 s → "Set" → random 0.5–2 s → whistle (Go) */
+const REP_HOLD_MS = 1300, REP_MIN_AFTER_DOWN = 1800;   // rep mode: be really set (still) before "Set"
 const HOLD_MS = 750, SET_MIN = 500, SET_RANGE = 1500, SCAN_TIMEOUT = 90000, STATION_SETTLE_MS = 3000;
 /* Listens to the microphone for the moment "Go" is actually heard (the true start of the clock).
    Returns the performance-clock time (ms) of the first sound after arm(). */
@@ -1889,16 +1945,28 @@ async function camSequence() {
   const alive = () => me === camRun;
   C.recSettings = curSettings(); C.fsHits = 0; C.phase = 'down'; C.state = 'scan';
   setCue('Down'); speak('Down');
-  const scan0 = performance.now(), bar = $('#holdBar');
+  const scan0 = performance.now(), bar = $('#holdBar'); let anchor = null;
   // 1) wait until you're in position, and stay there for a quarter second
   for (;;) {
     await sleep(20); if (!alive()) return;
     const now = performance.now();
     if (now - scan0 > SCAN_TIMEOUT) { bar.style.width = '0'; return backToWait('Timed out waiting for you to get in position. Press Start again.'); }
     if (now - scan0 > 1200 && $('#cue').textContent === 'Down') setCue('');
-    const held = C.alignedSince && (C.aligned || now - (C.lastAlignedT || 0) < 450) ? now - C.alignedSince : 0;
-    bar.style.width = Math.min(100, held / HOLD_MS * 100) + '%';
-    if (held >= HOLD_MS) break;
+    let held = C.alignedSince && (C.aligned || now - (C.lastAlignedT || 0) < 450) ? now - C.alignedSince : 0;
+    if (SET.repMode) {
+      // rep mode: you're often still down in a clamp from the last rep. Wait for you to be really set:
+      // a longer hold with the ball and stick still (not still adjusting), and not too soon after "Down"
+      const g = C.aligned && C.lastGood;
+      if (!held || !g) anchor = null;
+      else if (!anchor) anchor = { bx: g.ball.cx, by: g.ball.cy, hx: g.head.cx, hy: g.head.cy, r: g.br, t: now };
+      else if (Math.hypot(g.ball.cx - anchor.bx, g.ball.cy - anchor.by) > 0.5 * anchor.r || Math.hypot(g.head.cx - anchor.hx, g.head.cy - anchor.hy) > 1.0 * anchor.r)
+        anchor = { bx: g.ball.cx, by: g.ball.cy, hx: g.head.cx, hy: g.head.cy, r: g.br, t: now };   // still moving: start the count again
+      held = anchor ? Math.min(held, now - anchor.t) : 0;
+      if (now - scan0 < REP_MIN_AFTER_DOWN) held = Math.min(held, REP_HOLD_MS - 1);
+    }
+    const need = SET.repMode ? REP_HOLD_MS : HOLD_MS;
+    bar.style.width = Math.min(100, held / need * 100) + '%';
+    if (held >= need) break;
   }
   bar.style.width = '0';
   C.state = 'inpos'; startRec();
@@ -2894,16 +2962,7 @@ function renderBoard() {
 function renderMe() {
   const mine = attempts.filter(a => isMine(a) && typeof a.timeMs === 'number').sort((a, b) => b.createdAt - a.createdAt);
   const okMine = mine.filter(a => !isDisputed(a));
-  const best = okMine.length ? Math.min(...okMine.map(a => a.timeMs)) : null;
-  setNum($('#mBest'), best == null ? '–' : fmtMs(best));
-  setNum($('#mRuns'), String(mine.length));
-  let rank = '–';
-  if (best != null) {
-    const bests = new Map();
-    for (const a of attempts) { if (isDisputed(a) || typeof a.timeMs !== 'number') continue; const b = bests.get(a.uid); if (b == null || a.timeMs < b) bests.set(a.uid, a.timeMs); }
-    rank = '#' + (1 + [...bests.values()].filter(t => t < best).length);
-  }
-  setNum($('#mRank'), rank);
+  renderMineStats();
   const list = $('#meList'); list.replaceChildren();
   if (!mine.length) list.append(h('div', { class: 'card empty' }, h('div', { class: 'muted', text: 'Your runs will show up here.' })));
   mine.forEach((a, i) => list.append(rowEl(a, i + 1)));
@@ -3169,7 +3228,7 @@ async function onAccountChanged() {
   try { P.uid = await P.user.id(); } catch { P.uid = null; }
   try { P.uids = new Set(await P.user.ids()); } catch {}
   await checkAdmin();
-  renderAccount(); animRows = false; renderBoard();
+  renderAccount(); animRows = false; renderBoard(); loadMyProfile(); PROF.list = null; renderStats();
 }
 /* every time the app opens signed out: ask to sign up so your stats are saved */
 async function welcomePrompt() {
@@ -3471,9 +3530,10 @@ const RANGE_WORD = { all: 'all time', day: 'today', week: 'this week', month: 't
 function hero(el, label, value, sub) { el.replaceChildren(h('span', { text: label }), h('b', { text: value }), h('small', { text: sub })); }
 const sessDate = ts => { const d = new Date(ts), y = d.getFullYear() !== new Date().getFullYear(); return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: y ? 'numeric' : undefined }); };
 const sessTime = ts => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-function sessionList(box, list, who, showName) {
+function sessionList(box, list, who, showName, range) {
   box.replaceChildren();
-  if (!list.length) { box.append(h('div', { class: 'nodata', text: who === 'me' ? 'No sessions ' + RANGE_WORD[SF.range] + '. Post 5 or more reps in one go to make one.' : 'No sessions ' + RANGE_WORD[SF.range] + ' yet.' })); return; }
+  const rw = RANGE_WORD[range || 'all'];
+  if (!list.length) { box.append(h('div', { class: 'nodata', text: who === 'me' ? 'No sessions ' + rw + '. Post 5 or more reps in one go to make one.' : 'No sessions ' + rw + ' yet.' })); return; }
   const best = list.reduce((b, x) => !b || x.mean < b.mean ? x : b, null);
   list.forEach(x => {
     const bestRun = x.runs.reduce((b, r) => !b || r.timeMs < b.timeMs ? r : b, null);
@@ -3486,48 +3546,99 @@ function sessionList(box, list, who, showName) {
       reps));
   });
 }
+/* Box plot, zoomed in on the normal reps so the boxes are big; far-off reps become arrows at the edge */
 function boxPlot(box, rows) {
   box.replaceChildren();
   const ok = rows.filter(r => r.sm.n >= 4);
   if (!ok.length) { box.append(h('div', { class: 'nodata', text: 'Needs at least 4 reps.' })); return; }
   let lo = Infinity, hi = -Infinity;
-  ok.forEach(r => { lo = Math.min(lo, r.sm.min); hi = Math.max(hi, r.sm.max); });
-  const pad = Math.max(30, (hi - lo) * 0.06); lo -= pad; hi += pad;
-  const W = Math.max(280, box.clientWidth || 600), ml = rows.length > 1 ? 78 : 12, mr = 12, rowH = 54, mt = 8, mb = 26, H = mt + rows.length * rowH + mb;
-  const X = t => ml + (t - lo) / (hi - lo) * (W - ml - mr);
+  ok.forEach(r => { const inn = r.sm.sorted.filter(v => v >= r.sm.lo && v <= r.sm.hi); lo = Math.min(lo, inn[0]); hi = Math.max(hi, inn[inn.length - 1]); });
+  const pad = Math.max(25, (hi - lo) * 0.08); lo -= pad; hi += pad;
+  const W = Math.max(300, box.clientWidth || 600), multi = rows.length > 1, ml = multi ? 84 : 14, mr = 14, rowH = 92, mt = 4, mb = 30, H = mt + rows.length * rowH + mb;
+  const X = t => ml + (clamp(t, lo, hi) - lo) / (hi - lo) * (W - ml - mr);
   const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Box plot of face-off times' });
-  const span = hi - lo, st = [25, 50, 100, 200, 250, 500, 1000, 2000].find(s2 => span / s2 <= 5) || 2000;
+  const span = hi - lo, st = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000].find(s2 => span / s2 <= 5) || 2000;
   for (let v = Math.ceil(lo / st) * st; v <= hi; v += st) {
     svg.append(svgEl('line', { x1: X(v), x2: X(v), y1: mt, y2: H - mb, stroke: VZ.grid, 'stroke-width': 1 }));
-    const t = svgEl('text', { x: X(v), y: H - 8, 'text-anchor': 'middle', fill: VZ.mute, 'font-size': 11 }); t.textContent = (v / 1000).toFixed(st < 100 ? 2 : 1) + 's'; svg.append(t);
+    const t = svgEl('text', { x: X(v), y: H - 9, 'text-anchor': 'middle', fill: VZ.mute, 'font-size': 13 }); t.textContent = (v / 1000).toFixed(st < 100 ? 2 : 1) + ' s'; svg.append(t);
   }
+  const txt = (x, y, str, o = {}) => { const t = svgEl('text', Object.assign({ x, y, 'text-anchor': 'middle', fill: VZ.ink, 'font-size': 14, 'font-weight': 700 }, o)); t.textContent = str; svg.append(t); };
   rows.forEach((r, k) => {
-    const cy = mt + k * rowH + rowH / 2, bh = 26, sm = r.sm;
-    if (rows.length > 1) { const t = svgEl('text', { x: 0, y: cy + 5, fill: r.color, 'font-size': 14, 'font-weight': 700 }); t.textContent = r.label; svg.append(t); }
-    if (sm.n < 4) { const t = svgEl('text', { x: ml, y: cy + 5, fill: VZ.mute, 'font-size': 13 }); t.textContent = sm.n ? 'Needs at least 4 reps' : 'No reps'; svg.append(t); return; }
+    const cy = mt + k * rowH + rowH / 2 + 2, bh = 34, sm = r.sm;
+    if (multi) txt(0, cy + 5, r.label, { 'text-anchor': 'start', fill: r.color, 'font-size': 15 });
+    if (sm.n < 4) { txt(ml, cy + 5, sm.n ? 'Needs at least 4 reps' : 'No reps', { 'text-anchor': 'start', fill: VZ.mute, 'font-weight': 400 }); return; }
     const inn = sm.sorted.filter(v => v >= sm.lo && v <= sm.hi), wlo = inn[0], whi = inn[inn.length - 1];
-    svg.append(svgEl('line', { x1: X(wlo), x2: X(sm.q1), y1: cy, y2: cy, stroke: r.color, 'stroke-width': 2 }));
-    svg.append(svgEl('line', { x1: X(sm.q3), x2: X(whi), y1: cy, y2: cy, stroke: r.color, 'stroke-width': 2 }));
-    [wlo, whi].forEach(v => svg.append(svgEl('line', { x1: X(v), x2: X(v), y1: cy - 8, y2: cy + 8, stroke: r.color, 'stroke-width': 2 })));
-    svg.append(svgEl('rect', { x: X(sm.q1), y: cy - bh / 2, width: Math.max(2, X(sm.q3) - X(sm.q1)), height: bh, rx: 5, fill: r.color, 'fill-opacity': 0.22, stroke: r.color, 'stroke-width': 2 }));
-    svg.append(svgEl('line', { x1: X(sm.median), x2: X(sm.median), y1: cy - bh / 2, y2: cy + bh / 2, stroke: VZ.ink, 'stroke-width': 3 }));
-    const m = X(sm.mean); svg.append(svgEl('path', { d: `M${m},${cy - 6} L${m + 6},${cy} L${m},${cy + 6} L${m - 6},${cy} Z`, fill: VZ.ink, stroke: VZ.surface, 'stroke-width': 1.5 }));
-    sm.sorted.filter(v => v < sm.lo || v > sm.hi).forEach(v => svg.append(svgEl('circle', { cx: X(v), cy, r: 3.5, fill: 'none', stroke: r.color, 'stroke-width': 1.5 })));
+    svg.append(svgEl('line', { x1: X(wlo), x2: X(sm.q1), y1: cy, y2: cy, stroke: r.color, 'stroke-width': 2.5 }));
+    svg.append(svgEl('line', { x1: X(sm.q3), x2: X(whi), y1: cy, y2: cy, stroke: r.color, 'stroke-width': 2.5 }));
+    [wlo, whi].forEach(v => svg.append(svgEl('line', { x1: X(v), x2: X(v), y1: cy - 10, y2: cy + 10, stroke: r.color, 'stroke-width': 2.5 })));
+    svg.append(svgEl('rect', { x: X(sm.q1), y: cy - bh / 2, width: Math.max(3, X(sm.q3) - X(sm.q1)), height: bh, rx: 6, fill: r.color, 'fill-opacity': 0.22, stroke: r.color, 'stroke-width': 2.5 }));
+    svg.append(svgEl('line', { x1: X(sm.median), x2: X(sm.median), y1: cy - bh / 2, y2: cy + bh / 2, stroke: VZ.ink, 'stroke-width': 3.5 }));
+    const m = X(sm.mean); svg.append(svgEl('path', { d: `M${m},${cy - 8} L${m + 8},${cy} L${m},${cy + 8} L${m - 8},${cy} Z`, fill: VZ.ink, stroke: VZ.surface, 'stroke-width': 2 }));
+    txt(m, cy - bh / 2 - 7, '◆ ' + fmtS(sm.mean) + ' s');                                  // the average, right above it
+    txt(X(sm.q1), cy + bh / 2 + 16, fmtS(sm.q1), { fill: VZ.mute, 'font-size': 12, 'font-weight': 600 });
+    txt(X(sm.q3), cy + bh / 2 + 16, fmtS(sm.q3), { fill: VZ.mute, 'font-size': 12, 'font-weight': 600 });
+    sm.sorted.filter(v => (v < sm.lo || v > sm.hi) && v >= lo && v <= hi).forEach(v => svg.append(svgEl('circle', { cx: X(v), cy, r: 4, fill: 'none', stroke: r.color, 'stroke-width': 2 })));
+    const offL = sm.sorted.filter(v => v < lo).length, offR = sm.sorted.filter(v => v > hi).length;
+    if (offL) txt(ml + 2, cy - 14, '◀ ' + offL, { 'text-anchor': 'start', fill: r.color, 'font-size': 12 });
+    if (offR) txt(W - mr - 2, cy - 14, offR + ' ▶', { 'text-anchor': 'end', fill: r.color, 'font-size': 12 });
   });
   box.append(svg);
 }
+/* Session-to-session average: one line per player, dots = sessions, by date. Higher = faster. */
+const LINE_COLORS = ['#c8ff2e', '#4cc3ff', '#ff9f43', '#e66bff', '#ff5c7a', '#2ee6c8'];
+function trendChart(box, series, legendEl) {
+  box.replaceChildren(); if (legendEl) legendEl.replaceChildren();
+  const pts = series.flatMap(s2 => s2.sessions);
+  if (!series.some(s2 => s2.sessions.length >= 2)) { box.append(h('div', { class: 'nodata', text: pts.length ? 'Needs 2 or more sessions to draw a line.' : 'No sessions yet.' })); return; }
+  if (legendEl && series.length > 1) series.forEach(s2 => legendEl.append(h('span', {}, h('i', { class: 'line', style: 'background:' + s2.color }), s2.label)));
+  const W = Math.max(300, box.clientWidth || 600), H = 220, ml = 46, mr = 14, mt = 16, mb = 30;
+  let t0 = Math.min(...pts.map(x => x.start)), t1 = Math.max(...pts.map(x => x.start)); if (t1 - t0 < 864e5) { t0 -= 432e5; t1 += 432e5; }
+  let lo = Math.min(...pts.map(x => x.mean)), hi = Math.max(...pts.map(x => x.mean)); const pad = Math.max(30, (hi - lo) * 0.15); lo -= pad; hi += pad;
+  const X = t => ml + (t - t0) / (t1 - t0) * (W - ml - mr), Y = v => mt + (v - lo) / (hi - lo) * (H - mt - mb);   // faster = higher
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Average time by session' });
+  const span = hi - lo, st = [10, 20, 25, 50, 100, 200, 250, 500, 1000].find(s2 => span / s2 <= 4) || 1000;
+  for (let v = Math.ceil(lo / st) * st; v <= hi; v += st) {
+    svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: Y(v), y2: Y(v), stroke: VZ.grid, 'stroke-width': 1 }));
+    const t = svgEl('text', { x: ml - 6, y: Y(v) + 4, 'text-anchor': 'end', fill: VZ.mute, 'font-size': 12 }); t.textContent = (v / 1000).toFixed(st < 100 ? 2 : 1); svg.append(t);
+  }
+  const days = (t1 - t0) / 864e5, ticks = Math.min(W < 420 ? 4 : 6, Math.max(2, Math.round(days) + 1));
+  for (let k = 0; k < ticks; k++) {
+    const tt = t0 + (t1 - t0) * k / (ticks - 1), t = svgEl('text', { x: X(tt), y: H - 9, 'text-anchor': k === 0 ? 'start' : k === ticks - 1 ? 'end' : 'middle', fill: VZ.mute, 'font-size': 12 });
+    t.textContent = new Date(tt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); svg.append(t);
+  }
+  const all = [];
+  series.forEach(s2 => {
+    const c = s2.sessions.slice().sort((a, b) => a.start - b.start);
+    if (c.length > 1) svg.append(svgEl('path', { d: c.map((x, i) => (i ? 'L' : 'M') + X(x.start) + ',' + Y(x.mean)).join(' '), fill: 'none', stroke: s2.color, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    c.forEach(x => { svg.append(svgEl('circle', { cx: X(x.start), cy: Y(x.mean), r: 5, fill: s2.color, stroke: VZ.surface, 'stroke-width': 2 })); all.push({ x, s2 }); });
+  });
+  const ring = svgEl('circle', { r: 9, fill: 'none', stroke: VZ.ink, 'stroke-width': 2, visibility: 'hidden' }); svg.append(ring);
+  const hit = svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: 'transparent' }), tip = chartTip(box);
+  const move = e => {
+    const r = svg.getBoundingClientRect(), mx = (e.clientX - r.left) / r.width * W, my = (e.clientY - r.top) / r.height * H, k = box.clientWidth / W;
+    const q = all.reduce((b, p) => { const d = Math.hypot(X(p.x.start) - mx, (Y(p.x.mean) - my) * 0.5); return !b || d < b.d ? { p, d } : b; }, null).p;
+    ring.setAttribute('cx', X(q.x.start)); ring.setAttribute('cy', Y(q.x.mean)); ring.setAttribute('visibility', 'visible');
+    tip.show(X(q.x.start) * k, Y(q.x.mean) * k, (series.length > 1 ? q.s2.label + ' · ' : '') + sessDate(q.x.start), ['Average ' + fmtS(q.x.mean) + ' s', q.x.n + ' reps']);
+  };
+  hit.addEventListener('pointermove', move); hit.addEventListener('pointerdown', move);
+  hit.addEventListener('pointerleave', () => { tip.hide(); ring.setAttribute('visibility', 'hidden'); });
+  svg.append(hit); box.append(svg);
+}
+const sessionsIn = range => { const t0 = rangeStart(range); return sessionsOf(allRuns()).filter(x => x.start >= t0); };
 function renderStats() {
   if ($('#v-stats').hidden) return;
-  $('#statsAll').hidden = SF.who !== 'all'; $('#statsMe').hidden = SF.who !== 'me';
-  const runs = statRuns(SF.range), t0 = rangeStart(SF.range);
-  const sessions = sessionsOf(allRuns()).filter(x => x.start >= t0);
-  if (SF.who === 'all') renderStatsAll(runs, sessions); else renderStatsMe(runs, sessions);
+  $('#statsAll').hidden = SF.who !== 'all'; $('#statsProfiles').hidden = SF.who !== 'profiles';
+  if (SF.who === 'all') renderStatsAll(statRuns(SF.range), sessionsIn(SF.range)); else renderProfiles();
 }
 function renderStatsAll(runs, sessions) {
   const sm = summarize(runs.map(a => a.timeMs)), players = byPlayer(runs), rw = RANGE_WORD[SF.range];
   hero($('#heroAll'), 'Everyone’s average · ' + rw, sm.n ? fmtS(sm.mean) + ' s' : '–', sm.n ? sm.n + ' reps by ' + players.length + (players.length === 1 ? ' player' : ' players') : 'No reps ' + rw + ' yet.');
   boxPlot($('#boxAll'), [{ label: 'Everyone', color: '#c8ff2e', sm }]);
-  sessionList($('#sessAll'), sessions, 'all', true);
+  // the most active players' lines (up to 6)
+  const by = new Map(); sessions.forEach(x => { if (!by.has(x.uid)) by.set(x.uid, { label: x.name, sessions: [] }); by.get(x.uid).sessions.push(x); });
+  const series = [...by.values()].sort((a, b) => b.sessions.length - a.sessions.length).slice(0, 6).map((s2, i) => ({ ...s2, color: LINE_COLORS[i] }));
+  trendChart($('#trendAll'), series, $('#trendAllLegend'));
+  sessionList($('#sessAll'), sessions, 'all', true, SF.range);
   const cols = [['name', 'Player'], ['n', 'Reps'], ['mean', 'Average']];
   const sorted = players.slice().sort((a, b) => { const va = a[SF.sort], vb = b[SF.sort]; return (typeof va === 'string' ? va.localeCompare(vb) : (va ?? Infinity) - (vb ?? Infinity)) * SF.dir; });
   const tb = $('#pTable'); tb.replaceChildren();
@@ -3541,20 +3652,143 @@ function renderStatsAll(runs, sessions) {
     h('td', { text: p.name + (me(p) ? ' (you)' : '') }), h('td', { text: String(p.n) }), h('td', { text: fmtS(p.mean) }))));
   tb.append(tbody);
 }
-function renderStatsMe(runs, sessions) {
-  const mine = runs.filter(isMine), sm = summarize(mine.map(a => a.timeMs)), rw = RANGE_WORD[SF.range];
-  const all = summarize(runs.map(a => a.timeMs)), mySess = sessions.filter(x => P.uids.has(x.uid) || x.uid === P.uid);
+/* ---------- your stats, on the Mine tab ---------- */
+const MF = { range: 'all' };
+function renderMineStats() {
+  const runs = statRuns(MF.range), mine = runs.filter(isMine), sm = summarize(mine.map(a => a.timeMs)), rw = RANGE_WORD[MF.range];
+  const all = summarize(runs.map(a => a.timeMs)), mySess = sessionsIn(MF.range).filter(x => P.uids.has(x.uid) || x.uid === P.uid);
   let sub = 'No reps ' + rw + '. Run a face-off and post it.';
-  if (sm.n) {
-    const d = all.mean - sm.mean;
-    sub = sm.n + (sm.n === 1 ? ' rep' : ' reps') + (all.n > sm.n && Math.abs(d) >= 1 ? ' · ' + fmtS(Math.abs(d)) + ' s ' + (d > 0 ? 'faster' : 'slower') + ' than everyone' : '');
-  }
+  if (sm.n) { const d = all.mean - sm.mean; sub = sm.n + (sm.n === 1 ? ' rep' : ' reps') + ' · ' + mySess.length + (mySess.length === 1 ? ' session' : ' sessions') + (all.n > sm.n && Math.abs(d) >= 1 ? ' · ' + fmtS(Math.abs(d)) + ' s ' + (d > 0 ? 'faster' : 'slower') + ' than everyone' : ''); }
   hero($('#heroMe'), 'Your average · ' + rw, sm.n ? fmtS(sm.mean) + ' s' : '–', sub);
   boxPlot($('#boxMe'), [{ label: 'You', color: '#c8ff2e', sm }, { label: 'Everyone', color: VZ.blue, sm: all }]);
-  sessionList($('#sessMe'), mySess, 'me', false);
+  trendChart($('#trendMe'), [{ label: 'You', color: '#c8ff2e', sessions: mySess }]);
+  sessionList($('#sessMe'), mySess, 'me', false, MF.range);
+}
+/* ---------- profiles: public player pages ---------- */
+const PROF = { list: null, loading: false, open: null, err: '' };
+const photoUrl = p => p && p.avatar && P.user && P.user.profile ? P.user.profile.photoUrl(p.avatar) : '';
+function avatarEl(p, size = 44) {
+  const u = photoUrl(p), st = `width:${size}px;height:${size}px;font-size:${Math.round(size * 0.42)}px`;
+  return u ? h('img', { class: 'avatar', src: u, alt: '', loading: 'lazy', style: st }) : h('span', { class: 'avatar ph', style: st, text: ((p && p.username) || '?').charAt(0).toUpperCase() });
+}
+const profLine = p => [p.team, p.school, p.grad_year ? 'Class of ' + p.grad_year : ''].filter(Boolean).join(' · ');
+async function loadProfiles(force) {
+  if (!P.user || !P.user.profile || PROF.loading || (PROF.list && !force)) return;
+  PROF.loading = true;
+  try { PROF.list = await P.user.profile.listPublic(); PROF.err = ''; } catch (e) { PROF.err = 'Couldn’t load profiles. Pull down to try again.'; }
+  PROF.loading = false; renderProfiles();
+}
+function renderProfiles() {
+  if ($('#statsProfiles').hidden) return;
+  if (PROF.open) return renderProfileView();
+  $('#profListWrap').hidden = false; $('#profView').hidden = true;
+  if (!PROF.list) { $('#profCount').textContent = PROF.err || 'Loading…'; loadProfiles(); $('#profList').replaceChildren(); return; }
+  const q = $('#profSearch').value.trim().toLowerCase();
+  const list = PROF.list.filter(p => !q || [p.username, p.team, p.school, p.grad_year].join(' ').toLowerCase().includes(q));
+  $('#profCount').textContent = PROF.list.length ? PROF.list.length + (PROF.list.length === 1 ? ' public profile' : ' public profiles') + (q ? ' · ' + list.length + ' shown' : '') : '';
+  const box = $('#profList'); box.replaceChildren();
+  if (!PROF.list.length) box.append(h('div', { class: 'card empty' }, h('div', { class: 'muted', text: 'No public profiles yet. Make yours public from the Mine tab.' })));
+  list.forEach(p => {
+    const runs = allRuns().filter(a => a.uid === p.id), sm = summarize(runs.map(a => a.timeMs));
+    box.append(h('button', { class: 'item prof-item', onclick: () => { PROF.open = p.id; renderProfiles(); window.scrollTo(0, 0); } },
+      avatarEl(p, 46),
+      h('div', { class: 'who' }, h('b', { text: '@' + p.username }), h('small', { text: profLine(p) || ' ' })),
+      h('div', { class: 'time', text: sm.n ? fmtS(sm.mean) : '–' }), h('small', { class: 'prof-n', text: sm.n ? sm.n + ' reps' : '' })));
+  });
+}
+function renderProfileView() {
+  const p = (PROF.list || []).find(x => x.id === PROF.open); if (!p) { PROF.open = null; return renderProfiles(); }
+  $('#profListWrap').hidden = true; const v = $('#profView'); v.hidden = false; v.replaceChildren();
+  const runs = allRuns().filter(a => a.uid === p.id), sm = summarize(runs.map(a => a.timeMs)), all = summarize(allRuns().map(a => a.timeMs));
+  const sess = sessionsOf(allRuns()).filter(x => x.uid === p.id);
+  const ids = { box: 'pvBox', trend: 'pvTrend', sess: 'pvSess' };
+  v.append(
+    h('button', { class: 'btn back', text: '‹ All profiles', onclick: () => { PROF.open = null; renderProfiles(); } }),
+    h('div', { class: 'card prof-head' }, avatarEl(p, 84), h('div', {}, h('h2', { text: '@' + p.username }), h('div', { class: 'muted', text: profLine(p) || 'No team or school added' }))),
+    h('div', { class: 'hero avg' }, h('span', { text: 'Average · all time' }), h('b', { text: sm.n ? fmtS(sm.mean) + ' s' : '–' }), h('small', { text: sm.n ? sm.n + ' reps · ' + sess.length + (sess.length === 1 ? ' session' : ' sessions') : 'No reps posted yet.' })),
+    h('div', { class: 'card chartcard' }, h('h3', { text: 'vs everyone' }), h('div', { class: 'chart', id: ids.box })),
+    h('div', { class: 'card chartcard' }, h('h3', { text: 'Average by session' }), h('div', { class: 'chart', id: ids.trend })),
+    h('div', { class: 'card' }, h('h3', { text: 'Sessions' }), h('div', { id: ids.sess })));
+  boxPlot($('#' + ids.box), [{ label: '@' + p.username.slice(0, 9), color: '#c8ff2e', sm }, { label: 'Everyone', color: VZ.blue, sm: all }]);
+  trendChart($('#' + ids.trend), [{ label: p.username, color: '#c8ff2e', sessions: sess }]);
+  sessionList($('#' + ids.sess), sess, 'all', false, 'all');
+}
+$('#profSearch').addEventListener('input', renderProfiles);
+/* ---------- your profile card + editor (Mine) ---------- */
+let myProf = null;
+async function loadMyProfile() {
+  if (!P.user || !P.user.profile || !acct()) { myProf = null; renderProfCard(); return; }
+  try { myProf = await P.user.profile.mine(); } catch { myProf = null; }
+  renderProfCard();
+}
+function renderProfCard() {
+  const c = $('#profCard'); c.replaceChildren();
+  if (!myProf || P.viewAs) { c.hidden = true; return; }
+  c.hidden = false;
+  c.append(avatarEl(myProf, 64),
+    h('div', { class: 'pc-mid' }, h('b', { text: '@' + myProf.username }), h('small', { text: profLine(myProf) || 'Add your team, school and class' }),
+      h('span', { class: 'chip ' + (myProf.is_public ? 'pub' : 'priv'), text: myProf.is_public ? 'Public profile' : 'Private profile' })),
+    h('button', { class: 'btn', text: 'Edit', onclick: openProfileEditor }));
+}
+function squarePhoto(file) {                                     // center-crop to a 256×256 JPEG
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
+      const k = Math.min(img.naturalWidth, img.naturalHeight), sx = (img.naturalWidth - k) / 2, sy = (img.naturalHeight - k) / 2;
+      c.getContext('2d').drawImage(img, sx, sy, k, k, 0, 0, S, S); URL.revokeObjectURL(url);
+      c.toBlob(b => b ? res(b) : rej(new Error('Couldn’t read that photo')), 'image/jpeg', 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Couldn’t read that photo')); };
+    img.src = url;
+  });
+}
+function openProfileEditor() {
+  if (!myProf) return;
+  let newPhoto = null, removePhoto = false;
+  const sheet = h('div', { class: 'sheet auth prof-edit' }), modal = h('div', { class: 'modal auth-modal', onclick: e => { if (e.target === modal) close(); } }, sheet);
+  const close = () => modal.remove();
+  const prev = h('div', { class: 'pe-photo' }, avatarEl(myProf, 96));
+  const file = h('input', { type: 'file', accept: 'image/*', hidden: true });
+  file.onchange = async () => {
+    const f = file.files && file.files[0]; if (!f) return;
+    try { newPhoto = await squarePhoto(f); removePhoto = false; prev.replaceChildren(h('img', { class: 'avatar', src: URL.createObjectURL(newPhoto), style: 'width:96px;height:96px' })); }
+    catch (e) { toast(e.message); }
+  };
+  const team = h('input', { type: 'text', id: 'peTeam', maxlength: '40', value: myProf.team || '', placeholder: 'e.g. Knights Lacrosse' });
+  const school = h('input', { type: 'text', id: 'peSchool', maxlength: '60', value: myProf.school || '', placeholder: 'e.g. The Bishop’s School' });
+  const y = new Date().getFullYear(), grad = h('select', { id: 'peGrad' }, h('option', { value: '', text: '—' }));
+  for (let g = y - 6; g <= y + 8; g++) grad.append(h('option', { value: String(g), text: 'Class of ' + g }));
+  grad.value = myProf.grad_year ? String(myProf.grad_year) : '';
+  const pub = h('input', { type: 'checkbox' }); pub.checked = !!myProf.is_public;
+  const err = h('div', { class: 'err', role: 'alert' });
+  const save = h('button', { class: 'btn primary go', text: 'Save' });
+  save.onclick = async () => {
+    save.disabled = true; save.textContent = 'Saving…'; err.textContent = '';
+    try {
+      const fields = { team: team.value.trim() || null, school: school.value.trim() || null, grad_year: grad.value ? +grad.value : null, is_public: pub.checked };
+      const old = myProf.avatar;
+      if (newPhoto) fields.avatar = await P.user.profile.uploadPhoto(newPhoto);
+      else if (removePhoto) fields.avatar = null;
+      myProf = Object.assign(myProf, await P.user.profile.update(fields) || fields);
+      if ((newPhoto || removePhoto) && old) P.user.profile.deletePhoto(old);
+      renderProfCard(); PROF.list = null; toast('Profile saved'); close();
+    } catch (e) { err.textContent = (e && e.message) || 'Couldn’t save. Try again.'; save.disabled = false; save.textContent = 'Save'; }
+  };
+  sheet.append(
+    h('div', { class: 'row', style: 'justify-content:space-between;flex-wrap:nowrap' }, h('h3', { text: 'Your profile' }), h('button', { class: 'btn', text: '✕', 'aria-label': 'Close', onclick: close })),
+    h('div', { class: 'pe-top' }, prev, h('div', { class: 'pe-pbtns' },
+      h('button', { class: 'btn', type: 'button', text: 'Choose photo', onclick: () => file.click() }),
+      myProf.avatar ? h('button', { class: 'link', type: 'button', text: 'Remove photo', onclick: () => { removePhoto = true; newPhoto = null; prev.replaceChildren(avatarEl({ username: myProf.username }, 96)); } }) : null), file),
+    h('label', { for: 'peTeam', text: 'Team' }), team,
+    h('label', { for: 'peSchool', text: 'School' }), school,
+    h('label', { for: 'peGrad', text: 'Grad class' }), grad,
+    h('label', { class: 'sw' }, h('span', {}, h('b', { text: 'Public profile' }), h('small', { text: 'On: anyone can find you in Stats → Profiles and see your photo, team, school, class and stats. Off: only you see it. Your posted reps show on the board either way.' })), pub, h('i')),
+    err, save);
+  document.body.append(modal);
 }
 let statsResize = 0;
-window.addEventListener('resize', () => { clearTimeout(statsResize); statsResize = setTimeout(renderStats, 150); });
+window.addEventListener('resize', () => { clearTimeout(statsResize); statsResize = setTimeout(() => { renderStats(); if (!$('#v-me').hidden) renderMineStats(); }, 150); });
 
 /* ---------- tabs & wiring ---------- */
 function movePill() {
@@ -3592,7 +3826,8 @@ function seg(id, key) {
 }
 seg('segMode', 'mode'); seg('segRange', 'range');
 $$('#segStats button').forEach(b => b.onclick = () => { SF.range = b.dataset.v; $$('#segStats button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
-$$('#segWho button').forEach(b => b.onclick = () => { SF.who = b.dataset.v; $$('#segWho button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
+$$('#segWho button').forEach(b => b.onclick = () => { SF.who = b.dataset.v; $$('#segWho button').forEach(x => x.setAttribute('aria-pressed', x === b)); if (SF.who === 'profiles') PROF.open = null; renderStats(); });
+$$('#segMine button').forEach(b => b.onclick = () => { MF.range = b.dataset.v; $$('#segMine button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderMineStats(); });
 
 /* Tap the logo: it turns a quarter turn, then the two sticks grab the screen and pull it open, onto the camera */
 function buildDoors(btn) {
@@ -3695,7 +3930,9 @@ async function refreshAll() {
     await Promise.all([
       P.db && P.db.refresh ? P.db.refresh() : null,
       !$('#v-settings').hidden && P.admin ? loadAdminUsers() : null,
-      P.user ? checkAdmin() : null
+      P.user ? checkAdmin() : null,
+      loadMyProfile(),
+      !$('#statsProfiles').hidden ? loadProfiles(true) : (PROF.list = null)
     ]);
   } catch { ok = false; }
   try {
@@ -3754,7 +3991,7 @@ $('#club').value = lsGet('fo-club') || '';
   checkAdmin().then(() => { if (P.admin) { renderAccount(); animRows = false; renderBoard(); } });
   renderLink(); movePill();
   if (user && user.account) {
-    renderAccount(); user.account.onChange(onAccountChanged);
+    renderAccount(); user.account.onChange(onAccountChanged); loadMyProfile();
     if (user.account.recovering) openAccount('newpw');
     else if (user.account.linkError) toast(user.account.linkError);
     else if (!user.account.current()) welcomePrompt();
