@@ -2106,7 +2106,7 @@ function makeTracker(m) {
         if (changed || L1(px, i, m.mb) > m.tolB) sec[sct]++;                        // not a static white line
       }
       const cover = sec.map((n, i) => tot[i] > 0 && n / tot[i] >= 0.25);
-      return { t, found: true, x: best.x, y: best.y, enc: cover.filter(Boolean).length, ew: cover[0] && cover[4] };
+      return { t, found: true, x: best.x, y: best.y, enc: cover.filter(Boolean).length, ew: (cover[0] && cover[4]) || (cover[2] && cover[6]) || (cover[1] && cover[5]) || (cover[3] && cover[7]) };
     }
   };
 }
@@ -2128,8 +2128,8 @@ function decideControl(frames, m) {
     let ok = false;
     if (f.found) {
       const disp = Math.hypot(f.x - m.cx, f.y - m.cy);
-      const cradled = disp > 2.5 * m.rb && f.ew && f.enc >= 3;          // carried off the spot with the head around it
-      const lifted = m.cy - f.y > 2.0 * m.rb && disp > 2.5 * m.rb && f.enc >= 2; // up off the ground, next to the stick
+      const cradled = disp > 2.0 * m.rb && f.ew && f.enc >= 3;          // carried off the spot with the head around it
+      const lifted = m.cy - f.y > 1.5 * m.rb && disp > 2.0 * m.rb && f.enc >= 2; // up off the ground, next to the stick
       ok = (cradled || lifted) && f.t >= tMin;
     }
     if (ok) {
@@ -2151,11 +2151,26 @@ function decideControl(frames, m) {
         }
         while (s < start && !frames[s].found) s++;           // start on a frame where the ball was actually seen in the head
         // …and the ball got there between the frame before and that frame
-        return Math.max(tMin, s > 0 ? (frames[s - 1].t + frames[s].t) / 2 : frames[s].t);
+        const tm = Math.max(tMin, s > 0 ? (frames[s - 1].t + frames[s].t) / 2 : frames[s].t), th = hiddenInPocket(frames.slice(0, i + 1), m, tMin, dt);
+        return th != null && th < tm ? th : tm;
       }
     }
     else if (!f.found && start >= 0 && gap < 2) gap++;
     else { start = -1; count = 0; gap = 0; }
+  }
+  return hiddenInPocket(frames, m, tMin, dt);
+}
+/* The ball was last seen off its spot inside the stick head, then disappeared for 0.3 s: it's in the pocket
+   (covered by the mesh or your hands). Time it at the moment it was last seen going in. */
+function hiddenInPocket(frames, m, tMin, dt) {
+  for (let i = 1; i < frames.length; i++) {
+    if (frames[i].found || !frames[i - 1].found) continue;
+    const p = frames[i - 1], d = Math.hypot(p.x - m.cx, p.y - m.cy);
+    if (!((p.ew || p.enc >= 4) && d > 1.2 * m.rb)) continue;
+    let j = i; while (j < frames.length && !frames[j].found) j++;
+    const hiddenFor = (j < frames.length ? frames[j].t : frames[frames.length - 1].t) - p.t;
+    const backOnSpot = j < frames.length && Math.hypot(frames[j].x - m.cx, frames[j].y - m.cy) < 1.2 * m.rb;
+    if (hiddenFor >= 0.3 && !backOnSpot) return Math.max(tMin, p.t + dt / 2);
   }
   return null;
 }
