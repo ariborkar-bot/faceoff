@@ -2112,8 +2112,13 @@ function makeTracker(m) {
 }
 /* Control = first moment the ball has left its spot and is held by the stick for ~0.2 s:
    the stick head surrounds it on both sides (in the pocket), or it's being carried up off the ground beside the stick. */
+/* "In the pocket" = the ball has really been picked up: carried well away from where it sat, inside the stick head, or
+   lifted clearly off the ground. A clamp that just nudges the ball doesn't count (the head is already next to it at Set).
+   And nobody gets the ball in their stick faster than they can react to the whistle. */
+const POCKET_MIN = 0.3;          // seconds after the whistle: nothing earlier counts
 function decideControl(frames, m) {
   if (frames.length < 4) return null;
+  const tMin = frames[0].t + POCKET_MIN;
   const dts = []; for (let i = 1; i < frames.length; i++) dts.push(frames[i].t - frames[i - 1].t);
   dts.sort((a, b) => a - b); const dt = dts[dts.length >> 1] || 1 / 30;
   const need = Math.max(3, Math.round(0.15 / dt));
@@ -2123,9 +2128,9 @@ function decideControl(frames, m) {
     let ok = false;
     if (f.found) {
       const disp = Math.hypot(f.x - m.cx, f.y - m.cy);
-      const cradled = disp > 1.0 * m.rb && f.ew && f.enc >= 3;          // stick head around the ball on both sides
-      const lifted = m.cy - f.y > 1.0 * m.rb && disp > 1.5 * m.rb && f.enc >= 2; // carried up off the ground next to the stick
-      ok = cradled || lifted;
+      const cradled = disp > 2.5 * m.rb && f.ew && f.enc >= 3;          // carried off the spot with the head around it
+      const lifted = m.cy - f.y > 2.0 * m.rb && disp > 2.5 * m.rb && f.enc >= 2; // up off the ground, next to the stick
+      ok = (cradled || lifted) && f.t >= tMin;
     }
     if (ok) {
       if (start < 0) { start = i; count = 0; }
@@ -2138,7 +2143,7 @@ function decideControl(frames, m) {
           const q = frames[s - 1];
           if (q.found) {
             const d = Math.hypot(q.x - m.cx, q.y - m.cy);
-            if ((q.ew || q.enc >= 3) && d > 0.5 * m.rb) { s--; hidden = 0; continue; }
+            if ((q.ew || q.enc >= 3) && d > 1.8 * m.rb && q.t >= tMin) { s--; hidden = 0; continue; }
             break;
           }
           if (++hidden > 1) break;
@@ -2146,7 +2151,7 @@ function decideControl(frames, m) {
         }
         while (s < start && !frames[s].found) s++;           // start on a frame where the ball was actually seen in the head
         // …and the ball got there between the frame before and that frame
-        return s > 0 ? (frames[s - 1].t + frames[s].t) / 2 : frames[s].t;
+        return Math.max(tMin, s > 0 ? (frames[s - 1].t + frames[s].t) / 2 : frames[s].t);
       }
     }
     else if (!f.found && start >= 0 && gap < 2) gap++;
