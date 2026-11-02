@@ -468,6 +468,8 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
 .sess .s-reps button{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:9px;padding:6px 9px;font-variant-numeric:tabular-nums;font-size:14px;cursor:pointer}
 .sess .s-reps button.best{border-color:var(--lime);color:var(--lime)}
 .sessmore{width:100%;margin-top:8px}
+.viewas{position:sticky;top:0;z-index:12;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:#2a1d05;border:1px solid #ffb020;color:#ffd27a;font-size:14px}
+.viewas .btn{padding:6px 14px;font-size:14px}
 #admSearch{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:10px 12px;font-size:16px}
 .adm-u summary .s-avg b{font-size:20px}
 .adm-u .adm-body{padding:0 2px 12px;display:grid;gap:8px}
@@ -542,6 +544,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
     <div class="hdr-r"><div class="muted small" id="whoami"></div><button class="btn acct-btn" id="btnAcct" hidden>Sign in</button><button class="btn gear" id="btnGear" aria-label="Settings" title="Settings">⚙︎</button><button class="btn-install" id="btnInstall" hidden>Install</button></div>
   </header>
 
+  <div class="viewas" id="viewAs" hidden><span>👁 Viewing as <b id="viewAsName"></b> · read-only</span><button class="btn" id="btnViewAsExit">Exit</button></div>
   <nav role="tablist" id="tabs">
     <button role="tab" data-tab="board" aria-selected="true">Board</button>
     <button role="tab" data-tab="run" aria-selected="false">Face-off</button>
@@ -2586,6 +2589,7 @@ async function post() {
   const me = acct(), club = $('#club').value.trim();
   if (!me && P.user && P.user.account) { openAccount('signup', 'Create a free account to save this rep to the leaderboard.', () => post()); return; }
   const handle = me ? me.username : (lsGet('fo-handle') || 'Player');
+  if (P.viewAs) { msg.textContent = 'You’re viewing as @' + P.viewAs.username + '. Exit first to post.'; msg.classList.add('err'); return; }
   if (!P.db || !P.uid) { msg.textContent = 'Sign in to post to the leaderboard.'; msg.classList.add('err'); return; }
   if (P.canWrite === false) { msg.textContent = 'Your access to this page is view-only, so you can’t post. Ask the owner for Contributor access.'; msg.classList.add('err'); return; }
   if (!P.assets) { msg.textContent = 'Video uploads aren’t available for your account on this page.'; msg.classList.add('err'); return; }
@@ -3020,7 +3024,7 @@ function renderAccount() {
   b.hidden = !has; b.textContent = me ? '@' + me.username + (P.admin ? ' · admin' : '') : 'Sign in'; b.classList.toggle('in', !!me);
   $('#postAs').textContent = me ? me.username : 'Sign in to post';
   $('#btnPost').textContent = me ? 'Post to leaderboard' : 'Sign up to save this rep';
-  const c = $('#acctCard'); c.replaceChildren(); c.hidden = !has;
+  const c = $('#acctCard'); c.replaceChildren(); c.hidden = !has || !!P.viewAs;
   if (!has) return;
   if (me) c.append(h('div', { class: 'row', style: 'justify-content:space-between;flex-wrap:nowrap;gap:10px' },
       h('div', {}, h('div', { class: 'who', text: '@' + me.username }), h('div', { class: 'muted small', text: me.email || '' })),
@@ -3073,6 +3077,7 @@ function renderAdmin() {
       rl.append(h('div', { class: 'adm-rep' }, h('span', { class: 't', text: fmtS(a.timeMs) }), h('small', { text: ago(a.createdAt || Date.now()) }),
         h('button', { class: 'btn', text: '▶', 'aria-label': 'Watch', onclick: e => openRun(a.id, e.currentTarget) }), del));
     });
+    body.prepend(h('button', { class: 'btn primary', text: '👁 View as @' + (u.username || 'player'), onclick: () => viewAs(u) }));
     body.append(rl);
     if (reps.length > 1) {
       const all = h('button', { class: 'btn danger', text: 'Delete all ' + reps.length + ' reps' });
@@ -3092,12 +3097,31 @@ function renderAdmin() {
   if (!list.length) box.append(h('div', { class: 'nodata', text: 'No accounts match.' }));
 }
 $('#admSearch').addEventListener('input', renderAdmin);
+/* admin: see the app the way one player sees it (read-only, your own session stays signed in) */
+function viewAs(u) {
+  if (!P.admin) return;
+  if (!P.viewAs) P.real = { uid: P.uid, uids: P.uids };
+  P.viewAs = { id: u.id, username: u.username || 'player' };
+  P.uid = u.id; P.uids = new Set([u.id]);
+  $('#viewAsName').textContent = '@' + P.viewAs.username; $('#viewAs').hidden = false;
+  $('#acctCard').hidden = true;
+  animRows = true; renderBoard(); switchTab('me'); toast('Viewing as @' + P.viewAs.username);
+}
+function exitViewAs() {
+  if (!P.viewAs) return;
+  const name = P.viewAs.username; P.viewAs = null;
+  if (P.real) { P.uid = P.real.uid; P.uids = P.real.uids; P.real = null; }
+  $('#viewAs').hidden = true; renderAccount(); animRows = true; renderBoard(); renderStats(); toast('Back to your account');
+}
+$('#btnViewAsExit').onclick = exitViewAs;
 async function checkAdmin() {
   try { P.admin = !!(P.user && P.user.isAdmin && await P.user.isAdmin()); } catch { P.admin = false; }
   document.body.classList.toggle('is-admin', P.admin);
   $('#adminCard').hidden = !P.admin;
+  if (!P.admin && P.viewAs) exitViewAs();
 }
 async function onAccountChanged() {
+  if (P.viewAs) { P.viewAs = null; P.real = null; $('#viewAs').hidden = true; }
   try { P.uid = await P.user.id(); } catch { P.uid = null; }
   try { P.uids = new Set(await P.user.ids()); } catch {}
   await checkAdmin();
@@ -3293,6 +3317,7 @@ function openRun(id, fromEl) {
 let modalRefresh = null;
 async function toggleDoc(coll, map, aid, btn, okMsg) {
   if (!acct()) { openAccount('signin', 'Sign in to like or flag reps.'); return; }
+  if (P.viewAs) { toast('You’re viewing as @' + P.viewAs.username + ': exit first to do that'); return; }
   if (!P.db || !P.uid || P.canWrite === false) { toast('Sign in with posting access to do that'); return; }
   const ref = P.db.doc(coll + '/' + aid + '_' + P.uid), has = map.get(aid)?.has(P.uid);
   try {
