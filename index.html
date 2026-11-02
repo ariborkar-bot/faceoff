@@ -468,6 +468,17 @@ input[type=range].pl-scrub{position:absolute;inset:0;width:100%;height:36px;marg
 .sess .s-reps button{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:9px;padding:6px 9px;font-variant-numeric:tabular-nums;font-size:14px;cursor:pointer}
 .sess .s-reps button.best{border-color:var(--lime);color:var(--lime)}
 .sessmore{width:100%;margin-top:8px}
+#admSearch{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:10px 12px;font-size:16px}
+.adm-u summary .s-avg b{font-size:20px}
+.adm-u .adm-body{padding:0 2px 12px;display:grid;gap:8px}
+.adm-u .adm-meta{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:14px}
+.adm-u .adm-meta span{color:var(--mute)}
+.adm-u .adm-meta b{font-weight:600;overflow-wrap:anywhere}
+.adm-reps{display:grid;gap:6px}
+.adm-rep{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+.adm-rep .t{font-family:var(--disp);font-weight:800;font-size:20px;min-width:70px}
+.adm-rep small{flex:1;color:var(--mute)}
+.adm-rep .btn{padding:6px 10px;font-size:14px}
 .plain{background:#0d141b;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:16px;line-height:1.45}
 .reclist{display:flex;flex-direction:column}
 .recrow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 2px;border-bottom:1px solid #1a2430;text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%}
@@ -681,6 +692,12 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <label class="sw"><span><b>Partner's stick too<span class="info" data-info="Check for a second stick in front of the ball."></span></b></span><input type="checkbox" id="chkPartner"><i></i></label>
       <button class="btn" id="btnFlip" style="width:100%;margin-top:10px">Switch front / back camera</button>
     </div>
+    <div class="card" id="adminCard" hidden>
+      <h2 class="hinfo">Admin · Users<span class="info" data-info="Only admins see this. Every account, with its email and reps. Open one to see or delete their reps."></span></h2>
+      <input type="search" id="admSearch" placeholder="Search username or email" autocomplete="off" style="width:100%;box-sizing:border-box;margin:6px 0 4px">
+      <div class="small muted" id="admCount"></div>
+      <div id="admList"></div>
+    </div>
     <button class="btn" id="btnSetDone" style="width:100%">Done</button>
   </section>
 
@@ -866,6 +883,11 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   const db = { collection: c => query(c), doc: p => { const i = p.lastIndexOf('/'); return docRef(p.slice(0, i), p.slice(i + 1)); } };
   const user = {
     id: async () => { const me = account.current(); return me ? me.id : null; }, can: () => true, account, canEdit: () => false, isOwner: () => false,
+    async adminUsers() {                                       // admins only (checked in the database)
+      const r = await rest('rpc/admin_users', { method: 'POST', body: '{}' });
+      if (!r.ok) await fail(r, 'Loading users');
+      return await r.json();
+    },
     async isAdmin() {                                          // set only in the database (public.admins)
       if (!account.current()) return false;
       try { const r = await rest('rpc/is_admin', { method: 'POST', body: '{}' }); return r.ok ? (await r.json()) === true : false; } catch { return false; }
@@ -3007,9 +3029,73 @@ function renderAccount() {
       h('div', { class: 'row stretch', style: 'margin-top:12px' }, h('button', { class: 'btn primary', text: 'Sign up', onclick: () => openAccount('signup') }), h('button', { class: 'btn', text: 'Sign in', onclick: () => openAccount('signin') })));
   $('#linkCard').hidden = true;
 }
+/* ---------- admin: every account ---------- */
+let admUsers = null, admOpen = null;
+async function loadAdminUsers() {
+  if (!P.admin || !P.user.adminUsers) return;
+  $('#admCount').textContent = 'Loading…';
+  try { admUsers = await P.user.adminUsers(); renderAdmin(); }
+  catch (e) { $('#admCount').textContent = 'Couldn’t load users' + (e && e.message ? ': ' + e.message : '.'); }
+}
+const fmtDate = ts => ts ? new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never';
+async function admDeleteRep(a) {
+  await P.db.doc('attempts/' + a.id).delete();
+  try { await P.assets?.delete(a.asset); } catch {}
+  attempts = attempts.filter(x => x.id !== a.id);
+}
+function renderAdmin() {
+  const card = $('#adminCard'); card.hidden = !P.admin; if (!P.admin || !admUsers) return;
+  const q = $('#admSearch').value.trim().toLowerCase();
+  const list = admUsers.filter(u => !q || (u.username || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q));
+  $('#admCount').textContent = admUsers.length + (admUsers.length === 1 ? ' account' : ' accounts') + (q ? ' · ' + list.length + ' shown' : '');
+  const box = $('#admList'); box.replaceChildren();
+  list.forEach(u => {
+    const reps = attempts.filter(a => a.uid === u.id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const det = h('details', { class: 'sess adm-u' });
+    if (admOpen === u.id) det.open = true;
+    det.addEventListener('toggle', () => { if (det.open) admOpen = u.id; else if (admOpen === u.id) admOpen = null; });
+    const body = h('div', { class: 'adm-body' },
+      h('div', { class: 'adm-meta' },
+        h('span', { text: 'Email' }), h('b', { text: u.email || '–' }),
+        h('span', { text: 'Joined' }), h('b', { text: fmtDate(u.joined) }),
+        h('span', { text: 'Last sign-in' }), h('b', { text: fmtDate(u.last_sign_in) }),
+        h('span', { text: 'Email confirmed' }), h('b', { text: u.confirmed ? 'Yes' : 'Not yet' })));
+    const rl = h('div', { class: 'adm-reps' });
+    if (!reps.length) rl.append(h('div', { class: 'nodata', text: 'No reps on the board.' }));
+    reps.forEach(a => {
+      const del = h('button', { class: 'btn danger', text: 'Delete' });
+      del.onclick = async () => {
+        if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = 'Sure?'; setTimeout(() => { if (del.isConnected) { del.dataset.sure = ''; del.textContent = 'Delete'; } }, 3000); return; }
+        del.disabled = true; del.textContent = '…';
+        try { await admDeleteRep(a); toast('Rep deleted'); renderBoard(); u.reps = Math.max(0, (u.reps || 1) - 1); renderAdmin(); }
+        catch (e) { del.disabled = false; del.textContent = 'Delete'; toast('Couldn’t delete it: ' + (e && e.message || 'try again')); }
+      };
+      rl.append(h('div', { class: 'adm-rep' }, h('span', { class: 't', text: fmtS(a.timeMs) }), h('small', { text: ago(a.createdAt || Date.now()) }),
+        h('button', { class: 'btn', text: '▶', 'aria-label': 'Watch', onclick: e => openRun(a.id, e.currentTarget) }), del));
+    });
+    body.append(rl);
+    if (reps.length > 1) {
+      const all = h('button', { class: 'btn danger', text: 'Delete all ' + reps.length + ' reps' });
+      all.onclick = async () => {
+        if (all.dataset.sure !== '1') { all.dataset.sure = '1'; all.textContent = 'Tap again to delete all ' + reps.length; setTimeout(() => { if (all.isConnected) { all.dataset.sure = ''; all.textContent = 'Delete all ' + reps.length + ' reps'; } }, 3500); return; }
+        all.disabled = true; let n = 0;
+        for (const a of reps) { all.textContent = 'Deleting ' + (++n) + ' of ' + reps.length + '…'; try { await admDeleteRep(a); } catch {} }
+        toast('Deleted ' + reps.length + ' reps by @' + (u.username || 'player')); u.reps = 0; renderBoard(); renderAdmin();
+      };
+      body.append(all);
+    }
+    det.append(h('summary', {},
+      h('div', { class: 's-date' }, h('b', {}, '@' + (u.username || '(no username)'), u.is_admin ? h('span', { class: 'tag', text: 'Admin' }) : null), h('small', { text: u.email || '' })),
+      h('div', { class: 's-avg' }, h('b', { text: String(u.reps) }), h('small', { text: u.reps === 1 ? 'rep' : 'reps' }))), body);
+    box.append(det);
+  });
+  if (!list.length) box.append(h('div', { class: 'nodata', text: 'No accounts match.' }));
+}
+$('#admSearch').addEventListener('input', renderAdmin);
 async function checkAdmin() {
   try { P.admin = !!(P.user && P.user.isAdmin && await P.user.isAdmin()); } catch { P.admin = false; }
   document.body.classList.toggle('is-admin', P.admin);
+  $('#adminCard').hidden = !P.admin;
 }
 async function onAccountChanged() {
   try { P.uid = await P.user.id(); } catch { P.uid = null; }
@@ -3400,6 +3486,7 @@ function switchTab(name) {
   if (name !== 'react') rxCancel();
   playbackAudio(name === 'react');
   if (name === 'stats') renderStats();
+  if (name === 'settings') { $('#adminCard').hidden = !P.admin; if (P.admin) loadAdminUsers(); }
   if (prev !== name) {
     const v = $('#v-' + name); if (v) { v.classList.remove('view-in'); void v.offsetWidth; v.classList.add('view-in'); }
     animRows = true; if (name === 'board' || name === 'me') renderBoard();
