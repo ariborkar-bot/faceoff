@@ -794,12 +794,21 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       return { signedIn: false, confirm: true };                // the project asks people to confirm their email first
     },
     async signIn(email, password) {
+      if (!email.includes('@')) {                               // a username: the server swaps it for the email only if the password is right
+        const q = await rest('rpc/login_email', { method: 'POST', body: JSON.stringify({ p_username: email, p_password: password }) });
+        if (!q.ok) { let j = {}; try { j = await q.json(); } catch {} throw new Error(/too many/i.test(j.message || '') ? 'Too many tries. Wait 15 minutes and try again.' : 'Couldn’t sign in. Try again.'); }
+        const found = await q.json();
+        if (!found) throw new Error('invalid_credentials');
+        email = found;
+      }
       const r = await authFetch('token?grant_type=password', { email, password });
       if (!r.ok) throw await authErr(r);
       saveSession(await r.json()); const n = await claimOld(); authChanged(); return { claimed: n };
     },
     async verifyCode(email, code, kind = 'signup') {          // the 6-digit code from the email (sign-up or password reset)
-      const r = await authFetch('verify', { type: kind === 'reset' ? 'recovery' : 'email', email, token: String(code).replace(/\D/g, '') });
+      const token = String(code).replace(/\D/g, '');
+      let r = await authFetch('verify', { type: kind === 'reset' ? 'recovery' : 'email', email, token });
+      if (!r.ok && kind !== 'reset') { const r2 = await authFetch('verify', { type: 'signup', email, token }); if (r2.ok) r = r2; }   // older projects call it "signup"
       if (!r.ok) throw await authErr(r);
       saveSession(await r.json()); const n = await claimOld(); authChanged(); return { claimed: n };
     },
@@ -3138,11 +3147,11 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
   const A = P.user && P.user.account; if (!A) return;
   let m = mode;
   const sheet = h('div', { class: 'sheet auth' }), modal = h('div', { class: 'modal auth-modal', onclick: e => { if (e.target === modal) close(); } }, sheet);
-  const close = () => { modal.remove(); document.removeEventListener('keydown', esc); };
+  const close = () => { clearInterval(linkWatch); modal.remove(); document.removeEventListener('keydown', esc); };
   const esc = e => { if (e.key === 'Escape') close(); };
   document.addEventListener('keydown', esc);
   const field = (label, attrs) => { const i = h('input', attrs); return [h('label', { for: attrs.id, text: label }), i]; };
-  let codeEmail = '';
+  let codeEmail = '', codePw = '', linkWatch = 0;
   const draw = () => {
     sheet.replaceChildren();
     const head = h('div', { class: 'row', style: 'justify-content:space-between;flex-wrap:nowrap' },
@@ -3159,7 +3168,23 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
     const form = h('form', { novalidate: true });
     if (m === 'code' || m === 'rcode') {                      // type the code from the email: no links, no leaving the app
       const reset = m === 'rcode';
-      sheet.append(h('p', { class: 'why', text: (reset ? 'We emailed a code to ' : 'We emailed a 6-digit code to ') + codeEmail + '. ' + (reset ? 'Enter it and pick a new password.' : 'Enter it to finish signing up.') }));
+      sheet.append(h('p', { class: 'why', text: reset ? 'We emailed a code to ' + codeEmail + '. Enter it and pick a new password.' : 'We emailed ' + codeEmail + '. Type the code from the email here, or tap the link in it and then come back: you’ll be signed in automatically.' }));
+      // tapped the link instead (works even if the link's page doesn't load): keep checking and finish signing in by itself
+      clearInterval(linkWatch);
+      if (!reset && codePw) {
+        const t0 = Date.now(); let busy = false;
+        const tryIn = async () => {
+          if (busy || !modal.isConnected) return; if (Date.now() - t0 > 15 * 60e3) { clearInterval(linkWatch); return; }
+          busy = true;
+          try { await A.signIn(codeEmail, codePw); clearInterval(linkWatch); const me = acct(); toast('Email confirmed. Welcome' + (me && me.username ? ', @' + me.username : '') + '!'); close(); after && after(); }
+          catch {} finally { busy = false; }
+        };
+        linkWatch = setInterval(() => { if (!document.hidden) tryIn(); }, 6000);
+        const onBack = () => { if (!document.hidden) tryIn(); };
+        document.addEventListener('visibilitychange', onBack); window.addEventListener('focus', onBack);
+        const stop = () => { document.removeEventListener('visibilitychange', onBack); window.removeEventListener('focus', onBack); };
+        new MutationObserver((_, o) => { if (!modal.isConnected) { stop(); o.disconnect(); } }).observe(document.body, { childList: true });
+      }
       const [cl, ci] = field('Code', { id: 'auCode', type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '10', placeholder: '123456', class: 'codein' });
       form.append(cl, ci);
       let npw;
@@ -3169,6 +3194,7 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
       const submit = async () => {
         const code = ci.value.replace(/\D/g, ''); err.textContent = ''; err.style.color = '';
         if (code.length < 6) { err.textContent = 'Enter the code from the email.'; return; }
+        if (go.disabled) return;
         if (reset && (!npw.value || npw.value.length < 8)) { err.textContent = 'Use at least 8 characters for your password.'; return; }
         go.disabled = true; const label = go.textContent; go.textContent = 'One moment…';
         try {
@@ -3184,7 +3210,8 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
         }
       };
       form.onsubmit = e => { e.preventDefault(); submit(); };
-      ci.addEventListener('input', () => { const d = ci.value.replace(/\D/g, ''); if (ci.value !== d) ci.value = d; if (d.length === 6 && !reset) submit(); });   // pasting or autofilling the code finishes on its own
+      let autoT = 0;
+      ci.addEventListener('input', () => { const d = ci.value.replace(/\D/g, ''); if (ci.value !== d) ci.value = d; clearTimeout(autoT); if ((d.length === 6 || d.length === 8) && !reset) autoT = setTimeout(submit, d.length === 8 ? 100 : 900); });   // pasting or autofilling the code finishes on its own
       sheet.append(form);
       let wait = 0, tmr = 0;
       const again = h('button', { class: 'link', type: 'button', text: 'Send a new code' });
@@ -3200,7 +3227,8 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
       return;
     }
     let email, user, pw, uhint;
-    if (m !== 'newpw') { const [l, i] = field('Email', { id: 'auEmail', type: 'email', autocomplete: 'email', required: true, inputmode: 'email', placeholder: 'you@example.com' }); email = i; form.append(l, i); }
+    if (m === 'signin') { const [l, i] = field('Email or username', { id: 'auEmail', type: 'text', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false', required: true, placeholder: 'you@example.com or ari_fo' }); email = i; form.append(l, i); }
+    else if (m !== 'newpw') { const [l, i] = field('Email', { id: 'auEmail', type: 'email', autocomplete: 'email', required: true, inputmode: 'email', placeholder: 'you@example.com' }); email = i; form.append(l, i); }
     if (m === 'signup') {
       const [l, i] = field('Username (shown on the board)', { id: 'auUser', autocomplete: 'username', maxlength: '20', placeholder: 'e.g. ari_fo' }); user = i; uhint = h('div', { class: 'hint', text: '3–20 letters, numbers, _ or .' });
       form.append(l, i, uhint);
@@ -3222,7 +3250,9 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
     form.onsubmit = async e => {
       e.preventDefault(); err.textContent = '';
       const em = email && email.value.trim(), p = pw && pw.value, u = user && user.value.trim();
-      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { err.textContent = 'Enter a valid email.'; return; }
+      if (m === 'signin' && !em) { err.textContent = 'Enter your email or username.'; return; }
+      if (email && m !== 'signin' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { err.textContent = 'Enter a valid email.'; return; }
+      if (m === 'signin' && em.includes('@') && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { err.textContent = 'Enter a valid email.'; return; }
       if (m === 'signup' && !/^[A-Za-z0-9_.]{3,20}$/.test(u)) { err.textContent = 'Usernames are 3–20 letters, numbers, _ or .'; return; }
       if ((m === 'signup' || m === 'newpw') && (!p || p.length < 8)) { err.textContent = 'Use at least 8 characters for your password.'; return; }
       if (m === 'signin' && !p) { err.textContent = 'Enter your password.'; return; }
@@ -3231,7 +3261,7 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
         if (m === 'signup') {
           if (!(await A.usernameFree(u))) throw new Error('That username is taken');
           const r = await A.signUp(em, p, u);
-          if (!r.signedIn) { codeEmail = em; m = 'code'; draw(); return; }
+          if (!r.signedIn) { codeEmail = em; codePw = p; m = 'code'; draw(); return; }
           toast('Welcome, @' + u + '!'); close(); after && after();
         } else if (m === 'signin') {
           const r = await A.signIn(em, p);
@@ -3244,8 +3274,8 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
       } catch (ex) {
         const msg = String(ex && ex.message || '');
         err.textContent = /already registered|already exists/i.test(msg) ? 'That email already has an account. Sign in instead.'
-          : /invalid login|invalid_credentials/i.test(msg) ? 'Wrong email or password.'
-          : /not confirmed/i.test(msg) ? (codeEmail = em, A.resendCode(em).catch(() => {}), m = 'code', draw(), '')
+          : /invalid login|invalid_credentials/i.test(msg) ? (em && !em.includes('@') ? 'Wrong username or password.' : 'Wrong email or password.')
+          : /not confirmed/i.test(msg) ? (codeEmail = em, codePw = p, A.resendCode(em).catch(() => {}), m = 'code', draw(), '')
           : /database error saving new user/i.test(msg) ? 'That username is taken'
           : /rate|too many/i.test(msg) ? 'Too many tries. Wait a minute and try again.'
           : msg || 'Something went wrong. Check your connection and try again.';
