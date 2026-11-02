@@ -595,10 +595,6 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <div class="stat"><b id="sPlayers">0</b><span>Players</span></div>
       <div class="stat"><b id="sRuns">0</b><span>Runs</span></div>
     </div>
-    <div class="seg" id="segMode">
-      <button data-v="best" aria-pressed="true">Best per player</button>
-      <button data-v="all" aria-pressed="false">Every run</button>
-    </div>
     <div class="seg" id="segRange">
       <button data-v="all" aria-pressed="true">All time</button>
       <button data-v="week" aria-pressed="false">This week</button>
@@ -2785,8 +2781,8 @@ const F = { mode: 'best', range: 'all' };
 const isDisputed = a => (flags.get(a.id)?.size || 0) >= 3;
 
 function visibleRuns() {
-  const now = Date.now(), lim = F.range === 'day' ? 864e5 : F.range === 'week' ? 6048e5 : Infinity;
-  return attempts.filter(a => typeof a.timeMs === 'number' && now - (a.createdAt || 0) <= lim);
+  const t0 = rangeStart(F.range);                     // Today = since midnight, This week = since Monday
+  return attempts.filter(a => typeof a.timeMs === 'number' && (a.createdAt || 0) >= t0);
 }
 function ranked() {
   let runs = visibleRuns();
@@ -3824,7 +3820,7 @@ function seg(id, key) {
     F[key] = b.dataset.v; $$('#' + id + ' button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderBoard();
   });
 }
-seg('segMode', 'mode'); seg('segRange', 'range');
+seg('segRange', 'range');
 $$('#segStats button').forEach(b => b.onclick = () => { SF.range = b.dataset.v; $$('#segStats button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
 $$('#segWho button').forEach(b => b.onclick = () => { SF.who = b.dataset.v; $$('#segWho button').forEach(x => x.setAttribute('aria-pressed', x === b)); if (SF.who === 'profiles') PROF.open = null; renderStats(); });
 $$('#segMine button').forEach(b => b.onclick = () => { MF.range = b.dataset.v; $$('#segMine button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderMineStats(); });
