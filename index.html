@@ -166,6 +166,7 @@ input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
 .auth .tabs2 button[aria-pressed=true]{background:var(--ink);color:#0a0e12}
 .auth label{display:block;margin:10px 0 4px;font-size:14px;color:var(--mute)}
 .auth input{width:100%;box-sizing:border-box;color:var(--ink);font-size:16px}
+.auth input.codein{font-family:var(--disp);font-weight:800;font-size:30px;letter-spacing:.4em;text-align:center;padding:10px 6px}
 .auth input:focus,input[type=text]:focus{outline:2px solid var(--lime);outline-offset:1px}
 .auth .hint{font-size:12.5px;margin-top:4px;color:var(--mute);min-height:1em}
 .auth .hint.ok{color:var(--lime)}.auth .hint.bad,.auth .err{color:var(--red)}
@@ -777,6 +778,12 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       if (!r.ok) throw await authErr(r);
       saveSession(await r.json()); const n = await claimOld(); authChanged(); return { claimed: n };
     },
+    async verifyCode(email, code, kind = 'signup') {          // the 6-digit code from the email (sign-up or password reset)
+      const r = await authFetch('verify', { type: kind === 'reset' ? 'recovery' : 'email', email, token: String(code).replace(/\D/g, '') });
+      if (!r.ok) throw await authErr(r);
+      saveSession(await r.json()); const n = await claimOld(); authChanged(); return { claimed: n };
+    },
+    async resendCode(email) { const r = await authFetch('resend', { type: 'signup', email }); if (!r.ok) throw await authErr(r); },
     async signOut() { const t = session && session.access_token; saveSession(null); authChanged(); if (t) authFetch('logout', null, { token: t }).catch(() => {}); },
     async resetPassword(email) { const r = await authFetch('recover?redirect_to=' + encodeURIComponent(location.origin + location.pathname), { email }); if (!r.ok) throw await authErr(r); },
     async setPassword(password) { const t = await token(); const r = await authFetch('user', { password }, { method: 'PUT', token: t }); if (!r.ok) throw await authErr(r); },
@@ -3025,10 +3032,11 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
   const esc = e => { if (e.key === 'Escape') close(); };
   document.addEventListener('keydown', esc);
   const field = (label, attrs) => { const i = h('input', attrs); return [h('label', { for: attrs.id, text: label }), i]; };
+  let codeEmail = '';
   const draw = () => {
     sheet.replaceChildren();
     const head = h('div', { class: 'row', style: 'justify-content:space-between;flex-wrap:nowrap' },
-      h('h3', { text: m === 'signup' ? 'Create account' : m === 'signin' ? 'Sign in' : m === 'forgot' ? 'Reset password' : m === 'newpw' ? 'New password' : 'Check your email' }),
+      h('h3', { text: m === 'signup' ? 'Create account' : m === 'signin' ? 'Sign in' : m === 'forgot' ? 'Reset password' : m === 'newpw' ? 'New password' : m === 'rcode' ? 'Reset password' : 'Enter your code' }),
       h('button', { class: 'btn', text: '✕', 'aria-label': 'Close', onclick: close }));
     sheet.append(head);
     if (why && (m === 'signup' || m === 'signin')) sheet.append(h('p', { class: 'why', text: why }));
@@ -3039,8 +3047,46 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
     }
     const err = h('div', { class: 'err', role: 'alert' });
     const form = h('form', { novalidate: true });
-    if (m === 'check') {
-      sheet.append(h('p', { text: 'We sent a link to your email. Tap it to finish signing up, then come back here and sign in.' }), h('button', { class: 'btn primary go', text: 'OK', onclick: () => { m = 'signin'; draw(); } }));
+    if (m === 'code' || m === 'rcode') {                      // type the code from the email: no links, no leaving the app
+      const reset = m === 'rcode';
+      sheet.append(h('p', { class: 'why', text: (reset ? 'We emailed a code to ' : 'We emailed a 6-digit code to ') + codeEmail + '. ' + (reset ? 'Enter it and pick a new password.' : 'Enter it to finish signing up.') }));
+      const [cl, ci] = field('Code', { id: 'auCode', type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '10', placeholder: '123456', class: 'codein' });
+      form.append(cl, ci);
+      let npw;
+      if (reset) { const [l, i] = field('New password', { id: 'auPw', type: 'password', autocomplete: 'new-password', placeholder: 'At least 8 characters' }); npw = i; form.append(l, i); }
+      const go = h('button', { class: 'btn primary go', type: 'submit', text: reset ? 'Save password' : 'Verify' });
+      form.append(err, go);
+      const submit = async () => {
+        const code = ci.value.replace(/\D/g, ''); err.textContent = ''; err.style.color = '';
+        if (code.length < 6) { err.textContent = 'Enter the code from the email.'; return; }
+        if (reset && (!npw.value || npw.value.length < 8)) { err.textContent = 'Use at least 8 characters for your password.'; return; }
+        go.disabled = true; const label = go.textContent; go.textContent = 'One moment…';
+        try {
+          const r = await A.verifyCode(codeEmail, code, reset ? 'reset' : 'signup');
+          if (reset) await A.setPassword(npw.value);
+          const me = acct();
+          toast(reset ? 'Password updated · signed in' : 'Welcome' + (me && me.username ? ', @' + me.username : '') + '!' + (r.claimed ? ' ' + r.claimed + ' earlier rep' + (r.claimed > 1 ? 's' : '') + ' added.' : ''));
+          close(); after && after();
+        } catch (ex) {
+          const msg = String(ex && ex.message || '');
+          err.textContent = /expired|invalid|otp/i.test(msg) ? 'That code is wrong or expired. Check the newest email, or send a new code.' : /rate|too many/i.test(msg) ? 'Too many tries. Wait a minute and try again.' : msg || 'Something went wrong. Try again.';
+          go.disabled = false; go.textContent = label;
+        }
+      };
+      form.onsubmit = e => { e.preventDefault(); submit(); };
+      ci.addEventListener('input', () => { const d = ci.value.replace(/\D/g, ''); if (ci.value !== d) ci.value = d; if (d.length === 6 && !reset) submit(); });   // pasting or autofilling the code finishes on its own
+      sheet.append(form);
+      let wait = 0, tmr = 0;
+      const again = h('button', { class: 'link', type: 'button', text: 'Send a new code' });
+      const tick = () => { again.disabled = wait > 0; again.textContent = wait > 0 ? 'Send a new code (' + wait + ' s)' : 'Send a new code'; if (wait-- > 0) tmr = setTimeout(tick, 1000); };
+      again.onclick = async () => {
+        if (wait > 0) return; err.textContent = '';
+        try { reset ? await A.resetPassword(codeEmail) : await A.resendCode(codeEmail); err.style.color = 'var(--lime)'; err.textContent = 'New code sent. Check your email (and spam).'; wait = 60; tick(); }
+        catch (ex) { err.style.color = ''; err.textContent = /rate|too many|seconds/i.test(String(ex && ex.message)) ? 'Wait a minute before asking for another code.' : 'Couldn’t send a new code. Try again.'; }
+      };
+      wait = 60; tick();
+      sheet.append(h('div', { style: 'display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px' }, again, h('button', { class: 'link', type: 'button', text: 'Use a different email', onclick: () => { clearTimeout(tmr); m = reset ? 'forgot' : 'signup'; draw(); } })));
+      setTimeout(() => ci.focus(), 50);
       return;
     }
     let email, user, pw, uhint;
@@ -3061,7 +3107,7 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
       const show = h('button', { type: 'button', text: 'Show', onclick: () => { pw.type = pw.type === 'password' ? 'text' : 'password'; show.textContent = pw.type === 'password' ? 'Show' : 'Hide'; } });
       form.append(l, h('div', { class: 'pw' }, i, show));
     }
-    const go = h('button', { class: 'btn primary go', type: 'submit', text: m === 'signup' ? 'Create account' : m === 'signin' ? 'Sign in' : m === 'forgot' ? 'Send reset link' : 'Save password' });
+    const go = h('button', { class: 'btn primary go', type: 'submit', text: m === 'signup' ? 'Create account' : m === 'signin' ? 'Sign in' : m === 'forgot' ? 'Send code' : 'Save password' });
     form.append(err, go);
     form.onsubmit = async e => {
       e.preventDefault(); err.textContent = '';
@@ -3075,13 +3121,13 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
         if (m === 'signup') {
           if (!(await A.usernameFree(u))) throw new Error('That username is taken');
           const r = await A.signUp(em, p, u);
-          if (!r.signedIn) { m = 'check'; draw(); return; }
+          if (!r.signedIn) { codeEmail = em; m = 'code'; draw(); return; }
           toast('Welcome, @' + u + '!'); close(); after && after();
         } else if (m === 'signin') {
           const r = await A.signIn(em, p);
           toast('Signed in' + (r.claimed ? ' · ' + r.claimed + ' earlier rep' + (r.claimed > 1 ? 's' : '') + ' added to your account' : '')); close(); after && after();
         } else if (m === 'forgot') {
-          await A.resetPassword(em); err.style.color = 'var(--lime)'; err.textContent = 'If that email has an account, a reset link is on its way.'; go.textContent = label; go.disabled = false; return;
+          await A.resetPassword(em); codeEmail = em; m = 'rcode'; draw(); return;
         } else if (m === 'newpw') {
           await A.setPassword(p); toast('Password updated'); close();
         }
@@ -3089,7 +3135,7 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
         const msg = String(ex && ex.message || '');
         err.textContent = /already registered|already exists/i.test(msg) ? 'That email already has an account. Sign in instead.'
           : /invalid login|invalid_credentials/i.test(msg) ? 'Wrong email or password.'
-          : /not confirmed/i.test(msg) ? 'Confirm your email first: tap the link we sent you.'
+          : /not confirmed/i.test(msg) ? (codeEmail = em, A.resendCode(em).catch(() => {}), m = 'code', draw(), '')
           : /database error saving new user/i.test(msg) ? 'That username is taken'
           : /rate|too many/i.test(msg) ? 'Too many tries. Wait a minute and try again.'
           : msg || 'Something went wrong. Check your connection and try again.';
