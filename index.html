@@ -51,7 +51,9 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 .undo-btn{background:none;border:0;color:#0a5be0;font-weight:800;font-size:15px;padding:2px 4px}
 .code{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;word-break:break-all;flex:1;min-width:0}
 .brand-em{height:46px;width:auto;display:block}.brand-wm{height:26px;width:auto;display:block}
-@media(max-width:430px){.brand-em{height:36px}.brand-wm{height:20px}.hdr-r{gap:6px}}
+header{gap:8px}.brand{min-width:0;flex:0 1 auto;gap:6px}.hdr-r{flex:0 0 auto}
+@media(max-width:430px){.brand-em{height:28px}.brand-wm{height:15px}.hdr-r{gap:6px}.acct-btn{max-width:30vw;padding:6px 10px;font-size:14px}.gear{width:38px}}
+@media(max-width:360px){.brand-em{height:24px}.brand-wm{height:12px}}
 /* ================= motion ================= */
 :root{--spring:cubic-bezier(.2,.9,.25,1.15);--ease:cubic-bezier(.2,.8,.2,1)}
 @keyframes viewIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -181,6 +183,9 @@ input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
 .gear{min-height:38px;width:42px;padding:0;font-size:20px;line-height:1}
 /* pull down to refresh */
 html,body{overscroll-behavior-y:contain}
+/* phones: the page only scrolls up and down, never sideways */
+html,body{overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none;max-width:100%}
+body{touch-action:pan-y}
 .ptr{position:fixed;left:50%;top:0;z-index:25;width:40px;height:40px;margin-left:-20px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);color:var(--lime);display:grid;place-items:center;font-size:22px;box-shadow:0 6px 18px rgba(0,0,0,.45);transform:translateY(-60px);opacity:0;pointer-events:none}
 .ptr.ready{background:var(--lime);color:#101600;border-color:var(--lime)}
 .ptr.spin i{animation:refSpin .7s linear infinite}
