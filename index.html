@@ -3351,7 +3351,11 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
         if (m === 'signup') {
           if (!(await A.usernameFree(u))) throw new Error('That username is taken');
           const r = await A.signUp(em, p, u);
-          if (!r.signedIn) { codeEmail = em; codePw = p; m = 'code'; draw(); return; }
+          if (!r.signedIn) {
+            // no email step: sign straight in. (Only if the server still insists on confirming the email does the code screen show.)
+            try { await A.signIn(em, p); }
+            catch (e2) { if (/not confirmed/i.test(String(e2 && e2.message))) { codeEmail = em; codePw = p; m = 'code'; draw(); return; } throw e2; }
+          }
           toast('Welcome, @' + u + '!'); close(); after && after();
         } else if (m === 'signin') {
           const r = await A.signIn(em, p);
