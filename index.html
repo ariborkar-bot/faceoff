@@ -2160,17 +2160,20 @@ function makeTracker(m) {
       else { vx = 0; vy = 0; }
       last = { x: best.x, y: best.y, t }; lost = 0;
       // which directions around the ball are blocked by something that's neither ground nor ball (the stick)
-      const sec = new Array(8).fill(0), tot = new Array(8).fill(0), r0 = 1.3 * rb, r1 = 2.6 * rb;
-      for (let y = Math.max(0, Math.floor(best.y - r1)); y <= Math.min(H - 1, best.y + r1); y++) for (let x = Math.max(0, Math.floor(best.x - r1)); x <= Math.min(W - 1, best.x + r1); x++) {
-        const dx = x - best.x, dy = y - best.y, d = Math.hypot(dx, dy); if (d < r0 || d > r1) continue;
-        const sct = ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8; tot[sct]++;
+      // tight ring (head right around the ball) for the exact moment; wide ring (stick farther out or edge-on) to confirm a pickup
+      const sec = new Array(8).fill(0), tot = new Array(8).fill(0), secW = new Array(8).fill(0), totW = new Array(8).fill(0), r0 = 1.2 * rb, r1 = 2.6 * rb, r2 = 3.4 * rb;
+      for (let y = Math.max(0, Math.floor(best.y - r2)); y <= Math.min(H - 1, best.y + r2); y++) for (let x = Math.max(0, Math.floor(best.x - r2)); x <= Math.min(W - 1, best.x + r2); x++) {
+        const dx = x - best.x, dy = y - best.y, d = Math.hypot(dx, dy); if (d < r0 || d > r2) continue;
+        const sct = ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8, near = d >= 1.3 * rb && d <= r1;
+        totW[sct]++; if (near) tot[sct]++;
         const i = (y * W + x) * 4;
         if (L1(px, i, m.ground) <= T_G) continue;                                   // plain ground
         const changed = Math.abs(px[i] - m.px0[i]) + Math.abs(px[i + 1] - m.px0[i + 1]) + Math.abs(px[i + 2] - m.px0[i + 2]) > 60;
-        if (changed || L1(px, i, m.mb) > m.tolB) sec[sct]++;                        // not a static white line
+        if (changed || L1(px, i, m.mb) > m.tolB) { secW[sct]++; if (near) sec[sct]++; }   // not a static white line
       }
-      const cover = sec.map((n, i) => tot[i] > 0 && n / tot[i] >= 0.25);
-      return { t, found: true, x: best.x, y: best.y, enc: cover.filter(Boolean).length, ew: (cover[0] && cover[4]) || (cover[2] && cover[6]) || (cover[1] && cover[5]) || (cover[3] && cover[7]) };
+      const opp = c => (c[0] && c[4]) || (c[2] && c[6]) || (c[1] && c[5]) || (c[3] && c[7]);
+      const cover = sec.map((n, i) => tot[i] > 0 && n / tot[i] >= 0.25), coverW = secW.map((n, i) => totW[i] > 0 && n / totW[i] >= 0.18);
+      return { t, found: true, x: best.x, y: best.y, enc: cover.filter(Boolean).length, ew: opp(cover), encW: coverW.filter(Boolean).length, ewW: opp(coverW) };
     }
   };
 }
@@ -2192,9 +2195,12 @@ function decideControl(frames, m) {
     let ok = false;
     if (f.found) {
       const disp = Math.hypot(f.x - m.cx, f.y - m.cy);
-      const cradled = disp > 2.0 * m.rb && f.ew && f.enc >= 3;          // carried off the spot with the head around it
-      const lifted = m.cy - f.y > 1.5 * m.rb && disp > 2.0 * m.rb && f.enc >= 2; // up off the ground, next to the stick
-      ok = (cradled || lifted) && f.t >= tMin;
+      const up = m.cy - f.y;
+      const cradled = disp > 2.0 * m.rb && (f.ew || f.ewW || f.enc >= 3);  // carried off the spot with the head around it
+      const lifted = up > 1.3 * m.rb && disp > 1.8 * m.rb && f.encW >= 1;   // up off the ground with the stick next to it (any angle)
+      const carried = disp > 3.5 * m.rb && f.encW >= 1;                     // well away from the spot with the stick on it
+      const away = disp > 5 * m.rb;                                       // far from the spot: it's been picked up and carried
+      ok = (cradled || lifted || carried || away) && f.t >= tMin;
     }
     if (ok) {
       if (start < 0) { start = i; count = 0; }
@@ -2230,7 +2236,8 @@ function hiddenInPocket(frames, m, tMin, dt) {
   for (let i = 1; i < frames.length; i++) {
     if (frames[i].found || !frames[i - 1].found) continue;
     const p = frames[i - 1], d = Math.hypot(p.x - m.cx, p.y - m.cy);
-    if (!((p.ew || p.enc >= 4) && d > 1.2 * m.rb)) continue;
+    const edge = p.x < 1.5 * m.rb || p.y < 1.5 * m.rb || p.x > m.W - 1.5 * m.rb || p.y > m.H - 1.5 * m.rb;   // carried out of the picture
+    if (!(((p.ew || p.ewW || p.enc >= 3 || p.encW >= 4 || m.cy - p.y > 0.8 * m.rb) && d > 1.2 * m.rb) || (edge && d > 2 * m.rb))) continue;
     let j = i; while (j < frames.length && !frames[j].found) j++;
     const hiddenFor = (j < frames.length ? frames[j].t : frames[frames.length - 1].t) - p.t;
     const backOnSpot = j < frames.length && Math.hypot(frames[j].x - m.cx, frames[j].y - m.cy) < 1.2 * m.rb;
