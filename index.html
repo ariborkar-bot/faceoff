@@ -3034,7 +3034,32 @@ $('#btnLink').onclick = () => {
   toast('Linked. Reloading…'); setTimeout(() => location.reload(), 700);
 };
 /* ---------- voice start: say "Start" (and "Stop" to cancel) ---------- */
-const VOICE = { supported: !!(window.SpeechRecognition || window.webkitSpeechRecognition), rec: null, on: false, lastFire: 0 };
+/* inside the iPhone app the page can't hear words itself, so it asks the app's own listener (the "Voice" plugin) */
+const NV = (() => { try { const C = window.Capacitor; return C && C.isNativePlatform && C.isNativePlatform() && C.registerPlugin ? C.registerPlugin('Voice') : null; } catch { return null; } })();
+const VOICE = { supported: !!(NV || window.SpeechRecognition || window.webkitSpeechRecognition), rec: null, on: false, lastFire: 0, retryAt: 0, prev: '', hooked: false };
+function voiceNative() {
+  const now = performance.now(); if (now < VOICE.retryAt) return;
+  VOICE.retryAt = now + 1200;
+  if (!VOICE.hooked) {
+    VOICE.hooked = true;
+    NV.addListener('result', e => {
+      const full = String((e && e.text) || '').toLowerCase(), prev = VOICE.prev || '';
+      const t = full.startsWith(prev) ? full.slice(prev.length) : full;   // only the words said since the last update
+      VOICE.prev = full;
+      if (!t.trim()) return;
+      const n = performance.now();
+      if (n - VOICE.lastFire < 1500) return;
+      if (voiceHeard(t)) VOICE.lastFire = n;
+    });
+    NV.addListener('end', () => { VOICE.on = false; VOICE.prev = ''; });
+  }
+  VOICE.prev = ''; VOICE.on = true;
+  NV.start().catch(e => {
+    VOICE.on = false;
+    const m = String((e && e.message) || e || '');
+    if (/permission|denied/i.test(m)) { VOICE.denied = true; SET.voiceStart = false; saveSet(); renderSettings(); toast('Voice needs microphone and speech permission. Allow both for FO & GO in Settings.' + (SET.repMode ? ' Rep mode still works with the buttons.' : '')); }
+  });
+}
 function voiceMode() {
   if (!(SET.voiceStart || SET.repMode) || !C.stream || document.hidden || $('#v-run').hidden) return null;
   if (!$('#cMark').hidden) return SET.repMode && !S.busy && !$('.auth-modal') ? 'result' : null;
@@ -3065,7 +3090,8 @@ function voiceTick() {
   renderRepHint();
   if (!VOICE.supported || VOICE.denied) return;
   const want = !!voiceMode();
-  if (want && !VOICE.on) {
+  if (want && !VOICE.on && NV) { voiceNative(); }
+  else if (want && !VOICE.on) {
     try {
       const R = window.SpeechRecognition || window.webkitSpeechRecognition, r = new R();
       r.continuous = true; r.interimResults = true; r.lang = 'en-US';
@@ -3080,7 +3106,8 @@ function voiceTick() {
       r.onerror = e => { VOICE.on = false; if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { VOICE.denied = true; SET.voiceStart = false; saveSet(); renderSettings(); toast('Voice needs microphone and speech permission' + (SET.repMode ? '. Rep mode still works with the buttons.' : '')); } };
       r.start(); VOICE.rec = r; VOICE.on = true;
     } catch { VOICE.on = false; }
-  } else if (!want && VOICE.on && VOICE.rec) { try { VOICE.rec.stop(); } catch {} VOICE.on = false; }
+  } else if (!want && VOICE.on && NV) { try { NV.stop().catch(() => {}); } catch {} VOICE.on = false; VOICE.prev = ''; }
+  else if (!want && VOICE.on && VOICE.rec) { try { VOICE.rec.stop(); } catch {} VOICE.on = false; }
   $('#voiceHint').classList.toggle('live', VOICE.on);
 }
 setInterval(voiceTick, 400);
