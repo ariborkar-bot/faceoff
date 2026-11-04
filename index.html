@@ -968,6 +968,9 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       async deletePhoto(path) { if (!path) return; try { await fetch(SB_URL + '/storage/v1/object/avatars/' + path, { method: 'DELETE', headers: { ...H, ...(await authH()) } }); } catch {} },
       photoUrl: path => path ? SB_URL + '/storage/v1/object/public/avatars/' + path : ''
     },
+    async adminIds() {                                         // who the admins are (public, so their names can carry a tag)
+      try { const r = await rest('rpc/admin_ids', { method: 'POST', body: '{}' }); return r.ok ? await r.json() : []; } catch { return []; }
+    },
     async isAdmin() {                                          // set only in the database (public.admins)
       if (!account.current()) return false;
       try { const r = await rest('rpc/is_admin', { method: 'POST', body: '{}' }); return r.ok ? (await r.json()) === true : false; } catch { return false; }
@@ -1037,7 +1040,7 @@ function ago(ts) {
 function showNotice(msg) { const n = $('#notice'); n.textContent = msg; n.hidden = !msg; }
 
 /* ---------- platform capabilities ---------- */
-const P = { db: null, user: null, assets: null, uid: null, uids: new Set(), canWrite: null, canEdit: false, admin: false };
+const P = { db: null, user: null, assets: null, uid: null, uids: new Set(), canWrite: null, canEdit: false, admin: false, adminIds: new Set() };
 const isMine = a => !!a && (a.uid === P.uid || P.uids.has(a.uid));
 async function cap(name) { try { return (await window.claude?.use(name)) ?? null; } catch { return null; } }
 
@@ -2965,6 +2968,7 @@ function rowItem(a, rank) {
     h('div', { class: 'play', text: '▶' }));
   if (isDisputed(a)) $('.who b', item).append(h('span', { class: 'tag', text: 'disputed' }));
   if (mine) $('.who b', item).append(h('span', { class: 'tag', style: 'background:#1d2d05;color:#c8ff2e', text: 'you' }));
+  const at = adminTag(a.uid); if (at) $('.who b', item).append(at);
   return item;
 }
 let animRows = true, seenIds = null, boardLoaded = false;
@@ -3179,7 +3183,7 @@ function renderAccount() {
   const c = $('#acctCard'); c.replaceChildren(); c.hidden = !has || !!P.viewAs;
   if (!has) return;
   if (me) c.append(h('div', { class: 'row', style: 'justify-content:space-between;flex-wrap:nowrap;gap:10px' },
-      h('div', {}, h('div', { class: 'who', text: '@' + me.username }), h('div', { class: 'muted small', text: me.email || '' })),
+      h('div', {}, h('div', { class: 'who' }, '@' + me.username, adminTag(me.id)), h('div', { class: 'muted small', text: me.email || '' })),
       h('div', { class: 'row', style: 'gap:8px;flex-wrap:nowrap' },
         h('button', { class: 'btn', text: 'Sign out', onclick: async () => { await P.user.account.signOut(); toast('Signed out'); } }),
         h('button', { class: 'btn', text: 'Delete account', onclick: async () => {
@@ -3272,6 +3276,14 @@ function exitViewAs() {
   $('#viewAs').hidden = true; renderAccount(); animRows = true; renderBoard(); renderStats(); toast('Back to your account');
 }
 $('#btnViewAsExit').onclick = exitViewAs;
+async function loadAdminIds() {
+  try {
+    const next = new Set(P.user && P.user.adminIds ? await P.user.adminIds() : []);
+    if (next.size === P.adminIds.size && [...next].every(x => P.adminIds.has(x))) return;
+    P.adminIds = next; animRows = false; renderBoard(); if (P.user && P.user.account) renderAccount();
+  } catch {}
+}
+const adminTag = id => id && P.adminIds.has(id) ? h('span', { class: 'tag', text: 'Admin' }) : null;
 async function checkAdmin() {
   try { P.admin = !!(P.user && P.user.isAdmin && await P.user.isAdmin()); } catch { P.admin = false; }
   document.body.classList.toggle('is-admin', P.admin);
@@ -3753,7 +3765,7 @@ function renderProfiles() {
     const runs = allRuns().filter(a => a.uid === p.id), sm = summarize(runs.map(a => a.timeMs));
     box.append(h('button', { class: 'item prof-item', onclick: () => { PROF.open = p.id; renderProfiles(); window.scrollTo(0, 0); } },
       avatarEl(p, 46),
-      h('div', { class: 'who' }, h('b', { text: '@' + p.username }), h('small', { text: profLine(p) || ' ' })),
+      h('div', { class: 'who' }, h('b', {}, '@' + p.username, adminTag(p.id)), h('small', { text: profLine(p) || ' ' })),
       h('div', { class: 'time', text: sm.n ? fmtS(sm.mean) : '–' }), h('small', { class: 'prof-n', text: sm.n ? sm.n + ' reps' : '' })));
   });
 }
@@ -3765,7 +3777,7 @@ function renderProfileView() {
   const ids = { box: 'pvBox', trend: 'pvTrend', sess: 'pvSess' };
   v.append(
     h('button', { class: 'btn back', text: '‹ All profiles', onclick: () => { PROF.open = null; renderProfiles(); } }),
-    h('div', { class: 'card prof-head' }, avatarEl(p, 84), h('div', {}, h('h2', { text: '@' + p.username }), h('div', { class: 'muted', text: profLine(p) || 'No team or school added' }))),
+    h('div', { class: 'card prof-head' }, avatarEl(p, 84), h('div', {}, h('h2', {}, '@' + p.username, adminTag(p.id)), h('div', { class: 'muted', text: profLine(p) || 'No team or school added' }))),
     h('div', { class: 'hero avg' }, h('span', { text: 'Average · all time' }), h('b', { text: sm.n ? fmtS(sm.mean) + ' s' : '–' }), h('small', { text: sm.n ? sm.n + ' reps · ' + sess.length + (sess.length === 1 ? ' session' : ' sessions') : 'No reps posted yet.' })),
     h('div', { class: 'card chartcard' }, h('h3', { text: 'vs everyone' }), h('div', { class: 'chart', id: ids.box })),
     h('div', { class: 'card chartcard' }, h('h3', { text: 'Average by session' }), h('div', { class: 'chart', id: ids.trend })),
@@ -3992,6 +4004,7 @@ async function refreshAll() {
       P.db && P.db.refresh ? P.db.refresh() : null,
       !$('#v-settings').hidden && P.admin ? loadAdminUsers() : null,
       P.user ? checkAdmin() : null,
+      P.user ? loadAdminIds() : null,
       loadMyProfile(),
       !$('#statsProfiles').hidden ? loadProfiles(true) : (PROF.list = null)
     ]);
@@ -4050,6 +4063,7 @@ $('#club').value = lsGet('fo-club') || '';
   try { P.uid = user ? await user.id() : null; } catch { P.uid = null; }
   try { P.uids = new Set(user && user.ids ? await user.ids() : [P.uid].filter(Boolean)); } catch { P.uids = new Set([P.uid].filter(Boolean)); }
   checkAdmin().then(() => { if (P.admin) { renderAccount(); animRows = false; renderBoard(); } });
+  loadAdminIds();
   renderLink(); movePill();
   if (user && user.account) {
     renderAccount(); user.account.onChange(onAccountChanged); loadMyProfile();
