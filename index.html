@@ -352,6 +352,7 @@ input[type=range]{width:100%;accent-color:var(--lime);margin:10px 0 2px}
 .result{margin-top:12px;text-align:center;border-radius:14px;background:#0d141b;border:1px dashed var(--line);padding:12px}
 .result .n{font-family:var(--disp);font-weight:800;font-size:60px;line-height:1;font-variant-numeric:tabular-nums}
 .result .n.ok{color:var(--lime)}
+.result .hand{justify-content:center;margin-top:6px;color:var(--mute)}.result .hand b{color:var(--ink,#eef3f7);font-variant-numeric:tabular-nums;margin-left:4px}
 .warn{color:var(--amber)}
 .err{color:var(--red)}
 label{display:block;font-size:14px;color:var(--mute);margin-bottom:4px}
@@ -638,7 +639,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <h2>Your rep</h2>
       <div class="automsg work" id="autoMsg">Timing your rep…</div>
       <div id="repPlayer" style="margin-top:10px"></div>
-      <div class="result"><div class="muted small hinfo" style="justify-content:center">Face-off time<span class="info" data-info="Timed by the app: from the whistle to the moment the ball is in your pocket."></span></div><div class="n" id="vTime">–</div></div>
+      <div class="result"><div class="muted small hinfo" style="justify-content:center">Face-off time<span class="info" data-info="Timed by the app: from the whistle to the moment the ball is in your pocket."></span></div><div class="n" id="vTime">–</div><div class="hand small hinfo" id="vHand" hidden>Hand speed <b></b><span class="info" data-info="From the moment your hands start moving to the moment your stick clamps the ball."></span></div></div>
 
       <div id="postBox" style="margin-top:14px" hidden>
         <div class="row stretch">
@@ -1996,11 +1997,12 @@ async function camSequence() {
     if (controlAbs == null && now > tGo + 1000) setStatus('Watching for the ball in your pocket…');
   }
   if (!goInfo) goInfo = await goP;
+  const handT = C.track && model && controlAbs != null ? decideHands(C.track.frames, model, controlAbs) : null;
   if (C.track) { C.track.stop(); C.track = null; }
   C.phase = '';
   const controlT = controlAbs == null ? null : controlAbs - goInfo.perf / 1000;
-  C.lastRep = { goPerf: goInfo.perf, goMethod: goInfo.method, controlPerf: controlAbs == null ? null : controlAbs * 1000, controlT };
-  await finishRec({ beepPerf: goInfo.perf, goMethod: goInfo.method, controlT, hasModel: !!model, settings: C.recSettings });
+  C.lastRep = { goPerf: goInfo.perf, goMethod: goInfo.method, controlPerf: controlAbs == null ? null : controlAbs * 1000, controlT, handT };
+  await finishRec({ beepPerf: goInfo.perf, goMethod: goInfo.method, controlT, handT, hasModel: !!model, settings: C.recSettings });
 }
 function backToWait(msg) {
   camRun++; discardRec(); C.phase = ''; C.state = 'wait'; C.prev = null; $('#holdBar').style.width = '0';
@@ -2110,6 +2112,12 @@ function makeTracker(m) {
   let last = { x: m.cx, y: m.cy, t: null }, vx = 0, vy = 0, lost = 0;
   return {
     step(px, t) {
+      const hs = handSense(px, m);
+      const r = stepBall(px, t); r.mv = hs.mv; r.cov = hs.cov; return r;
+    }
+  };
+  function stepBall(px, t) {
+    {
       const dt = last.t == null ? 1 / 30 : Math.max(1 / 240, t - last.t);
       const ex = last.x + vx * dt, ey = last.y + vy * dt;
       const R = lost ? Math.min(Math.max(W, H), 6 * rb * (1 + 0.5 * lost)) : Math.max(5 * rb, Math.hypot(vx, vy) * dt * 3);
@@ -2175,7 +2183,42 @@ function makeTracker(m) {
       const cover = sec.map((n, i) => tot[i] > 0 && n / tot[i] >= 0.25), coverW = secW.map((n, i) => totW[i] > 0 && n / totW[i] >= 0.18);
       return { t, found: true, x: best.x, y: best.y, enc: cover.filter(Boolean).length, ew: opp(cover), encW: coverW.filter(Boolean).length, ewW: opp(coverW) };
     }
-  };
+  }
+}
+/* Hand speed: how much the picture changed since Go right around the ball (mv: the stick and hands
+   starting to move) and how much of the ball's spot is covered (cov: the stick head coming down on it). */
+function handSense(px, m) {
+  const { W, H, rb, cx, cy, px0 } = m, R = 6 * rb, r0 = 1.5 * rb, rc = 0.8 * rb;
+  let n = 0, ch = 0, nc = 0, cc = 0;
+  for (let y = Math.max(0, Math.floor(cy - R)); y <= Math.min(H - 1, cy + R); y++) for (let x = Math.max(0, Math.floor(cx - R)); x <= Math.min(W - 1, cx + R); x++) {
+    const d = Math.hypot(x - cx, y - cy); if (d > R || (d > rc && d < r0)) continue;
+    const i = (y * W + x) * 4, diff = Math.abs(px[i] - px0[i]) + Math.abs(px[i + 1] - px0[i + 1]) + Math.abs(px[i + 2] - px0[i + 2]) > 60;
+    if (d <= rc) { nc++; if (diff) cc++; } else { n++; if (diff) ch++; }
+  }
+  return { mv: n ? ch / n : 0, cov: nc ? cc / nc : 0 };
+}
+/* From the first movement after Go to the clamp (stick head down on the ball, or the ball knocked off its spot).
+   Returns seconds, or null when either moment isn't clear. */
+function decideHands(frames, m, tCtl) {
+  const fr = frames.filter(f => f && f.mv != null && (tCtl == null || f.t <= tCtl + 0.05));
+  if (fr.length < 4) return null;
+  // the first clear jump in movement: above the jitter of the last 0.4 s (shaky hands while set don't count)
+  let i0 = -1;
+  for (let i = 1; i + 1 < fr.length; i++) {
+    let prev = 0; for (let k = i - 1; k >= 0 && fr[k].t >= fr[i].t - 0.4; k--) prev = Math.max(prev, fr[k].mv);
+    const thr = Math.max(0.05, 1.4 * prev);
+    if (fr[i].mv > thr && fr[i + 1].mv > thr) { i0 = i; break; }
+  }
+  if (i0 < 1) return null;
+  const tMove = (fr[i0 - 1].t + fr[i0].t) / 2;
+  for (let j = i0; j < fr.length; j++) {
+    const f = fr[j], off = f.found && Math.hypot(f.x - m.cx, f.y - m.cy) > 1.2 * m.rb;
+    if (f.cov >= 0.4 || off) {
+      const tClamp = j > i0 ? (fr[j - 1].t + f.t) / 2 : f.t, hs = tClamp - tMove;
+      return hs >= 0.02 && hs <= 0.8 ? hs : null;
+    }
+  }
+  return null;
 }
 /* Control = first moment the ball has left its spot and is held by the stick for ~0.2 s:
    the stick head surrounds it on both sides (in the pocket), or it's being carried up off the ground beside the stick. */
@@ -2296,7 +2339,7 @@ async function findControl(v, beepT, dur, opts, onP) {
       }
     }
     const t = decideControl(frames, model);
-    return { ok: t != null, t, frames, model, reason: t == null ? 'nocontrol' : '' };
+    return { ok: t != null, t, hand: t != null ? decideHands(frames, model, t) : null, frames, model, reason: t == null ? 'nocontrol' : '' };
   } catch (e) { return { ok: false, reason: 'error' }; }
   finally { v.pause(); v.muted = wasMuted; v.playbackRate = rate; }
 }
@@ -2527,12 +2570,12 @@ function nextFrame(v, ms = 250) {
 }
 
 /* ---------- RUN flow: results + replay ---------- */
-const S = { file: null, url: null, dur: 0, beep: null, control: null, autoBeep: null, ms: null, busy: false, opts: null, job: 0, player: null };
+const S = { file: null, url: null, dur: 0, beep: null, control: null, autoBeep: null, ms: null, handMs: null, busy: false, opts: null, job: 0, player: null };
 
 function resetRun(loading) {
   if (S.player) { S.player.destroy(); S.player = null; }
   if (S.url) URL.revokeObjectURL(S.url);
-  Object.assign(S, { file: null, url: null, dur: 0, beep: null, control: null, autoBeep: null, ms: null, busy: false, opts: null, job: S.job + 1 });
+  Object.assign(S, { file: null, url: null, dur: 0, beep: null, control: null, autoBeep: null, ms: null, handMs: null, busy: false, opts: null, job: S.job + 1 });
   $('#cMark').hidden = true; $('#postBox').hidden = true;
   if (!loading) {
     $('#cCam').hidden = false;
@@ -2542,7 +2585,8 @@ function resetRun(loading) {
 }
 function setAuto(msg, cls) { const a = $('#autoMsg'); a.hidden = !msg; a.textContent = msg; a.className = 'automsg' + (cls ? ' ' + cls : ''); }
 function showResult() {
-  const n = $('#vTime'), box = n.closest('.result');
+  const n = $('#vTime'), box = n.closest('.result'), hv = $('#vHand');
+  hv.hidden = S.ms == null || S.handMs == null; if (!hv.hidden) $('b', hv).textContent = fmtMs(S.handMs) + ' s';
   $$('.pb, .spark', box).forEach(x => x.remove());
   if (S.ms == null) { n.textContent = '–'; n.className = 'n'; n._shown = null; return; }
   n.className = 'n ok';
@@ -2572,7 +2616,7 @@ function celebrate(box, ms) {
   }
   setTimeout(() => $$('.spark', box).forEach(x => x.remove()), 1200);
 }
-function failRep(msg) { S.ms = null; S.control = null; showResult(); setAuto(msg, 'fail'); $('#postBox').hidden = true; S.player && S.player.refresh(); }
+function failRep(msg) { S.ms = null; S.control = null; S.handMs = null; showResult(); setAuto(msg, 'fail'); $('#postBox').hidden = true; S.player && S.player.refresh(); }
 function openRepScreen(file, dur) {
   S.file = file; S.url = URL.createObjectURL(file); S.dur = dur;
   $('#cMark').hidden = false; $('#cCam').hidden = true;
@@ -2591,7 +2635,7 @@ async function showCamRep(file, info) {
   else if (ms == null) failRep("Didn't see the ball get picked up in your pocket, so this rep has no time. (Lost face-offs aren't timed.)");
   else if (ms < 120 || ms > 15000) failRep("That timing doesn't look right (" + fmtMs(ms) + " s), so it wasn't counted. Try another rep.");
   else {
-    S.ms = ms; S.control = S.beep + info.controlT; showResult();
+    S.ms = ms; S.control = S.beep + info.controlT; S.handMs = info.handT == null ? null : Math.round(info.handT * 1000); showResult();
     setAuto('Timed: ball in your pocket ' + fmtMs(ms) + ' s after Go' + (info.goMethod === 'mic' ? '.' : ' (whistle timed from the phone’s audio clock; turn the volume up so the mic hears it too).'));
     $('#postBox').hidden = false;
   }
@@ -2653,6 +2697,7 @@ async function loadClip(file, opts = {}) {
     : "This browser couldn't play the clip back to time it. Use the app's camera instead: it times you live.");
   S.control = Math.round(res.t * 1000) / 1000;
   S.ms = Math.round((S.control - S.beep) * 1000);
+  S.handMs = res.hand == null ? null : Math.round(res.hand * 1000);
   if (S.ms < 120 || S.ms > 15000) return failRep("That timing doesn't look right (" + fmtMs(S.ms) + " s), so it wasn't counted.");
   showResult(); setAuto('Timed: ball in your pocket ' + fmtMs(S.ms) + ' s after Go.');
   $('#postBox').hidden = false; S.player.refresh();
@@ -2711,7 +2756,7 @@ async function post() {
   lsSet('fo-club', club);
   const ft0 = (S.file.type || '').split(';')[0];
   if (SET.repMode && S.file.size < 18e6 && (ft0 === 'video/mp4' || ft0 === 'video/webm')) {
-    const job = { blob: S.file, type: ft0, beep: S.beep, control: S.control, ms, handle, club };
+    const job = { blob: S.file, type: ft0, beep: S.beep, control: S.control, ms, handMs: S.handMs, handle, club };
     resetRun(); nextRep(); uploadInBackground(job); return;
   }
   S.busy = true; $('#btnPost').disabled = true; $('#barWrap').hidden = false;
@@ -2737,7 +2782,7 @@ async function post() {
     const up = await P.assets.upload(clip.blob, { type: clip.type });
     setBar(0.92);
     await P.db.collection('attempts').add({
-      uid: P.uid, handle, club, timeMs: ms,
+      uid: P.uid, handle, club, timeMs: ms, ...(S.handMs != null ? { handMs: S.handMs } : {}),
       beepAt: Math.round(beep2 * 1000) / 1000, controlAt: Math.round(ctl2 * 1000) / 1000,
       asset: up.id, createdAt: Date.now(), v: 1
     });
@@ -2760,7 +2805,7 @@ async function uploadInBackground(job) {
   try {
     const up = await P.assets.upload(job.blob, { type: job.type });
     await P.db.collection('attempts').add({
-      uid: P.uid, handle: job.handle, club: job.club, timeMs: job.ms,
+      uid: P.uid, handle: job.handle, club: job.club, timeMs: job.ms, ...(job.handMs != null ? { handMs: job.handMs } : {}),
       beepAt: Math.round(job.beep * 1000) / 1000, controlAt: Math.round(job.control * 1000) / 1000,
       asset: up.id, createdAt: Date.now(), v: 1
     });
@@ -3638,8 +3683,8 @@ function renderStats() {
   if (SF.who === 'all') renderStatsAll(statRuns(SF.range), sessionsIn(SF.range)); else renderProfiles();
 }
 function renderStatsAll(runs, sessions) {
-  const sm = summarize(runs.map(a => a.timeMs)), players = byPlayer(runs), rw = RANGE_WORD[SF.range];
-  hero($('#heroAll'), 'Everyone’s average · ' + rw, sm.n ? fmtS(sm.mean) + ' s' : '–', sm.n ? sm.n + ' reps by ' + players.length + (players.length === 1 ? ' player' : ' players') : 'No reps ' + rw + ' yet.');
+  const sm = summarize(runs.map(a => a.timeMs)), players = byPlayer(runs), rw = RANGE_WORD[SF.range], ha = handAvg(runs);
+  hero($('#heroAll'), 'Everyone’s average · ' + rw, sm.n ? fmtS(sm.mean) + ' s' : '–', sm.n ? sm.n + ' reps by ' + players.length + (players.length === 1 ? ' player' : ' players') + (ha != null ? ' · hand speed ' + fmtS(ha) + ' s' : '') : 'No reps ' + rw + ' yet.');
   boxPlot($('#boxAll'), [{ label: 'Everyone', color: '#c8ff2e', sm }]);
   // the most active players' lines (up to 6)
   const by = new Map(); sessions.forEach(x => { if (!by.has(x.uid)) by.set(x.uid, { label: x.name, sessions: [] }); by.get(x.uid).sessions.push(x); });
@@ -3659,13 +3704,15 @@ function renderStatsAll(runs, sessions) {
     h('td', { text: p.name + (me(p) ? ' (you)' : '') }), h('td', { text: String(p.n) }), h('td', { text: fmtS(p.mean) }))));
   tb.append(tbody);
 }
+/* average hand speed (ms) of the reps that have one */
+function handAvg(runs) { const v = runs.map(a => a.handMs).filter(x => typeof x === 'number' && x >= 20 && x <= 800); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; }
 /* ---------- your stats, on the Mine tab ---------- */
 const MF = { range: 'all' };
 function renderMineStats() {
   const runs = statRuns(MF.range), mine = runs.filter(isMine), sm = summarize(mine.map(a => a.timeMs)), rw = RANGE_WORD[MF.range];
   const all = summarize(runs.map(a => a.timeMs)), mySess = sessionsIn(MF.range).filter(x => P.uids.has(x.uid) || x.uid === P.uid);
   let sub = 'No reps ' + rw + '. Run a face-off and post it.';
-  if (sm.n) { const d = all.mean - sm.mean; sub = sm.n + (sm.n === 1 ? ' rep' : ' reps') + ' · ' + mySess.length + (mySess.length === 1 ? ' session' : ' sessions') + (all.n > sm.n && Math.abs(d) >= 1 ? ' · ' + fmtS(Math.abs(d)) + ' s ' + (d > 0 ? 'faster' : 'slower') + ' than everyone' : ''); }
+  if (sm.n) { const d = all.mean - sm.mean, ha = handAvg(mine); sub = sm.n + (sm.n === 1 ? ' rep' : ' reps') + ' · ' + mySess.length + (mySess.length === 1 ? ' session' : ' sessions') + (ha != null ? ' · hand speed ' + fmtS(ha) + ' s' : '') + (all.n > sm.n && Math.abs(d) >= 1 ? ' · ' + fmtS(Math.abs(d)) + ' s ' + (d > 0 ? 'faster' : 'slower') + ' than everyone' : ''); }
   hero($('#heroMe'), 'Your average · ' + rw, sm.n ? fmtS(sm.mean) + ' s' : '–', sub);
   boxPlot($('#boxMe'), [{ label: 'You', color: '#c8ff2e', sm }, { label: 'Everyone', color: VZ.blue, sm: all }]);
   trendChart($('#trendMe'), [{ label: 'You', color: '#c8ff2e', sessions: mySess }]);
