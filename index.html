@@ -196,23 +196,27 @@ body{touch-action:pan-y}
 #brandHome:active{transform:scale(.94)}
 .gear.on{background:var(--ink);color:#0a0e12}
 nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacity .25s ease}
-.lbcat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 8px}
-.lbcat button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--mute);font-family:var(--disp);font-weight:800;font-size:15px;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:all .2s}
-.lbcat button i{font-style:normal;font-size:20px}
-.lbcat button[aria-pressed="true"]{color:#0b1003;background:var(--lime);border-color:var(--lime);box-shadow:0 6px 22px rgba(200,255,46,.25)}
-.lb-row{position:relative;display:grid;grid-template-columns:38px 42px 1fr auto;align-items:center;gap:12px;padding:12px 14px 16px;margin-top:8px;border-radius:16px;background:var(--panel);border:1px solid var(--line);overflow:hidden}
-.lb-row.p1{border-color:rgba(255,201,60,.7);background:linear-gradient(100deg,rgba(255,201,60,.16),var(--panel) 60%);padding:16px 14px 20px}
-.lb-row.p2{border-color:rgba(200,214,229,.55);background:linear-gradient(100deg,rgba(200,214,229,.11),var(--panel) 60%)}
-.lb-row.p3{border-color:rgba(214,140,80,.6);background:linear-gradient(100deg,rgba(214,140,80,.13),var(--panel) 60%)}
-.lb-row.me{outline:2px solid var(--lime);outline-offset:-2px}
-.lb-rank{font-family:var(--disp);font-weight:800;font-size:22px;color:var(--mute);text-align:center}
-.lb-row.p1 .lb-rank,.lb-row.p2 .lb-rank,.lb-row.p3 .lb-rank{font-size:28px}
-.lb-av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:800;font-size:19px;background:#223140;color:var(--ink)}
-.lb-row.p1 .lb-av{background:#ffc93c;color:#2a1d00}
-.lb-who{min-width:0}.lb-who b{display:flex;align-items:center;gap:6px;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lb-who small{color:var(--mute);font-size:12.5px}
-.lb-val{text-align:right;line-height:1}.lb-val b{font-family:var(--disp);font-weight:800;font-size:28px;color:var(--lime)}.lb-row.p1 .lb-val b{font-size:34px}.lb-val span{display:block;font-size:11px;color:var(--mute);letter-spacing:.08em;text-transform:uppercase;margin-top:3px}
-.lb-bar{position:absolute;left:14px;right:14px;bottom:7px;height:3px;border-radius:2px;background:rgba(255,255,255,.06)}.lb-bar i{display:block;height:100%;border-radius:2px;background:var(--lime);opacity:.8}
-.lb-row.anim{animation:lbIn .45s cubic-bezier(.2,.8,.2,1) both;animation-delay:var(--d)}@keyframes lbIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.podium{display:grid;grid-template-columns:1fr 1.12fr 1fr;align-items:end;gap:8px;margin:14px 0 6px}
+.pod{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0;cursor:default}
+.pod.click{cursor:pointer}
+.pod .pav{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:800;font-size:20px;background:#1e2a36;color:var(--ink);border:2px solid var(--pc)}
+.pod.r1 .pav{width:58px;height:58px;font-size:24px}
+.pod .pnm{margin-top:6px;font-weight:600;font-size:13.5px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pod .pvl{font-family:var(--disp);font-weight:800;font-size:22px;color:var(--ink);margin:2px 0 8px;letter-spacing:.01em}
+.pod.r1 .pvl{font-size:27px;color:var(--lime)}
+.pod .pvl small{font-size:.55em;color:var(--mute);margin-left:2px;font-weight:700}
+.pod .ped{width:100%;border-radius:12px 12px 4px 4px;background:linear-gradient(180deg,#1b2733,#121a22);border:1px solid var(--line);border-top:3px solid var(--pc);display:flex;align-items:flex-start;justify-content:center;padding-top:8px;font-family:var(--disp);font-weight:800;font-size:26px;color:var(--pc)}
+.pod.r1{--pc:#e5c15a}.pod.r2{--pc:#c3ccd6}.pod.r3{--pc:#c98b5c}
+.pod.r1 .ped{height:92px}.pod.r2 .ped{height:68px}.pod.r3 .ped{height:52px}
+.pod.empty{visibility:hidden}
+.lbl{border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;margin-top:8px}
+.lbr{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line)}
+.lbr:first-child{border-top:0}
+.lbr.me{background:rgba(200,255,46,.07)}
+.lbr .rk{font-family:var(--disp);font-weight:800;font-size:18px;color:var(--mute);text-align:center}
+.lbr .nm{min-width:0}.lbr .nm b{display:flex;align-items:center;gap:6px;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lbr .nm small{color:var(--mute);font-size:12px}
+.lbr .vl{font-family:var(--disp);font-weight:800;font-size:21px;color:var(--ink);text-align:right}.lbr .vl small{font-size:.6em;color:var(--mute);margin-left:2px}
+.demo-sw{margin-top:4px}.demo-sw small{display:block;color:var(--mute);font-weight:400;font-size:12px}
 .rng{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;padding:12px 0;border-bottom:1px solid var(--line)}.rng span{color:var(--ink);font-weight:600}.rng b{font-family:var(--disp);color:var(--lime);font-size:18px}.rng input{grid-column:1/-1;width:100%;accent-color:var(--lime)}
 .sw{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink);margin:0}
 .sw span{display:flex;flex-direction:column;gap:2px}.sw small{color:var(--mute);font-size:13px}
@@ -615,16 +619,17 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <div class="stat"><b id="sPlayers">0</b><span>Players</span></div>
       <div class="stat"><b id="sRuns">0</b><span>Runs</span></div>
     </div>
-    <div class="lbcat" id="segCat">
-      <button data-v="time" aria-pressed="true"><i>⚡</i>Fastest</button>
-      <button data-v="hand" aria-pressed="false"><i>✋</i>Hand speed</button>
-      <button data-v="reps" aria-pressed="false"><i>🔥</i>Most reps</button>
+    <div class="seg" id="segCat">
+      <button data-v="time" aria-pressed="true">Fastest</button>
+      <button data-v="hand" aria-pressed="false">Hand speed</button>
+      <button data-v="reps" aria-pressed="false">Most reps</button>
     </div>
     <div class="seg" id="segRange">
       <button data-v="all" aria-pressed="true">All time</button>
       <button data-v="week" aria-pressed="false">This week</button>
       <button data-v="day" aria-pressed="false">Today</button>
     </div>
+    <label class="sw demo-sw" id="demoBox" hidden><span><b>Sample players</b><small>Admin preview only. Nobody else sees these.</small></span><input type="checkbox" id="chkDemo"><i></i></label>
     <div class="list" id="boardList"></div>
   </section>
 
@@ -2891,9 +2896,17 @@ let attempts = [], likes = new Map(), flags = new Map();
 const F = { mode: 'best', range: 'all', cat: 'time' };
 const isDisputed = a => (flags.get(a.id)?.size || 0) >= 3;
 
+let DEMO = false, demoRuns = null;
+function makeDemo() {
+  const names = ['clamp_szn', 'lax_ace', 'wing_22', 'fo_king', 'quickstick', 'pocket_pro', 'ari_fo', 'whistle_wolf', 'xlax', 'faceoff_frank', 'swat_team', 'grind_mode'];
+  const now = Date.now(), out = []; let k = 0, seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  names.forEach((n, i) => { const reps = 3 + Math.floor(rnd() * 14); for (let j = 0; j < reps; j++) out.push({ id: 'demo' + (k++), uid: 'demo-' + i, handle: n, timeMs: Math.round(820 + i * 35 + rnd() * 260), handMs: Math.round(55 + i * 6 + rnd() * 50), createdAt: now - Math.floor(rnd() * (j < 4 ? 8 : 200)) * 3600e3 / 8, demo: true }); });
+  return out;
+}
+const boardSrc = () => DEMO ? (demoRuns || (demoRuns = makeDemo())) : attempts;
 function visibleRuns() {
   const t0 = rangeStart(F.range);                     // Today = since midnight, This week = since Monday
-  return attempts.filter(a => typeof a.timeMs === 'number' && (a.createdAt || 0) >= t0);
+  return boardSrc().filter(a => typeof a.timeMs === 'number' && (a.createdAt || 0) >= t0);
 }
 function ranked() {
   let runs = visibleRuns();
@@ -3046,14 +3059,15 @@ function animateList(list) {
   return ids;
 }
 function renderBoard() {
-  const all = attempts.filter(a => typeof a.timeMs === 'number' && !isDisputed(a));
+  $('#demoBox').hidden = !P.admin; if (!P.admin) DEMO = false;
+  const all = boardSrc().filter(a => typeof a.timeMs === 'number' && !isDisputed(a));
   setNum($('#sRecord'), all.length ? fmtMs(Math.min(...all.map(a => a.timeMs))) : '–');
   setNum($('#sPlayers'), String(new Set(all.map(a => a.uid)).size));
   setNum($('#sRuns'), String(all.length));
   const list = $('#boardList'); list.replaceChildren();
-  if (F.cat !== 'time' && (boardLoaded || attempts.length)) { renderLeaders(list); renderMe(); renderStats(); return; }
+  if (F.cat !== 'time' && (boardLoaded || attempts.length || DEMO)) { renderLeaders(list); renderMe(); renderStats(); return; }
   const rows = ranked();
-  if (!boardLoaded && P.db !== false && !attempts.length && $('#notice').hidden) {
+  if (!DEMO && !boardLoaded && P.db !== false && !attempts.length && $('#notice').hidden) {
     for (let i = 0; i < 4; i++) list.append(h('div', { class: 'skel', style: 'animation-delay:' + i * 120 + 'ms' }));
     renderMe(); return;
   }
@@ -3062,7 +3076,9 @@ function renderBoard() {
       h('div', { class: 'muted', text: P.db ? 'Be the first on the board.' : 'Sign in to see and post times.' }),
       h('div', { style: 'margin-top:12px' }, h('button', { class: 'btn primary', onclick: () => switchTab('run'), text: 'Run a face-off' }))));
   } else {
-    let r = 0; rows.forEach(a => { if (!isDisputed(a)) r++; list.append(rowEl(a, r)); });
+    const ok = rows.filter(a => !isDisputed(a));
+    list.append(podium(ok.slice(0, 3).map(a => ({ uid: a.uid, name: a.handle || 'player', val: fmtS(a.timeMs), unit: 's', open: a.demo ? null : a }))));
+    let r = 0; rows.forEach(a => { if (!isDisputed(a)) r++; if (isDisputed(a) || r > 3) list.append(rowEl(a, r)); });
   }
   const ids = animateList(list);
   renderMe(); renderStats();
@@ -3086,18 +3102,27 @@ function renderLeaders(list) {
       h('div', { style: 'margin-top:12px' }, h('button', { class: 'btn primary', onclick: () => switchTab('run'), text: 'Run a face-off' }))));
     return;
   }
-  const top = hand ? ps[0].hand : ps[0].n;
-  ps.slice(0, 50).forEach((p, i) => {
-    const r = i + 1, pct = hand ? Math.max(8, top / p.hand * 100) : Math.max(4, p.n / top * 100);
-    const row = h('div', { class: 'lb-row anim' + (r <= 3 ? ' p' + r : '') + (p.mine ? ' me' : ''), style: '--d:' + Math.min(i, 12) * 45 + 'ms' },
-      h('div', { class: 'lb-rank', text: r <= 3 ? ['🥇', '🥈', '🥉'][r - 1] : String(r) }),
-      h('div', { class: 'lb-av', text: p.name.charAt(0).toUpperCase() }),
-      h('div', { class: 'lb-who' }, h('b', {}, '@' + p.name, adminTag(p.uid), p.mine ? h('span', { class: 'tag', style: 'background:#1d2d05;color:#c8ff2e', text: 'you' }) : null),
-        h('small', { text: hand ? p.handN + (p.handN === 1 ? ' rep measured' : ' reps measured') : 'Fastest ' + fmtS(p.best) + ' s' })),
-      h('div', { class: 'lb-val' }, h('b', { text: hand ? fmtS(p.hand) : String(p.n) }), h('span', { text: hand ? 'sec' : (p.n === 1 ? 'rep ' : 'reps ') + rw })),
-      h('div', { class: 'lb-bar' }, h('i', { style: 'width:' + pct.toFixed(1) + '%' })));
-    list.append(row);
-  });
+  const ent = ps.slice(0, 50).map(p => ({ uid: p.uid, name: p.name, mine: p.mine, val: hand ? fmtS(p.hand) : String(p.n), unit: hand ? 's' : (p.n === 1 ? 'rep' : 'reps'),
+    sub: hand ? p.handN + (p.handN === 1 ? ' rep measured' : ' reps measured') : 'Fastest ' + fmtS(p.best) + ' s' }));
+  list.append(podium(ent.slice(0, 3)));
+  if (ent.length > 3) list.append(h('div', { class: 'lbl' }, ...ent.slice(3).map((e, i) => h('div', { class: 'lbr' + (e.mine ? ' me' : '') },
+    h('div', { class: 'rk', text: String(i + 4) }),
+    h('div', { class: 'nm' }, h('b', {}, '@' + e.name, adminTag(e.uid)), h('small', { text: e.sub })),
+    h('div', { class: 'vl' }, e.val, h('small', { text: e.unit }))))));
+}
+/* top three, 2 – 1 – 3 */
+function podium(top) {
+  const cell = (e, r) => {
+    if (!e) return h('div', { class: 'pod empty r' + r }, h('div', { class: 'ped' }));
+    const el = h('div', { class: 'pod r' + r + (e.open ? ' click' : '') },
+      h('div', { class: 'pav', text: e.name.charAt(0).toUpperCase() }),
+      h('div', { class: 'pnm' }, '@' + e.name),
+      h('div', { class: 'pvl' }, e.val, h('small', { text: e.unit })),
+      h('div', { class: 'ped', text: String(r) }));
+    if (e.open) el.onclick = () => openRun(e.open.id, el);
+    return el;
+  };
+  return h('div', { class: 'podium' }, cell(top[1], 2), cell(top[0], 1), cell(top[2], 3));
 }
 function renderMe() {
   const mine = attempts.filter(a => isMine(a) && typeof a.timeMs === 'number').sort((a, b) => b.createdAt - a.createdAt);
@@ -4099,6 +4124,7 @@ function seg(id, key) {
   });
 }
 seg('segRange', 'range');
+$('#chkDemo').onchange = e => { DEMO = e.target.checked; animRows = true; renderBoard(); };
 $$('#segCat button').forEach(b => b.onclick = () => {
   F.cat = b.dataset.v; $$('#segCat button').forEach(x => x.setAttribute('aria-pressed', x === b));
   if (F.cat === 'reps' && F.range === 'all') { F.range = 'day'; $$('#segRange button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === 'day')); }   // most reps: today by default
