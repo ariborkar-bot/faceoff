@@ -1,0 +1,2 @@
+-- Reaction leaderboard (applied to the project): best time per player and mode, public profiles only.
+-- See migration "reaction_leaderboard": table public.reaction_best, rpc submit_reaction(p_ms, p_mode), rpc reaction_board(p_mode).

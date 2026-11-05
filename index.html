@@ -150,6 +150,7 @@ input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
 .rx-pad.fs .rx-big{color:var(--red);font-size:clamp(34px,10vw,54px)}
 @keyframes rxRing{from{transform:scale(.9);opacity:1}to{transform:scale(1.25);opacity:0}}
 .rx-pad .rx-big.land{animation:land .45s var(--spring)}
+.rxb-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--panel2);margin-top:6px}.rxb-row.me{outline:1px solid var(--lime)}.rxb-row .rk{font-family:var(--disp);font-weight:800;font-size:22px;width:28px;color:var(--mute)}.rxb-row .nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rxb-row .ms{font-family:var(--disp);font-weight:800;font-size:24px;color:var(--lime)}
 .rx-hist{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
 .rx-hist span{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:13px;font-variant-numeric:tabular-nums;animation:pbIn .35s var(--spring) both}
 .rx-hist span.best{border-color:var(--lime);color:var(--lime)}
@@ -710,6 +711,12 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <div class="rx-hist" id="rxHist"></div>
       <button class="btn" id="rxClear" style="width:100%;margin-top:10px">Clear</button>
     </div>
+    <div class="card" id="rxBoardCard">
+      <h2 class="hinfo">Reaction leaderboard<span class="info" data-info="Each player's best reaction time. If your profile is public, your best time is added automatically. Whistle and No whistle have separate boards."></span></h2>
+      <div class="muted small" id="rxBoardMode" style="margin:4px 0 10px"></div>
+      <div id="rxBoard"></div>
+      <div class="muted small" id="rxBoardNote" style="margin-top:10px"></div>
+    </div>
   </section>
 
   <!-- SETTINGS -->
@@ -967,6 +974,10 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       },
       async deletePhoto(path) { if (!path) return; try { await fetch(SB_URL + '/storage/v1/object/avatars/' + path, { method: 'DELETE', headers: { ...H, ...(await authH()) } }); } catch {} },
       photoUrl: path => path ? SB_URL + '/storage/v1/object/public/avatars/' + path : ''
+    },
+    reaction: {                                                // reaction leaderboard: best time per player, public profiles only
+      async submit(ms, mode) { if (!account.current()) return false; try { const r = await rest('rpc/submit_reaction', { method: 'POST', body: JSON.stringify({ p_ms: ms, p_mode: mode }) }); return r.ok ? await r.json() : false; } catch { return false; } },
+      async board(mode) { const r = await rest('rpc/reaction_board', { method: 'POST', body: JSON.stringify({ p_mode: mode }) }); if (!r.ok) await fail(r, 'Loading the leaderboard'); return await r.json(); }
     },
     async adminIds() {                                         // who the admins are (public, so their names can carry a tag)
       try { const r = await rest('rpc/admin_ids', { method: 'POST', body: '{}' }); return r.ok ? await r.json() : []; } catch { return []; }
@@ -3117,6 +3128,26 @@ function rxShow(big, sub, cls) {
   const pad = $('#rxPad'), b = $('#rxBig'); pad.className = 'rx-pad' + (cls ? ' ' + cls : '');
   b.textContent = big; $('#rxSub').textContent = sub; b.classList.remove('land'); void b.offsetWidth; b.classList.add('land');
 }
+const rxMode = () => SET.rxSignal === 'visual' ? 'visual' : 'whistle';
+async function loadRxBoard() {
+  const box = $('#rxBoard'), mode = rxMode(); if (!box) return;
+  $('#rxBoardMode').textContent = mode === 'visual' ? '👀 No whistle' : '🔊 Whistle';
+  const me = acct();
+  $('#rxBoardNote').textContent = !me ? 'Sign in with a public profile to get on the board.'
+    : (myProf && !myProf.is_public) ? 'Your profile is private, so your times stay off the board. Make it public in Mine to join.' : '';
+  if (!P.user || !P.user.reaction) { box.replaceChildren(h('div', { class: 'nodata', text: 'Leaderboard unavailable.' })); return; }
+  try {
+    const rows = await P.user.reaction.board(mode);
+    if (mode !== rxMode()) return;
+    box.replaceChildren(...(rows.length ? rows.map((r, i) => h('div', { class: 'rxb-row' + (me && r.user_id === me.id ? ' me' : '') },
+      h('div', { class: 'rk', text: i + 1 }), h('div', { class: 'nm' }, '@' + (r.username || 'player'), adminTag(r.user_id)), h('div', { class: 'ms', text: r.best_ms + ' ms' })))
+      : [h('div', { class: 'nodata', text: 'No times yet. Be the first.' })]));
+  } catch { box.replaceChildren(h('div', { class: 'nodata', text: 'Couldn’t load the leaderboard.' })); }
+}
+async function rxSubmit(ms) {
+  if (!acct() || !P.user || !P.user.reaction || ms < 100) return;
+  if (await P.user.reaction.submit(ms, rxMode())) loadRxBoard();
+}
 function rxStats() {
   const t = RX.times;
   $('#rxBest').textContent = t.length ? Math.min(...t) : '–';
@@ -3159,6 +3190,7 @@ function rxRelease(e) {
     RX.times.push(ms); rxStats();
     rxShow(ms + ' ms', best && RX.times.length > 1 ? 'New best! Hold to go again' : 'Hold to go again', 'done');
     $('#rxHist').prepend(h('span', { class: best ? 'best' : '', text: ms + ' ms' }));
+    if (best) rxSubmit(ms);
   } else {
     RX.state = 'idle'; RX.fs++; rxStats(); speak('False start');
     rxShow('FALSE START', 'You let go before the whistle', 'fs');
@@ -3195,7 +3227,7 @@ function rxRelease(e) {
   document.addEventListener('visibilitychange', () => { if (document.hidden) { finger = null; mouseId = null; rxCancelled(); } });
   pad.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!e.repeat) rxStart(e); } });
   pad.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); rxRelease(e); } });
-  const setMode = v => { SET.rxSignal = v; saveSet(); $$('#rxMode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v)); };
+  const setMode = v => { SET.rxSignal = v; saveSet(); $$('#rxMode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v)); loadRxBoard(); };
   $$('#rxMode button').forEach(b => b.onclick = () => { setMode(b.dataset.v); rxCancel(); });
   setMode(SET.rxSignal === 'visual' ? 'visual' : 'whistle');
   $('#rxClear').onclick = () => { RX.times = []; RX.fs = 0; rxStats(); $('#rxHist').replaceChildren(); rxCancel(); rxShow('HOLD', 'Press and hold here'); };
@@ -3910,6 +3942,7 @@ function switchTab(name) {
   if (name !== 'react') rxCancel();
   playbackAudio(name === 'react');
   if (name === 'stats') renderStats();
+  if (name === 'react') loadRxBoard();
   if (name === 'settings') { $('#adminCard').hidden = !P.admin; if (P.admin) loadAdminUsers(); }
   if (prev !== name) {
     const v = $('#v-' + name); if (v) { v.classList.remove('view-in'); void v.offsetWidth; v.classList.add('view-in'); }
