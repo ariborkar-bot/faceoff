@@ -674,6 +674,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <button data-v="month" aria-pressed="false">Month</button>
       </div>
       <div class="hero avg" id="heroAll"></div>
+      <div class="card hand-card" id="handAll"><h2 class="hinfo">Hand speed<span class="info" data-info="Time from your hands starting to move after the whistle to your stick clamping the ball. Lower is faster."></span></h2><div class="stats"><div class="stat"><b id="handAllAvg">–</b><span>Average (s)</span></div><div class="stat"><b id="handAllBest">–</b><span>Best (s)</span></div><div class="stat"><b id="handAllN">0</b><span>Reps measured</span></div></div></div>
       <div class="card chartcard"><h3 class="hinfo">Spread of times<span class="info" data-info="How the times are spread out. The box holds the middle half of the reps, and the line inside it is the middle rep. The ◆ is the average. The lines out the sides reach the fastest and slowest normal reps; arrows at the edge mean a few reps are off the chart. Further left = faster. A shorter box = more consistent."></span></h3><div class="chart" id="boxAll"></div></div>
       <div class="card chartcard"><h3 class="hinfo">Average by session<span class="info" data-info="Each line is one player, each dot one of their sessions (5+ reps in one go), oldest on the left. Higher = faster. Tap the chart to see a session."></span></h3><div class="legend" id="trendAllLegend"></div><div class="chart" id="trendAll"></div></div>
       <div class="card"><h3 class="hinfo">Sessions<span class="info" data-info="A session is 5 or more reps by one player in one go (less than 45 minutes between reps). Tap one to see its reps."></span></h3><div id="sessAll"></div></div>
@@ -756,6 +757,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <button data-v="month" aria-pressed="false">Month</button>
     </div>
     <div class="hero avg" id="heroMe"></div>
+    <div class="card hand-card" id="handMe"><h2 class="hinfo">Hand speed<span class="info" data-info="Time from your hands starting to move after the whistle to your stick clamping the ball. Lower is faster."></span></h2><div class="stats"><div class="stat"><b id="handMeAvg">–</b><span>Average (s)</span></div><div class="stat"><b id="handMeBest">–</b><span>Best (s)</span></div><div class="stat"><b id="handMeN">0</b><span>Reps measured</span></div></div></div>
     <div class="card chartcard"><h3 class="hinfo">You vs everyone<span class="info" data-info="How the times are spread out. The box holds the middle half of the reps, and the line inside it is the middle rep. The ◆ is the average. The lines out the sides reach the fastest and slowest normal reps; arrows at the edge mean a few reps are off the chart. Further left = faster. A shorter box = more consistent."></span></h3><div class="chart" id="boxMe"></div></div>
     <div class="card chartcard"><h3 class="hinfo">Your average by session<span class="info" data-info="Each dot is one of your sessions (5+ reps in one go), oldest on the left. Higher = faster. Tap the chart to see a session."></span></h3><div class="chart" id="trendMe"></div></div>
     <div class="card"><h3 class="hinfo">Your sessions<span class="info" data-info="Every time you post 5 or more reps in one go (less than 45 minutes between reps) it counts as a session. Tap one to see its reps."></span></h3><div id="sessMe"></div></div>
@@ -3826,6 +3828,7 @@ function renderStats() {
 }
 function renderStatsAll(runs, sessions) {
   const sm = summarize(runs.map(a => a.timeMs)), players = byPlayer(runs), rw = RANGE_WORD[SF.range], ha = handAvg(runs);
+  handStats('handAll', runs);
   hero($('#heroAll'), 'Everyone’s average · ' + rw, sm.n ? fmtS(sm.mean) + ' s' : '–', sm.n ? sm.n + ' reps by ' + players.length + (players.length === 1 ? ' player' : ' players') + (ha != null ? ' · hand speed ' + fmtS(ha) + ' s' : '') : 'No reps ' + rw + ' yet.');
   boxPlot($('#boxAll'), [{ label: 'Everyone', color: '#c8ff2e', sm }]);
   // the most active players' lines (up to 6)
@@ -3847,6 +3850,12 @@ function renderStatsAll(runs, sessions) {
   tb.append(tbody);
 }
 /* average hand speed (ms) of the reps that have one */
+function handStats(el, runs) {
+  const v = runs.map(a => a.handMs).filter(x => typeof x === 'number' && x >= 20 && x <= 800), box = $('#' + el); if (!box) return;
+  $('#' + el + 'Avg').textContent = v.length ? fmtS(v.reduce((a, b) => a + b, 0) / v.length) : '–';
+  $('#' + el + 'Best').textContent = v.length ? fmtS(Math.min(...v)) : '–';
+  $('#' + el + 'N').textContent = v.length;
+}
 function handAvg(runs) { const v = runs.map(a => a.handMs).filter(x => typeof x === 'number' && x >= 20 && x <= 800); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; }
 /* ---------- your stats, on the Mine tab ---------- */
 const MF = { range: 'all' };
@@ -3855,6 +3864,7 @@ function renderMineStats() {
   const all = summarize(runs.map(a => a.timeMs)), mySess = sessionsIn(MF.range).filter(x => P.uids.has(x.uid) || x.uid === P.uid);
   let sub = 'No reps ' + rw + '. Run a face-off and post it.';
   if (sm.n) { const d = all.mean - sm.mean, ha = handAvg(mine); sub = sm.n + (sm.n === 1 ? ' rep' : ' reps') + ' · ' + mySess.length + (mySess.length === 1 ? ' session' : ' sessions') + (ha != null ? ' · hand speed ' + fmtS(ha) + ' s' : '') + (all.n > sm.n && Math.abs(d) >= 1 ? ' · ' + fmtS(Math.abs(d)) + ' s ' + (d > 0 ? 'faster' : 'slower') + ' than everyone' : ''); }
+  handStats('handMe', mine);
   hero($('#heroMe'), 'Your average · ' + rw, sm.n ? fmtS(sm.mean) + ' s' : '–', sub);
   boxPlot($('#boxMe'), [{ label: 'You', color: '#c8ff2e', sm }, { label: 'Everyone', color: VZ.blue, sm: all }]);
   trendChart($('#trendMe'), [{ label: 'You', color: '#c8ff2e', sessions: mySess }]);
