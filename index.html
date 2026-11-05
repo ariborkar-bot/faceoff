@@ -196,6 +196,7 @@ body{touch-action:pan-y}
 #brandHome:active{transform:scale(.94)}
 .gear.on{background:var(--ink);color:#0a0e12}
 nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacity .25s ease}
+.rng{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;padding:12px 0;border-bottom:1px solid var(--line)}.rng span{color:var(--ink);font-weight:600}.rng b{font-family:var(--disp);color:var(--lime);font-size:18px}.rng input{grid-column:1/-1;width:100%;accent-color:var(--lime)}
 .sw{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink);margin:0}
 .sw span{display:flex;flex-direction:column;gap:2px}.sw small{color:var(--mute);font-size:13px}
 .sw input{position:absolute;opacity:0;pointer-events:none}
@@ -723,21 +724,30 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
   <!-- SETTINGS -->
   <section id="v-settings" hidden>
     <div class="card">
-      <h2 class="hinfo">Sounds<span class="info" data-info="Turn your phone's volume all the way up. On iPhone, make sure silent mode isn't hiding the whistle."></span></h2>
-      <label class="sw"><span><b>Whistle<span class="info" data-info="The whistle that starts each rep. Off: it says “Go” instead (or shows GO if voice is off too)."></span></b></span><input type="checkbox" id="setWhistle"><i></i></label>
+      <h2 class="hinfo">Sound<span class="info" data-info="Turn your phone's volume up too. On iPhone, silent mode can hide the whistle."></span></h2>
+      <label class="sw"><span><b>Whistle</b></span><input type="checkbox" id="setWhistle"><i></i></label>
+      <div class="rng"><span>Whistle volume</span><b id="vWhistleVol"></b><input type="range" id="setWhistleVol" min="10" max="100" step="5"></div>
       <label class="sw"><span><b>Voice calls<span class="info" data-info="“Down”, “Set” and “False start”."></span></b></span><input type="checkbox" id="setVoice"><i></i></label>
-      <button class="btn" id="btnSound" style="width:100%;margin-top:6px">Test sounds</button>
+      <div class="rng"><span>Voice volume</span><b id="vVoiceVol"></b><input type="range" id="setVoiceVol" min="10" max="100" step="5"></div>
+      <button class="btn" id="btnSound" style="width:100%;margin-top:10px">Test sounds</button>
+    </div>
+    <div class="card">
+      <h2 class="hinfo">Timing<span class="info" data-info="Used on the Face-off and React tabs."></span></h2>
+      <div class="rng"><span>Down → Set</span><b id="vDownSet"></b><input type="range" id="setDownSet" min="0.5" max="4" step="0.25"></div>
+      <div class="rng"><span>Set → Whistle</span><b id="vSetMax"></b><input type="range" id="setSetMax" min="0.5" max="4" step="0.25"></div>
+      <label class="sw"><span><b>Random whistle<span class="info" data-info="On: the whistle comes anywhere from 0.5 s up to your Set → Whistle time, like a real ref. Off: always exactly that time."></span></b></span><input type="checkbox" id="setRandom"><i></i></label>
     </div>
     <div class="card">
       <h2>Face-off</h2>
       <label class="sw"><span><b>Voice start<span class="info" data-info="Say “Start” instead of tapping. “Stop” cancels."></span></b></span><input type="checkbox" id="setVoiceStart"><i></i></label>
       <div class="small err" id="voiceStartMsg"></div>
-      <label class="sw"><span><b>Full-screen camera<span class="info" data-info="The camera fills the whole phone screen on the Face-off tab. Tap ✕ to close it."></span></b></span><input type="checkbox" id="setCamFull"><i></i></label>
-      <label class="sw"><span><b>Call false starts<span class="info" data-info="Moving after “Set”, before the whistle."></span></b></span><input type="checkbox" id="chkFs"><i></i></label>
-      <label class="sw"><span><b>Partner's stick too<span class="info" data-info="Check for a second stick in front of the ball."></span></b></span><input type="checkbox" id="chkPartner"><i></i></label>
+      <label class="sw"><span><b>Call false starts</b></span><input type="checkbox" id="chkFs"><i></i></label>
+      <label class="sw"><span><b>Partner's stick too</b></span><input type="checkbox" id="chkPartner"><i></i></label>
+      <label class="sw"><span><b>Full-screen camera</b></span><input type="checkbox" id="setCamFull"><i></i></label>
       <button class="btn" id="btnFlip" style="width:100%;margin-top:10px">Switch front / back camera</button>
     </div>
-    <div class="card" id="adminCard" hidden>
+    
+<div class="card" id="adminCard" hidden>
       <h2 class="hinfo">Admin · Users<span class="info" data-info="Only admins see this. Every account, with its email and reps. Open one to see or delete their reps."></span></h2>
       <input type="search" id="admSearch" placeholder="Search username or email" autocomplete="off" style="width:100%;box-sizing:border-box;margin:6px 0 4px">
       <div class="small muted" id="admCount"></div>
@@ -1065,7 +1075,7 @@ const isMine = a => !!a && (a.uid === P.uid || P.uids.has(a.uid));
 async function cap(name) { try { return (await window.claude?.use(name)) ?? null; } catch { return null; } }
 
 /* ---------- settings (kept on this device) ---------- */
-const SET = Object.assign({ whistle: true, voice: true, voiceStart: false, repMode: false, camFull: false, rxSignal: 'whistle' }, (() => { try { return JSON.parse(localStorage.getItem('fo-settings') || '{}'); } catch { return {}; } })());
+const SET = Object.assign({ whistle: true, voice: true, voiceStart: false, repMode: false, camFull: false, rxSignal: 'whistle', whistleVol: 100, voiceVol: 100, downSet: 1, setMax: 2, setRandom: true }, (() => { try { return JSON.parse(localStorage.getItem('fo-settings') || '{}'); } catch { return {}; } })());
 const saveSet = () => { try { localStorage.setItem('fo-settings', JSON.stringify(SET)); } catch {} };
 /* ---------- audio: the phone's own voice for Down / Set, a referee's whistle for Go ---------- */
 const BEEP_HZ = 2000;
@@ -1107,8 +1117,9 @@ const WHISTLE_HZ = [2850, 3000, 3150, 3300];
 function playWhistle(len = 0.8) {
   const c = ensureCtx(), t = c.currentTime + 0.03, end = t + len;
   const out = c.createGain();                                   // envelope: sharp blast, short tail
-  out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(0.97, t + 0.012);
-  out.gain.setValueAtTime(0.97, end - 0.07); out.gain.linearRampToValueAtTime(0, end);
+  const vol = 0.97 * Math.max(0, Math.min(1, (SET.whistleVol ?? 100) / 100));
+  out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(vol, t + 0.012);
+  out.gain.setValueAtTime(vol, end - 0.07); out.gain.linearRampToValueAtTime(0, end);
   const clip = c.createWaveShaper(), n = 1024, curve = new Float32Array(n), k = 2.4;
   for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; curve[i] = Math.tanh(k * x) / Math.tanh(k); }
   clip.curve = curve; clip.oversample = '2x';
@@ -1158,7 +1169,7 @@ function speakDone(word, maxMs = 1000) {
       const ss = window.speechSynthesis;
       if (!ss) return fin();
       const u = new SpeechSynthesisUtterance(word);
-      u.rate = 0.9; u.pitch = 0.8; u.volume = 1;
+      u.rate = 0.9; u.pitch = 0.8; u.volume = Math.max(0, Math.min(1, (SET.voiceVol ?? 100) / 100));
       u.onend = fin; u.onerror = fin;
       ss.resume(); ss.speak(u);
     } catch { fin(); }
@@ -1170,13 +1181,14 @@ function speak(word) {
   try {
     const ss = window.speechSynthesis; if (!ss) return;
     const u = new SpeechSynthesisUtterance(word);
-    u.rate = 0.9; u.pitch = 0.8; u.volume = 1;
+    u.rate = 0.9; u.pitch = 0.8; u.volume = Math.max(0, Math.min(1, (SET.voiceVol ?? 100) / 100));
     ss.resume(); ss.speak(u);
   } catch {}
 }
 /* Start → "Down" → in position for 0.25 s → "Set" → random 0.5–2 s → whistle (Go) */
 const REP_HOLD_MS = 1300, REP_MIN_AFTER_DOWN = 1800;   // rep mode: be really set (still) before "Set"
 const HOLD_MS = 750, SET_MIN = 500, SET_RANGE = 1500, SCAN_TIMEOUT = 90000, STATION_SETTLE_MS = 3000;
+const setWait = () => { const mx = Math.max(0.5, +SET.setMax || 2) * 1000; return SET.setRandom ? SET_MIN + Math.random() * Math.max(0, mx - SET_MIN) : mx; };   // Set → whistle, from Settings
 /* Listens to the microphone for the moment "Go" is actually heard (the true start of the clock).
    Returns the performance-clock time (ms) of the first sound after arm(). */
 function makeOnsetDetector(stream) {
@@ -1225,7 +1237,7 @@ function goSignal(det) {
   if (SET.whistle) return whistleGo(det);
   if (SET.voice) return new Promise(res => {
     const callPerf = performance.now(); let startPerf = null; det && det.arm(callPerf);
-    try { const ss = window.speechSynthesis, u = new SpeechSynthesisUtterance('Go'); u.rate = 0.9; u.pitch = 0.8; u.volume = 1; u.onstart = () => { startPerf = performance.now(); }; ss.resume(); ss.speak(u); } catch {}
+    try { const ss = window.speechSynthesis, u = new SpeechSynthesisUtterance('Go'); u.rate = 0.9; u.pitch = 0.8; u.volume = Math.max(0, Math.min(1, (SET.voiceVol ?? 100) / 100)); u.onstart = () => { startPerf = performance.now(); }; ss.resume(); ss.speak(u); } catch {}
     const iv = setInterval(() => {
       const m = det && det.result(), now = performance.now();
       if ((m != null && now > m + 120) || now - callPerf > 1300) {
@@ -1986,6 +1998,7 @@ async function camSequence() {
       if (now - scan0 < REP_MIN_AFTER_DOWN) held = Math.min(held, REP_HOLD_MS - 1);
     }
     const need = SET.repMode ? REP_HOLD_MS : HOLD_MS;
+    if (now - scan0 < (+SET.downSet || 0) * 1000) held = Math.min(held, need - 1);   // Down → Set, from Settings
     bar.style.width = Math.min(100, held / need * 100) + '%';
     if (held >= need) break;
   }
@@ -1996,7 +2009,7 @@ async function camSequence() {
   await speakDone('Set'); if (!alive()) return;
   { dctx.drawImage(lv, 0, 0, C.dw, C.dh); const px0 = dctx.getImageData(0, 0, C.dw, C.dh).data; analyze(px0); snapSet(px0); } C.fsHits = 0;
   C.phase = 'set'; setStatus('Hold still…');
-  await sleep(SET_MIN + Math.random() * SET_RANGE); if (!alive()) return;
+  await sleep(setWait()); if (!alive()) return;
   // last check of the outline right before Go, so a late flinch still counts
   if (C.fs && C.masks && C.setSnap) { dctx.drawImage(lv, 0, 0, C.dw, C.dh); const d = setChange(dctx.getImageData(0, 0, C.dw, C.dh).data); if (d.max > FS_MOVE * 1.3) return falseStart(d); }
   // 3) Go: learn the ball's look, blow the whistle, follow the ball on the live camera
@@ -3170,10 +3183,10 @@ async function rxStart(e) {
   const me = ++RX.run, alive = () => me === RX.run && RX.state !== 'idle';
   RX.state = 'down'; rxShow('DOWN', 'Keep holding…', 'holding');
   await speakDone('Down'); if (!alive()) return;
-  await sleep(300 + Math.random() * 700); if (!alive()) return;          // a little variety before Set too
+  await sleep(Math.max(300, (+SET.downSet || 1) * 1000)); if (!alive()) return;   // Down → Set, from Settings
   RX.state = 'set'; rxShow('SET', 'Wait for the whistle…', 'holding set');
   await speakDone('Set'); if (!alive()) return;
-  await sleep(400 + Math.random() * 2600); if (!alive()) return;         // practice: 0.4–3 s to the whistle (face-off stays 0.5–2 s)
+  await sleep(setWait()); if (!alive()) return;                          // Set → whistle, from Settings
   if (SET.rxSignal !== 'visual' && actx && actx.state !== 'running') {
     // the phone paused the app's audio and pressing the pad can't restart it: say Go and show it, time from the screen
     speak('Go'); RX.goPerf = Infinity; RX.state = 'go'; rxShow('GO', 'Let go!', 'holding go');
@@ -3236,7 +3249,7 @@ function rxRelease(e) {
   document.addEventListener('visibilitychange', () => { if (document.hidden) { finger = null; mouseId = null; rxCancelled(); } });
   pad.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!e.repeat) rxStart(e); } });
   pad.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); rxRelease(e); } });
-  const setMode = v => { SET.rxSignal = v; saveSet(); $$('#rxMode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v)); loadRxBoard(); };
+  const setMode = v => { SET.rxSignal = v; saveSet(); $$('#rxMode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v)); setTimeout(loadRxBoard, 0); };
   $$('#rxMode button').forEach(b => b.onclick = () => { setMode(b.dataset.v); rxCancel(); });
   setMode(SET.rxSignal === 'visual' ? 'visual' : 'whistle');
   $('#rxClear').onclick = () => { RX.times = []; RX.fs = 0; rxStats(); $('#rxHist').replaceChildren(); rxCancel(); rxShow('HOLD', 'Press and hold here'); };
@@ -4104,6 +4117,9 @@ $('#btnCamGo').onclick = () => {
   else if (C.state === 'wait' || C.state === 'hold') camSequence();
 };
 function renderSettings() {
+  const fx = v => (+v).toFixed(2).replace(/\.?0+$/, '');
+  $('#setWhistleVol').value = SET.whistleVol; $('#setVoiceVol').value = SET.voiceVol; $('#setDownSet').value = SET.downSet; $('#setSetMax').value = SET.setMax; $('#setRandom').checked = SET.setRandom;
+  $('#vWhistleVol').textContent = SET.whistleVol + '%'; $('#vVoiceVol').textContent = SET.voiceVol + '%'; $('#vDownSet').textContent = fx(SET.downSet) + ' s'; $('#vSetMax').textContent = (SET.setRandom ? '0.5–' : '') + fx(SET.setMax) + ' s';
   $('#setWhistle').checked = SET.whistle; $('#setVoice').checked = SET.voice; $('#setVoiceStart').checked = SET.voiceStart;
   $('#setRepMode').checked = SET.repMode; $('#setCamFull').checked = SET.camFull; applyCamFull();
   const vh = $('#voiceHint'); vh.hidden = !(SET.voiceStart || SET.repMode);
@@ -4118,6 +4134,8 @@ $('#setRepMode').onchange = e => {
   else toast(SET.repMode ? 'Rep mode on: say “Board” or “Next” after each rep' : 'Rep mode off');
 };
 $('#setWhistle').onchange = e => { SET.whistle = e.target.checked; saveSet(); };
+[['#setWhistleVol', 'whistleVol'], ['#setVoiceVol', 'voiceVol'], ['#setDownSet', 'downSet'], ['#setSetMax', 'setMax']].forEach(([id, k]) => { $(id).oninput = e => { SET[k] = +e.target.value; saveSet(); renderSettings(); }; });
+$('#setRandom').onchange = e => { SET.setRandom = e.target.checked; saveSet(); renderSettings(); };
 $('#setVoice').onchange = e => { SET.voice = e.target.checked; saveSet(); };
 $('#setVoiceStart').onchange = e => {
   SET.voiceStart = e.target.checked; VOICE.denied = false; saveSet(); renderSettings(); $('#voiceStartMsg').textContent = '';
