@@ -240,15 +240,24 @@ nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacit
 .hh-row b{display:block;font-family:'Anton','Barlow Condensed',sans-serif;font-weight:400;font-size:22px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hh-row span{font-size:11.5px;color:var(--mute)}
 .minitog{display:inline-flex;gap:2px;margin-top:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:9px;padding:2px}.minitog button{background:none;border:0;border-radius:7px;padding:5px 10px;font-size:12.5px;font-weight:600;color:var(--mute);cursor:pointer}.minitog button[aria-pressed=true]{background:#24313e;color:var(--ink)}
 .hh-chart{margin-top:12px}.hh-chart .nodata{padding:10px 0 0;font-size:13px}
-.wl{position:relative;text-align:center;padding:6px 4px 14px}
-.wl-x{position:absolute;right:-4px;top:-4px;background:none;border:0;color:var(--mute);font-size:18px;padding:8px;cursor:pointer}
-.wl-logo{width:72px;height:72px;object-fit:contain;margin:4px auto 6px;display:block;filter:drop-shadow(0 6px 22px rgba(200,255,46,.25))}
-.wl-kick{font-family:'Anton','Barlow Condensed',sans-serif;font-size:12px;letter-spacing:.24em;color:var(--lime)}
-.wl-h{font-family:'Anton','Barlow Condensed',sans-serif;font-weight:400;font-size:34px;line-height:1.05;letter-spacing:.01em;text-transform:uppercase;margin:6px 0 6px;color:#fff}
-.wl-p{color:#a9b8c6;font-size:15px;line-height:1.4;margin:0 auto 14px;max-width:300px}
-.wl-pts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px}
-.wl-pts>div{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:10px 6px}
-.wl-pts b{display:block;font-size:13px;color:var(--ink)}.wl-pts span{display:block;font-size:11px;color:var(--mute);margin-top:2px}
+.sheet.auth.welcome{background:radial-gradient(90% 55% at 50% 0%,rgba(200,255,46,.20),transparent 70%),linear-gradient(180deg,#121a10 0%,#10161c 38%,#0e141a 100%);border:1px solid rgba(200,255,46,.25);overflow:hidden}
+.sheet.auth.welcome::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.35;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:28px 28px;mask-image:linear-gradient(180deg,#000,transparent 45%);-webkit-mask-image:linear-gradient(180deg,#000,transparent 45%)}
+.wl{position:relative;text-align:center;padding:8px 2px 16px}
+.wl-x{position:absolute;right:-6px;top:-6px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);border:0;color:var(--ink);font-size:15px;cursor:pointer}
+.wl-badge{width:84px;height:84px;margin:6px auto 12px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,rgba(200,255,46,.16),rgba(200,255,46,0) 70%);animation:wlPulse 2.8s ease-in-out infinite}
+.wl-logo{width:72px;height:72px;object-fit:contain}
+@keyframes wlPulse{0%,100%{box-shadow:0 0 0 0 rgba(200,255,46,.0)}50%{box-shadow:0 0 0 10px rgba(200,255,46,.06)}}
+.wl-h{font-family:'Anton','Barlow Condensed',sans-serif;font-weight:400;font-size:42px;line-height:.98;letter-spacing:.005em;text-transform:uppercase;margin:0 0 10px;color:#fff}
+.wl-h em{font-style:normal;color:var(--lime);display:block}
+.wl-p{color:#b4c2cf;font-size:15px;line-height:1.4;margin:0 auto 16px;max-width:290px}
+.wl-pts{display:flex;justify-content:center;gap:18px;margin:2px 0 4px}
+.wl-pt{display:flex;flex-direction:column;align-items:center;min-width:0;max-width:96px}
+.wl-pt i{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(200,255,46,.10);border:1px solid rgba(200,255,46,.28);margin-bottom:6px}
+.wl-pt svg{width:20px;height:20px;fill:none;stroke:var(--lime);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.wl-pt b{font-size:12.5px;color:#fff}.wl-pt span{font-size:11px;color:var(--mute);margin-top:1px}
+.sheet.auth.welcome input{border-radius:14px;background:rgba(255,255,255,.04)}
+.sheet.auth.welcome .btn.primary.go{border-radius:999px;box-shadow:0 10px 30px rgba(200,255,46,.25)}
+.wl-sw{text-align:center;font-size:14px;color:var(--mute);margin-top:14px}.wl-sw .link{font-size:14px;font-weight:600;color:var(--lime);padding:0}
 .rng{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;padding:12px 0;border-bottom:1px solid var(--line)}.rng span{color:var(--ink);font-weight:600}.rng b{font-family:var(--disp);color:var(--lime);font-size:18px}.rng input{grid-column:1/-1;width:100%;accent-color:var(--lime)}
 .sw{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink);margin:0}
 .sw span{display:flex;flex-direction:column;gap:2px}.sw small{color:var(--mute);font-size:13px}
@@ -3496,7 +3505,7 @@ const PHONE_ON = false;   // turn on once SMS (Twilio) is set up in Supabase
 function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
   const A = P.user && P.user.account; if (!A) return;
   let m = mode;
-  const sheet = h('div', { class: 'sheet auth' }), modal = h('div', { class: 'modal auth-modal', onclick: e => { if (e.target === modal) close(); } }, sheet);
+  const sheet = h('div', { class: 'sheet auth' + (welcome ? ' welcome' : '') }), modal = h('div', { class: 'modal auth-modal', onclick: e => { if (e.target === modal) close(); } }, sheet);
   const close = () => { clearInterval(linkWatch); modal.remove(); document.removeEventListener('keydown', esc); };
   const esc = e => { if (e.key === 'Escape') close(); };
   document.addEventListener('keydown', esc);
@@ -3512,12 +3521,13 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
     if (welcome && (m === 'signup' || m === 'signin')) {
       sheet.append(h('div', { class: 'wl' },
         h('button', { class: 'wl-x', text: '✕', 'aria-label': 'Close', onclick: close }),
-        h('img', { class: 'wl-logo', src: 'brand/emblem-md.png', alt: '' }),
-        h('div', { class: 'wl-kick', text: 'FO & GO' }),
-        h('h2', { class: 'wl-h', text: m === 'signup' ? 'Time every face-off.' : 'Welcome back.' }),
-        h('p', { class: 'wl-p', text: m === 'signup' ? 'Create a free account to save your reps and see where you rank.' : 'Sign in to pick up where you left off.' }),
+        h('div', { class: 'wl-badge' }, h('img', { class: 'wl-logo', src: 'brand/emblem-md.png', alt: '' })),
+        h('h2', { class: 'wl-h' }, ...(m === 'signup' ? ['Time every ', h('em', { text: 'face-off.' })] : ['Welcome ', h('em', { text: 'back.' })])),
+        h('p', { class: 'wl-p', text: m === 'signup' ? 'Your rep time, hand speed and rank. Free, in seconds.' : 'Sign in to pick up where you left off.' }),
         m === 'signup' ? h('div', { class: 'wl-pts' },
-          ...[['Rep time', 'Whistle to pocket'], ['Hand speed', 'Hands to clamp'], ['Leaderboards', 'See where you rank']].map(([a, b]) => h('div', {}, h('b', { text: a }), h('span', { text: b })))) : null));
+          h('div', { class: 'wl-pt' }, (() => { const d = h('i'); d.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M9 2h6M12 2v3"/></svg>'; return d; })(), h('b', { text: 'Rep time' }), h('span', { text: 'Whistle to pocket' })),
+          h('div', { class: 'wl-pt' }, (() => { const d = h('i'); d.innerHTML = '<svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>'; return d; })(), h('b', { text: 'Hand speed' }), h('span', { text: 'Hands to clamp' })),
+          h('div', { class: 'wl-pt' }, (() => { const d = h('i'); d.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>'; return d; })(), h('b', { text: 'Leaderboards' }), h('span', { text: 'See where you rank' }))) : null));
     } else {
       sheet.append(head);
       if (why && (m === 'signup' || m === 'signin')) sheet.append(h('p', { class: 'why', text: why }));
@@ -3525,7 +3535,7 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
     if (m === 'signup' || m === 'signin') {
       const t1 = h('button', { 'aria-pressed': m === 'signup' ? 'true' : 'false', text: 'Sign up', onclick: () => { m = 'signup'; draw(); } });
       const t2 = h('button', { 'aria-pressed': m === 'signin' ? 'true' : 'false', text: 'Sign in', onclick: () => { m = 'signin'; draw(); } });
-      sheet.append(h('div', { class: 'tabs2' }, t1, t2));
+      if (!welcome) sheet.append(h('div', { class: 'tabs2' }, t1, t2));
       if (PHONE_ON) sheet.append(h('div', { class: 'seg', style: 'margin:10px 0 0' },
         h('button', { type: 'button', 'aria-pressed': via === 'email' ? 'true' : 'false', text: 'Email', onclick: () => { via = 'email'; draw(); } }),
         h('button', { type: 'button', 'aria-pressed': via === 'phone' ? 'true' : 'false', text: 'Phone', onclick: () => { via = 'phone'; draw(); } })));
@@ -3707,7 +3717,10 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
     sheet.append(form);
     if (m === 'signin') sheet.append(h('button', { class: 'link', type: 'button', text: 'Forgot your password?', onclick: () => { m = 'forgot'; draw(); } }));
     if (m === 'forgot') sheet.append(h('button', { class: 'link', type: 'button', text: 'Back to sign in', onclick: () => { m = 'signin'; draw(); } }));
-    if (welcome && (m === 'signup' || m === 'signin')) sheet.append(h('button', { class: 'link later', type: 'button', text: 'Continue without an account', onclick: close }));
+    if (welcome && (m === 'signup' || m === 'signin')) {
+      sheet.append(h('div', { class: 'wl-sw' }, m === 'signup' ? 'Already have an account? ' : 'New here? ', h('button', { class: 'link', type: 'button', text: m === 'signup' ? 'Sign in' : 'Create an account', onclick: () => { m = m === 'signup' ? 'signin' : 'signup'; draw(); } })));
+      sheet.append(h('button', { class: 'link later', type: 'button', text: 'Continue without an account', onclick: close }));
+    }
     setTimeout(() => (email || pw) && (email || pw).focus(), 50);
   };
   draw(); document.body.append(modal);
