@@ -240,6 +240,15 @@ nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacit
 .hh-row b{display:block;font-family:'Anton','Barlow Condensed',sans-serif;font-weight:400;font-size:22px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hh-row span{font-size:11.5px;color:var(--mute)}
 .minitog{display:inline-flex;gap:2px;margin-top:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:9px;padding:2px}.minitog button{background:none;border:0;border-radius:7px;padding:5px 10px;font-size:12.5px;font-weight:600;color:var(--mute);cursor:pointer}.minitog button[aria-pressed=true]{background:#24313e;color:var(--ink)}
 .hh-chart{margin-top:12px}.hh-chart .nodata{padding:10px 0 0;font-size:13px}
+.wl{position:relative;text-align:center;padding:6px 4px 14px}
+.wl-x{position:absolute;right:-4px;top:-4px;background:none;border:0;color:var(--mute);font-size:18px;padding:8px;cursor:pointer}
+.wl-logo{width:72px;height:72px;object-fit:contain;margin:4px auto 6px;display:block;filter:drop-shadow(0 6px 22px rgba(200,255,46,.25))}
+.wl-kick{font-family:'Anton','Barlow Condensed',sans-serif;font-size:12px;letter-spacing:.24em;color:var(--lime)}
+.wl-h{font-family:'Anton','Barlow Condensed',sans-serif;font-weight:400;font-size:34px;line-height:1.05;letter-spacing:.01em;text-transform:uppercase;margin:6px 0 6px;color:#fff}
+.wl-p{color:#a9b8c6;font-size:15px;line-height:1.4;margin:0 auto 14px;max-width:300px}
+.wl-pts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px}
+.wl-pts>div{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:10px 6px}
+.wl-pts b{display:block;font-size:13px;color:var(--ink)}.wl-pts span{display:block;font-size:11px;color:var(--mute);margin-top:2px}
 .rng{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;padding:12px 0;border-bottom:1px solid var(--line)}.rng span{color:var(--ink);font-weight:600}.rng b{font-family:var(--disp);color:var(--lime);font-size:18px}.rng input{grid-column:1/-1;width:100%;accent-color:var(--lime)}
 .sw{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink);margin:0}
 .sw span{display:flex;flex-direction:column;gap:2px}.sw small{color:var(--mute);font-size:13px}
@@ -3483,6 +3492,7 @@ async function welcomePrompt() {
   if (acct() || document.querySelector('.auth')) return;
   openAccount('signup', 'Sign up to save all your stats: your reps, times and history, on any device you sign in on.', null, true);
 }
+const PHONE_ON = false;   // turn on once SMS (Twilio) is set up in Supabase
 function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
   const A = P.user && P.user.account; if (!A) return;
   let m = mode;
@@ -3499,15 +3509,26 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
     const head = h('div', { class: 'row', style: 'justify-content:space-between;flex-wrap:nowrap' },
       h('h3', { text: m === 'signup' ? 'Create account' : m === 'signin' ? 'Sign in' : m === 'forgot' ? 'Reset password' : m === 'newpw' ? 'New password' : m === 'rcode' ? 'Reset password' : 'Enter your code' }),
       h('button', { class: 'btn', text: '✕', 'aria-label': 'Close', onclick: close }));
-    sheet.append(head);
-    if (why && (m === 'signup' || m === 'signin')) sheet.append(h('p', { class: 'why', text: why }));
+    if (welcome && (m === 'signup' || m === 'signin')) {
+      sheet.append(h('div', { class: 'wl' },
+        h('button', { class: 'wl-x', text: '✕', 'aria-label': 'Close', onclick: close }),
+        h('img', { class: 'wl-logo', src: 'brand/emblem-md.png', alt: '' }),
+        h('div', { class: 'wl-kick', text: 'FO & GO' }),
+        h('h2', { class: 'wl-h', text: m === 'signup' ? 'Time every face-off.' : 'Welcome back.' }),
+        h('p', { class: 'wl-p', text: m === 'signup' ? 'Create a free account to save your reps and see where you rank.' : 'Sign in to pick up where you left off.' }),
+        m === 'signup' ? h('div', { class: 'wl-pts' },
+          ...[['Rep time', 'Whistle to pocket'], ['Hand speed', 'Hands to clamp'], ['Leaderboards', 'See where you rank']].map(([a, b]) => h('div', {}, h('b', { text: a }), h('span', { text: b })))) : null));
+    } else {
+      sheet.append(head);
+      if (why && (m === 'signup' || m === 'signin')) sheet.append(h('p', { class: 'why', text: why }));
+    }
     if (m === 'signup' || m === 'signin') {
       const t1 = h('button', { 'aria-pressed': m === 'signup' ? 'true' : 'false', text: 'Sign up', onclick: () => { m = 'signup'; draw(); } });
       const t2 = h('button', { 'aria-pressed': m === 'signin' ? 'true' : 'false', text: 'Sign in', onclick: () => { m = 'signin'; draw(); } });
       sheet.append(h('div', { class: 'tabs2' }, t1, t2));
-      sheet.append(h('div', { class: 'seg', style: 'margin:10px 0 0' },
-        h('button', { type: 'button', 'aria-pressed': via === 'email' ? 'true' : 'false', text: '✉️ Email', onclick: () => { via = 'email'; draw(); } }),
-        h('button', { type: 'button', 'aria-pressed': via === 'phone' ? 'true' : 'false', text: '📱 Phone', onclick: () => { via = 'phone'; draw(); } })));
+      if (PHONE_ON) sheet.append(h('div', { class: 'seg', style: 'margin:10px 0 0' },
+        h('button', { type: 'button', 'aria-pressed': via === 'email' ? 'true' : 'false', text: 'Email', onclick: () => { via = 'email'; draw(); } }),
+        h('button', { type: 'button', 'aria-pressed': via === 'phone' ? 'true' : 'false', text: 'Phone', onclick: () => { via = 'phone'; draw(); } })));
     }
     const err = h('div', { class: 'err', role: 'alert' });
     const form = h('form', { novalidate: true });
@@ -3619,7 +3640,7 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
         } catch (ex) { err.textContent = phoneErr(String(ex && ex.message || '')); go.disabled = false; go.textContent = 'Text me a code'; }
       };
       sheet.append(form);
-      if (welcome) sheet.append(h('button', { class: 'link later', type: 'button', text: 'Not now, just look around', onclick: close }));
+      if (welcome) sheet.append(h('button', { class: 'link later', type: 'button', text: 'Continue without an account', onclick: close }));
       setTimeout(() => pi.focus(), 50);
       return;
     }
@@ -3686,7 +3707,7 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
     sheet.append(form);
     if (m === 'signin') sheet.append(h('button', { class: 'link', type: 'button', text: 'Forgot your password?', onclick: () => { m = 'forgot'; draw(); } }));
     if (m === 'forgot') sheet.append(h('button', { class: 'link', type: 'button', text: 'Back to sign in', onclick: () => { m = 'signin'; draw(); } }));
-    if (welcome && (m === 'signup' || m === 'signin')) sheet.append(h('button', { class: 'link later', type: 'button', text: 'Not now, just look around', onclick: close }));
+    if (welcome && (m === 'signup' || m === 'signin')) sheet.append(h('button', { class: 'link later', type: 'button', text: 'Continue without an account', onclick: close }));
     setTimeout(() => (email || pw) && (email || pw).focus(), 50);
   };
   draw(); document.body.append(modal);
