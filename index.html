@@ -15,7 +15,7 @@
 <meta name="application-name" content="FO &amp; GO">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0a0e12; --panel:#121921; --panel2:#18222c; --line:#243140;
@@ -155,8 +155,8 @@ input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
 .rx-hist span{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:13px;font-variant-numeric:tabular-nums;animation:pbIn .35s var(--spring) both}
 .rx-hist span.best{border-color:var(--lime);color:var(--lime)}
 .rx-hist span.fsx{color:var(--red);border-color:#5a2a25}
-#tabs button{flex:1 1 auto;min-width:0;font-size:17px;padding:10px 4px}
-@media(max-width:480px){#tabs button{font-size:13.5px;letter-spacing:0;padding:10px 0}}
+#tabs button{flex:1 1 auto;min-width:0;font-size:17px;padding:10px 4px;font-family:'Anton','Barlow Condensed',sans-serif;font-weight:400;letter-spacing:.04em;text-transform:uppercase}
+@media(max-width:480px){#tabs button{font-size:14px;letter-spacing:.03em;padding:10px 0}}
 @media(max-width:360px){#tabs button{font-size:12.5px}}
 .acct-btn{min-height:38px;padding:6px 12px;font-weight:700;max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acct-btn.in{background:var(--panel2);color:var(--lime);border-color:#3a4d18}
@@ -196,27 +196,43 @@ body{touch-action:pan-y}
 #brandHome:active{transform:scale(.94)}
 .gear.on{background:var(--ink);color:#0a0e12}
 nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacity .25s ease}
-.podium{display:grid;grid-template-columns:1fr 1.12fr 1fr;align-items:end;gap:8px;margin:14px 0 6px}
-.pod{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0;cursor:default}
-.pod.click{cursor:pointer}
-.pod .pav{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:800;font-size:20px;background:#1e2a36;color:var(--ink);border:2px solid var(--pc)}
-.pod.r1 .pav{width:58px;height:58px;font-size:24px}
-.pod .pnm{margin-top:6px;font-weight:600;font-size:13.5px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pod .pvl{font-family:var(--disp);font-weight:800;font-size:22px;color:var(--ink);margin:2px 0 8px;letter-spacing:.01em}
-.pod.r1 .pvl{font-size:27px;color:var(--lime)}
-.pod .pvl small{font-size:.55em;color:var(--mute);margin-left:2px;font-weight:700}
-.pod .ped{width:100%;border-radius:12px 12px 4px 4px;background:linear-gradient(180deg,#1b2733,#121a22);border:1px solid var(--line);border-top:3px solid var(--pc);display:flex;align-items:flex-start;justify-content:center;padding-top:8px;font-family:var(--disp);font-weight:800;font-size:26px;color:var(--pc)}
-.pod.r1{--pc:#e5c15a}.pod.r2{--pc:#c3ccd6}.pod.r3{--pc:#c98b5c}
-.pod.r1 .ped{height:92px}.pod.r2 .ped{height:68px}.pod.r3 .ped{height:52px}
-.pod.empty{visibility:hidden}
-.lbl{border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;margin-top:8px}
-.lbr{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line)}
+.lbtabs{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line);margin:4px 0 0}
+.lbtabs button{background:none;border:0;padding:12px 4px 11px;font-family:'Anton','Barlow Condensed',sans-serif;font-weight:400;font-size:17px;letter-spacing:.05em;text-transform:uppercase;color:#5f7183;position:relative;cursor:pointer}
+.lbtabs button[aria-pressed=true]{color:var(--ink)}
+.lbtabs button[aria-pressed=true]::after{content:"";position:absolute;left:18%;right:18%;bottom:-1px;height:3px;background:var(--lime)}
+.lbsub{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 14px}
+.lbrange{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+.lbrange button{background:none;border:0;border-radius:7px;padding:5px 11px;font-size:13px;font-weight:600;color:var(--mute);cursor:pointer}
+.lbrange button[aria-pressed=true]{background:#24313e;color:var(--ink)}
+.lbmeta{font-size:12.5px;color:var(--mute);white-space:nowrap}
+.champ{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;padding:18px 18px 18px 16px;border-radius:18px;overflow:hidden;
+  background:radial-gradient(120% 140% at 100% 0%,rgba(200,255,46,.22),transparent 55%),linear-gradient(135deg,#17220f,#0f151b 70%);border:1px solid rgba(200,255,46,.35)}
+.champ .lab{font-family:'Anton','Barlow Condensed',sans-serif;font-size:12px;letter-spacing:.16em;color:var(--lime)}
+.champ .cav{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;background:var(--lime);color:#0b1003}
+.champ .cnm{font-weight:700;font-size:19px;color:#fff;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.champ .csub{font-size:12.5px;color:#a9b8c6;margin-top:2px}
+.champ .cvl{font-family:'Anton','Barlow Condensed',sans-serif;font-size:46px;line-height:.9;color:var(--lime);text-align:right}
+.champ .cvl small{display:block;font-family:inherit;font-size:12px;letter-spacing:.14em;color:#a9b8c6;margin-top:6px}
+.champ.click,.duo>.click{cursor:pointer}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 14px}
+.duo>div{position:relative;padding:14px;border-radius:16px;background:linear-gradient(160deg,#18222c,#11181f);border:1px solid var(--line);border-top:2px solid var(--pc);min-width:0}
+.duo .r2{--pc:#b9c3ce}.duo .r3{--pc:#c98b5c}
+.duo .lab{font-family:'Anton','Barlow Condensed',sans-serif;font-size:11px;letter-spacing:.16em;color:var(--pc)}
+.duo .dnm{display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:600;font-size:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.duo .dav{flex:none;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:#24313e;box-shadow:0 0 0 2px var(--pc)}
+.duo .dvl{font-family:'Anton','Barlow Condensed',sans-serif;font-size:30px;color:#fff;margin-top:8px;line-height:1}
+.duo .dvl small{font-size:13px;color:var(--mute);margin-left:3px}
+.duo .gap{font-size:12px;color:var(--mute);margin-top:4px}
+.lbl{border:1px solid var(--line);border-radius:16px;background:var(--panel);overflow:hidden}
+.lbr{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line)}
 .lbr:first-child{border-top:0}
-.lbr.me{background:rgba(200,255,46,.07)}
-.lbr .rk{font-family:var(--disp);font-weight:800;font-size:18px;color:var(--mute);text-align:center}
+.lbr.me{background:rgba(200,255,46,.06);box-shadow:inset 3px 0 0 var(--lime)}
+.lbr .rk{font-family:'Anton','Barlow Condensed',sans-serif;font-size:18px;color:#5f7183;text-align:center}
 .lbr .nm{min-width:0}.lbr .nm b{display:flex;align-items:center;gap:6px;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lbr .nm small{color:var(--mute);font-size:12px}
-.lbr .vl{font-family:var(--disp);font-weight:800;font-size:21px;color:var(--ink);text-align:right}.lbr .vl small{font-size:.6em;color:var(--mute);margin-left:2px}
-.demo-sw{margin-top:4px}.demo-sw small{display:block;color:var(--mute);font-weight:400;font-size:12px}
+.lbr .vl{text-align:right;line-height:1.05}.lbr .vl b{font-family:'Anton','Barlow Condensed',sans-serif;font-weight:400;font-size:21px;color:var(--ink)}.lbr .vl b small{font-size:.6em;color:var(--mute);margin-left:2px}
+.lbr .vl span{display:block;font-size:11.5px;color:var(--mute);margin-top:2px}
+.demo-link{display:block;margin:16px auto 0;font-size:13px}
+.champ.anim,.duo.anim,.lbl.anim{animation:lbIn .45s cubic-bezier(.2,.8,.2,1) both;animation-delay:var(--d,0ms)}@keyframes lbIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .rng{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;padding:12px 0;border-bottom:1px solid var(--line)}.rng span{color:var(--ink);font-weight:600}.rng b{font-family:var(--disp);color:var(--lime);font-size:18px}.rng input{grid-column:1/-1;width:100%;accent-color:var(--lime)}
 .sw{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink);margin:0}
 .sw span{display:flex;flex-direction:column;gap:2px}.sw small{color:var(--mute);font-size:13px}
@@ -614,23 +630,21 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
 
   <!-- LEADERBOARD -->
   <section id="v-board">
-    <div class="stats">
-      <div class="stat"><b id="sRecord">–</b><span>Record (s)</span></div>
-      <div class="stat"><b id="sPlayers">0</b><span>Players</span></div>
-      <div class="stat"><b id="sRuns">0</b><span>Runs</span></div>
-    </div>
-    <div class="seg" id="segCat">
+    <div class="lbtabs" id="segCat">
       <button data-v="time" aria-pressed="true">Fastest</button>
       <button data-v="hand" aria-pressed="false">Hand speed</button>
       <button data-v="reps" aria-pressed="false">Most reps</button>
     </div>
-    <div class="seg" id="segRange">
-      <button data-v="all" aria-pressed="true">All time</button>
-      <button data-v="week" aria-pressed="false">This week</button>
-      <button data-v="day" aria-pressed="false">Today</button>
+    <div class="lbsub">
+      <div class="lbrange" id="segRange">
+        <button data-v="all" aria-pressed="true">All time</button>
+        <button data-v="week" aria-pressed="false">Week</button>
+        <button data-v="day" aria-pressed="false">Today</button>
+      </div>
+      <span class="lbmeta" id="lbMeta"></span>
     </div>
-    <label class="sw demo-sw" id="demoBox" hidden><span><b>Sample players</b><small>Admin preview only. Nobody else sees these.</small></span><input type="checkbox" id="chkDemo"><i></i></label>
     <div class="list" id="boardList"></div>
+    <button class="link demo-link" id="demoBox" type="button" hidden>Show sample players</button>
   </section>
 
   <!-- RUN -->
@@ -3059,11 +3073,9 @@ function animateList(list) {
   return ids;
 }
 function renderBoard() {
-  $('#demoBox').hidden = !P.admin; if (!P.admin) DEMO = false;
+  $('#demoBox').hidden = !P.admin; if (!P.admin) DEMO = false; $('#demoBox').textContent = DEMO ? 'Hide sample players' : 'Show sample players';
   const all = boardSrc().filter(a => typeof a.timeMs === 'number' && !isDisputed(a));
-  setNum($('#sRecord'), all.length ? fmtMs(Math.min(...all.map(a => a.timeMs))) : '–');
-  setNum($('#sPlayers'), String(new Set(all.map(a => a.uid)).size));
-  setNum($('#sRuns'), String(all.length));
+  { const vr = visibleRuns().filter(a => !isDisputed(a)), np = new Set(vr.map(a => a.uid)).size; $('#lbMeta').textContent = vr.length ? np + (np === 1 ? ' player · ' : ' players · ') + vr.length + (vr.length === 1 ? ' rep' : ' reps') : ''; }
   const list = $('#boardList'); list.replaceChildren();
   if (F.cat !== 'time' && (boardLoaded || attempts.length || DEMO)) { renderLeaders(list); renderMe(); renderStats(); return; }
   const rows = ranked();
@@ -3077,8 +3089,8 @@ function renderBoard() {
       h('div', { style: 'margin-top:12px' }, h('button', { class: 'btn primary', onclick: () => switchTab('run'), text: 'Run a face-off' }))));
   } else {
     const ok = rows.filter(a => !isDisputed(a));
-    list.append(podium(ok.slice(0, 3).map(a => ({ uid: a.uid, name: a.handle || 'player', val: fmtS(a.timeMs), unit: 's', open: a.demo ? null : a }))));
-    let r = 0; rows.forEach(a => { if (!isDisputed(a)) r++; if (isDisputed(a) || r > 3) list.append(rowEl(a, r)); });
+    if (ok.length) boardView(list, ok.map(a => ({ uid: a.uid, name: a.handle || 'player', mine: isMine(a), num: a.timeMs, val: fmtS(a.timeMs), unit: 's', sub: ago(a.createdAt), open: a.demo ? null : a })), true, 'FASTEST');
+    rows.filter(isDisputed).forEach(a => list.append(rowEl(a, 0)));
   }
   const ids = animateList(list);
   renderMe(); renderStats();
@@ -3102,27 +3114,27 @@ function renderLeaders(list) {
       h('div', { style: 'margin-top:12px' }, h('button', { class: 'btn primary', onclick: () => switchTab('run'), text: 'Run a face-off' }))));
     return;
   }
-  const ent = ps.slice(0, 50).map(p => ({ uid: p.uid, name: p.name, mine: p.mine, val: hand ? fmtS(p.hand) : String(p.n), unit: hand ? 's' : (p.n === 1 ? 'rep' : 'reps'),
+  const ent = ps.slice(0, 50).map(p => ({ uid: p.uid, name: p.name, mine: p.mine, num: hand ? p.hand : p.n, val: hand ? fmtS(p.hand) : String(p.n), unit: hand ? 's' : (p.n === 1 ? 'rep' : 'reps'),
     sub: hand ? p.handN + (p.handN === 1 ? ' rep measured' : ' reps measured') : 'Fastest ' + fmtS(p.best) + ' s' }));
-  list.append(podium(ent.slice(0, 3)));
-  if (ent.length > 3) list.append(h('div', { class: 'lbl' }, ...ent.slice(3).map((e, i) => h('div', { class: 'lbr' + (e.mine ? ' me' : '') },
+  boardView(list, ent, hand, hand ? 'HAND SPEED' : 'MOST REPS');
+}
+/* the board: a leader card, #2 and #3 side by side, then everyone else with their gap to the leader */
+function boardView(list, ent, lower, label) {
+  const top = ent[0].num, gap = e => lower ? '+' + fmtS(e.num - top) + ' s' : (top - e.num ? '−' + (top - e.num) + ' ' + (top - e.num === 1 ? 'rep' : 'reps') : 'tied');
+  const tap = (el, e) => { if (e.open) { el.classList.add('click'); el.onclick = () => openRun(e.open.id, el); } return el; };
+  const c = ent[0];
+  list.append(tap(h('div', { class: 'champ anim' },
+    h('div', { class: 'cav', text: c.name.charAt(0).toUpperCase() }),
+    h('div', { style: 'min-width:0' }, h('div', { class: 'lab', text: '1ST · ' + label }), h('div', { class: 'cnm' }, '@' + c.name, adminTag(c.uid)), h('div', { class: 'csub', text: !ent[1] ? c.sub : ent[1].num === top ? 'Tied with @' + ent[1].name : lower ? 'Ahead by ' + fmtS(ent[1].num - top) + ' s' : 'Ahead by ' + (top - ent[1].num) + (top - ent[1].num === 1 ? ' rep' : ' reps') })),
+    h('div', { class: 'cvl' }, c.val, h('small', { text: c.unit.toUpperCase() }))), c));
+  if (ent.length > 1) list.append(h('div', { class: 'duo anim', style: '--d:60ms' }, ...[1, 2].map(i => { const e = ent[i]; if (!e) return h('div', { style: 'visibility:hidden' });
+    return tap(h('div', { class: 'r' + (i + 1) }, h('div', { class: 'lab', text: (i === 1 ? '2ND' : '3RD') }),
+      h('div', { class: 'dnm' }, h('span', { class: 'dav', text: e.name.charAt(0).toUpperCase() }), h('span', { style: 'overflow:hidden;text-overflow:ellipsis' }, '@' + e.name)),
+      h('div', { class: 'dvl' }, e.val, h('small', { text: e.unit })), h('div', { class: 'gap', text: gap(e) })), e); })));
+  if (ent.length > 3) list.append(h('div', { class: 'lbl anim', style: '--d:120ms' }, ...ent.slice(3).map((e, i) => tap(h('div', { class: 'lbr' + (e.mine ? ' me' : '') },
     h('div', { class: 'rk', text: String(i + 4) }),
     h('div', { class: 'nm' }, h('b', {}, '@' + e.name, adminTag(e.uid)), h('small', { text: e.sub })),
-    h('div', { class: 'vl' }, e.val, h('small', { text: e.unit }))))));
-}
-/* top three, 2 – 1 – 3 */
-function podium(top) {
-  const cell = (e, r) => {
-    if (!e) return h('div', { class: 'pod empty r' + r }, h('div', { class: 'ped' }));
-    const el = h('div', { class: 'pod r' + r + (e.open ? ' click' : '') },
-      h('div', { class: 'pav', text: e.name.charAt(0).toUpperCase() }),
-      h('div', { class: 'pnm' }, '@' + e.name),
-      h('div', { class: 'pvl' }, e.val, h('small', { text: e.unit })),
-      h('div', { class: 'ped', text: String(r) }));
-    if (e.open) el.onclick = () => openRun(e.open.id, el);
-    return el;
-  };
-  return h('div', { class: 'podium' }, cell(top[1], 2), cell(top[0], 1), cell(top[2], 3));
+    h('div', { class: 'vl' }, h('b', {}, e.val, h('small', { text: e.unit })), h('span', { text: gap(e) }))), e))));
 }
 function renderMe() {
   const mine = attempts.filter(a => isMine(a) && typeof a.timeMs === 'number').sort((a, b) => b.createdAt - a.createdAt);
@@ -4124,7 +4136,7 @@ function seg(id, key) {
   });
 }
 seg('segRange', 'range');
-$('#chkDemo').onchange = e => { DEMO = e.target.checked; animRows = true; renderBoard(); };
+$('#demoBox').onclick = () => { DEMO = !DEMO; animRows = true; renderBoard(); };
 $$('#segCat button').forEach(b => b.onclick = () => {
   F.cat = b.dataset.v; $$('#segCat button').forEach(x => x.setAttribute('aria-pressed', x === b));
   if (F.cat === 'reps' && F.range === 'all') { F.range = 'day'; $$('#segRange button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === 'day')); }   // most reps: today by default
