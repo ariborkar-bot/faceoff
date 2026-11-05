@@ -831,7 +831,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
     return n;
   }
   const account = {
-    current() { return session && session.user ? { id: session.user.id, email: session.user.email, username: (session.user.user_metadata || {}).username || '' } : null; },
+    current() { return session && session.user ? { id: session.user.id, email: session.user.email || (session.user.phone ? '+' + String(session.user.phone).replace(/^\+/, '') : ''), username: (session.user.user_metadata || {}).username || '' } : null; },
     onChange(f) { authSubs.add(f); return () => authSubs.delete(f); },
     async usernameFree(u) { try { const r = await rest('rpc/username_free', { method: 'POST', body: JSON.stringify({ p_username: u }) }); return r.ok ? await r.json() : true; } catch { return true; } },
     async signUp(email, password, username) {
@@ -858,6 +858,13 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       let r = await authFetch('verify', { type: kind === 'reset' ? 'recovery' : 'email', email, token });
       if (!r.ok && kind !== 'reset') { const r2 = await authFetch('verify', { type: 'signup', email, token }); if (r2.ok) r = r2; }   // older projects call it "signup"
       if (!r.ok) throw await authErr(r);
+      saveSession(await r.json()); const n = await claimOld(); authChanged(); return { claimed: n };
+    },
+    async phoneStart(phone, username) {                        // text a code; a username means "create the account if it's new"
+      const r = await authFetch('otp', { phone, create_user: !!username, ...(username ? { data: { username } } : {}) }); if (!r.ok) throw await authErr(r);
+    },
+    async phoneVerify(phone, token) {
+      const r = await authFetch('verify', { type: 'sms', phone, token }); if (!r.ok) throw await authErr(r);
       saveSession(await r.json()); const n = await claimOld(); authChanged(); return { claimed: n };
     },
     async resendCode(email) { const r = await authFetch('resend', { type: 'signup', email }); if (!r.ok) throw await authErr(r); },
@@ -3371,7 +3378,9 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
   const esc = e => { if (e.key === 'Escape') close(); };
   document.addEventListener('keydown', esc);
   const field = (label, attrs) => { const i = h('input', attrs); return [h('label', { for: attrs.id, text: label }), i]; };
-  let codeEmail = '', codePw = '', linkWatch = 0;
+  let codeEmail = '', codePw = '', linkWatch = 0, via = 'email', codePhone = '', codeUser = '';
+  const normPhone = v => { let d = String(v || '').replace(/[^\d+]/g, ''); if (d.startsWith('+')) return '+' + d.slice(1).replace(/\D/g, ''); d = d.replace(/\D/g, ''); if (d.length === 10) return '+1' + d; if (d.length === 11 && d[0] === '1') return '+' + d; return d ? '+' + d : ''; };
+  const phoneErr = msg => /provider|sms|unsupported|twilio|not enabled|disabled/i.test(msg) ? 'Texting codes isn’t switched on yet. Use email for now.' : /rate|too many|seconds/i.test(msg) ? 'Wait a minute before asking for another code.' : /expired|invalid|otp|token/i.test(msg) ? 'That code is wrong or expired. Send a new one.' : /not found|signups not allowed|user not found/i.test(msg) ? 'No account with that number. Tap Sign up.' : /database error saving new user/i.test(msg) ? 'That username is taken' : msg || 'Something went wrong. Try again.';
   const draw = () => {
     sheet.replaceChildren();
     const head = h('div', { class: 'row', style: 'justify-content:space-between;flex-wrap:nowrap' },
@@ -3383,6 +3392,9 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
       const t1 = h('button', { 'aria-pressed': m === 'signup' ? 'true' : 'false', text: 'Sign up', onclick: () => { m = 'signup'; draw(); } });
       const t2 = h('button', { 'aria-pressed': m === 'signin' ? 'true' : 'false', text: 'Sign in', onclick: () => { m = 'signin'; draw(); } });
       sheet.append(h('div', { class: 'tabs2' }, t1, t2));
+      sheet.append(h('div', { class: 'seg', style: 'margin:10px 0 0' },
+        h('button', { type: 'button', 'aria-pressed': via === 'email' ? 'true' : 'false', text: '✉️ Email', onclick: () => { via = 'email'; draw(); } }),
+        h('button', { type: 'button', 'aria-pressed': via === 'phone' ? 'true' : 'false', text: '📱 Phone', onclick: () => { via = 'phone'; draw(); } })));
     }
     const err = h('div', { class: 'err', role: 'alert' });
     const form = h('form', { novalidate: true });
@@ -3444,6 +3456,58 @@ function openAccount(mode = 'signup', why = '', after = null, welcome = false) {
       wait = 60; tick();
       sheet.append(h('div', { style: 'display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px' }, again, h('button', { class: 'link', type: 'button', text: 'Use a different email', onclick: () => { clearTimeout(tmr); m = reset ? 'forgot' : 'signup'; draw(); } })));
       setTimeout(() => ci.focus(), 50);
+      return;
+    }
+    if (m === 'pcode') {                                       // the code from the text message
+      sheet.append(h('p', { class: 'why', text: 'We texted a code to ' + codePhone + '. Type it here.' }));
+      const [cl, ci] = field('Code', { id: 'auCode', type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '8', placeholder: '123456', class: 'codein' });
+      const go = h('button', { class: 'btn primary go', type: 'submit', text: 'Verify' });
+      form.append(cl, ci, err, go);
+      const submit = async () => {
+        const code = ci.value.replace(/\D/g, ''); err.textContent = ''; err.style.color = '';
+        if (code.length < 6) { err.textContent = 'Enter the code from the text.'; return; }
+        if (go.disabled) return; go.disabled = true; go.textContent = 'One moment…';
+        try { const r = await A.phoneVerify(codePhone, code); const me = acct(); toast('Welcome' + (me && me.username ? ', @' + me.username : '') + '!' + (r.claimed ? ' ' + r.claimed + ' earlier rep' + (r.claimed > 1 ? 's' : '') + ' added.' : '')); close(); after && after(); }
+        catch (ex) { err.textContent = phoneErr(String(ex && ex.message || '')); go.disabled = false; go.textContent = 'Verify'; }
+      };
+      form.onsubmit = e => { e.preventDefault(); submit(); };
+      let autoT = 0;
+      ci.addEventListener('input', () => { const d = ci.value.replace(/\D/g, ''); if (ci.value !== d) ci.value = d; clearTimeout(autoT); if (d.length === 6) autoT = setTimeout(submit, 600); });
+      sheet.append(form);
+      let wait = 60, tmr = 0;
+      const again = h('button', { class: 'link', type: 'button' });
+      const tick = () => { again.disabled = wait > 0; again.textContent = wait > 0 ? 'Send a new code (' + wait + ' s)' : 'Send a new code'; if (wait-- > 0) tmr = setTimeout(tick, 1000); };
+      again.onclick = async () => { if (wait > 0) return; err.textContent = ''; try { await A.phoneStart(codePhone, codeUser); err.style.color = 'var(--lime)'; err.textContent = 'New code sent.'; wait = 60; tick(); } catch (ex) { err.style.color = ''; err.textContent = phoneErr(String(ex && ex.message || '')); } };
+      tick();
+      sheet.append(h('div', { style: 'display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px' }, again, h('button', { class: 'link', type: 'button', text: 'Use a different number', onclick: () => { clearTimeout(tmr); m = codeUser ? 'signup' : 'signin'; draw(); } })));
+      setTimeout(() => ci.focus(), 50);
+      return;
+    }
+    if (via === 'phone' && (m === 'signup' || m === 'signin')) {
+      const [pl, pi] = field('Phone number', { id: 'auPhone', type: 'tel', autocomplete: 'tel', inputmode: 'tel', placeholder: '(555) 123-4567' });
+      form.append(pl, pi);
+      let ui;
+      if (m === 'signup') {
+        const [l, i] = field('Username (shown on the board)', { id: 'auUser', autocomplete: 'username', maxlength: '20', placeholder: 'e.g. ari_fo' }); ui = i;
+        form.append(l, i, h('div', { class: 'hint', text: '3–20 letters, numbers, _ or .' }));
+      }
+      const go = h('button', { class: 'btn primary go', type: 'submit', text: 'Text me a code' });
+      form.append(err, go);
+      form.onsubmit = async e => {
+        e.preventDefault(); err.textContent = '';
+        const ph = normPhone(pi.value), u = ui ? ui.value.trim() : '';
+        if (!/^\+\d{8,15}$/.test(ph)) { err.textContent = 'Enter your phone number (US numbers: 10 digits).'; return; }
+        if (m === 'signup' && !/^[A-Za-z0-9_.]{3,20}$/.test(u)) { err.textContent = 'Usernames are 3–20 letters, numbers, _ or .'; return; }
+        go.disabled = true; go.textContent = 'One moment…';
+        try {
+          if (m === 'signup' && !(await A.usernameFree(u))) throw new Error('That username is taken');
+          await A.phoneStart(ph, m === 'signup' ? u : '');
+          codePhone = ph; codeUser = m === 'signup' ? u : ''; m = 'pcode'; draw();
+        } catch (ex) { err.textContent = phoneErr(String(ex && ex.message || '')); go.disabled = false; go.textContent = 'Text me a code'; }
+      };
+      sheet.append(form);
+      if (welcome) sheet.append(h('button', { class: 'link later', type: 'button', text: 'Not now, just look around', onclick: close }));
+      setTimeout(() => pi.focus(), 50);
       return;
     }
     let email, user, pw, uhint;
