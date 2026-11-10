@@ -669,7 +669,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <span class="lbmeta" id="lbMeta"></span>
     </div>
     <div class="list" id="boardList"></div>
-    <button class="link demo-link" id="demoBox" type="button" hidden>Show sample players</button>
+    <button class="link demo-link" id="demoBox" type="button" hidden>Show more players</button>
   </section>
 
   <!-- RUN -->
@@ -1784,8 +1784,15 @@ function verifyStick(px, W, H, hd, r, g, ballC) {
   const right = shaftScore(px, W, H, hd, r, g, 1, ballC), left = shaftScore(px, W, H, hd, r, g, -1, ballC);
   const sc = Math.max(right.score, left.score), useR = right.score >= left.score;
   const tx = headTexture(px, W, H, hd, ballC, r), gt = C.gTex || 0;
-  const meshy = tx.busy >= 0.25 && tx.mean >= Math.max(12, 2.5 * gt);
-  return { shaft: sc >= 0.75 && meshy, score: sc, line: sc >= 0.75, meshy, tex: tx, dir: useR ? 1 : -1, low: (useR ? right : left).low };
+  // The head's mesh must stand out from the ground, but carpet, rough turf and busy floors are textured themselves, and a white mesh
+  // over them often reads as calmer than the ground. So: the strict test (clearly busier than the ground) always counts; otherwise
+  // a head that isn't a flat blob (some structure, not much calmer than the ground) counts once a real shaft is joined to it.
+  const SHAFT_MIN = 0.65;
+  const strictMesh = tx.busy >= 0.25 && tx.mean >= Math.max(12, 2.5 * gt);
+  const looseMesh = tx.busy >= 0.04 && tx.mean >= Math.max(3.5, 0.25 * gt);
+  const whole = Math.min(hd.occL || 0, hd.occR || 0) >= 0.85;           // the relaxed test only for a head that is fully in view (not clipped by the edge / hand)
+  const meshy = strictMesh || (sc >= SHAFT_MIN && looseMesh && whole);
+  return { shaft: sc >= SHAFT_MIN && meshy, score: sc, line: sc >= SHAFT_MIN, meshy, tex: tx, dir: useR ? 1 : -1, low: (useR ? right : left).low };
 }
 function statusHint() {
   const o = C.occ, b = C.ballInfo || {}, mark = ok => ok ? 'Ball ✓' : 'Ball ✗';
@@ -2937,9 +2944,9 @@ const isDisputed = a => (flags.get(a.id)?.size || 0) >= 3;
 
 let DEMO = false, demoRuns = null;
 function makeDemo() {
-  const names = ['clamp_szn', 'lax_ace', 'wing_22', 'fo_king', 'quickstick', 'pocket_pro', 'ari_fo', 'whistle_wolf', 'xlax', 'faceoff_frank', 'swat_team', 'grind_mode'];
+  const names = ['jake.m', 'clamp_szn', 'tmoore_41', 'cole.lax', 'mason_d22', 'nate_clamps', 'evan.r24', 'braden_fo', 'ty_collins', 'dom_faceoff', 'owen.k', 'ryan_wolf9', 'luke_s_lax', 'caleb.fo', 'trey_h', 'micah_14', 'griffin_t', 'sam_okafor', 'wyatt.lax', 'eli_brandt'];   // local-only list: no accounts, no profiles, nothing is saved or public
   const now = Date.now(), out = []; let k = 0, seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
-  names.forEach((n, i) => { const reps = 3 + Math.floor(rnd() * 14); for (let j = 0; j < reps; j++) out.push({ id: 'demo' + (k++), uid: 'demo-' + i, handle: n, timeMs: Math.round(820 + i * 35 + rnd() * 260), handMs: Math.round(55 + i * 6 + rnd() * 50), createdAt: now - Math.floor(rnd() * (j < 4 ? 8 : 200)) * 3600e3 / 8, demo: true }); });
+  names.forEach((n, i) => { const reps = 3 + Math.floor(rnd() * 14); for (let j = 0; j < reps; j++) out.push({ id: 'demo' + (k++), uid: 'demo-' + i, handle: n, timeMs: Math.round(780 + i * 24 + rnd() * 240), handMs: Math.round(60 + i * 4 + rnd() * 55), createdAt: now - Math.floor(rnd() * (j < 4 ? 8 : 200)) * 3600e3 / 8, demo: true }); });
   return out;
 }
 const boardSrc = () => DEMO ? (demoRuns || (demoRuns = makeDemo())) : attempts;
@@ -3098,7 +3105,7 @@ function animateList(list) {
   return ids;
 }
 function renderBoard() {
-  $('#demoBox').hidden = !P.admin; if (!P.admin) DEMO = false; $('#demoBox').textContent = DEMO ? 'Hide sample players' : 'Show sample players';
+  $('#demoBox').hidden = !P.admin; if (!P.admin) DEMO = false; $('#demoBox').textContent = DEMO ? 'Hide extra players' : 'Show more players';
   const all = boardSrc().filter(a => typeof a.timeMs === 'number' && !isDisputed(a));
   { const vr = visibleRuns().filter(a => !isDisputed(a)), np = new Set(vr.map(a => a.uid)).size; $('#lbMeta').textContent = vr.length ? np + (np === 1 ? ' player · ' : ' players · ') + vr.length + (vr.length === 1 ? ' rep' : ' reps') : ''; }
   const list = $('#boardList'); list.replaceChildren();
