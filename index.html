@@ -240,7 +240,7 @@ nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacit
 body.is-admin:not(.admin-viewing) #tabs [data-tab=run],body.is-admin:not(.admin-viewing) #tabs [data-tab=react],body.is-admin:not(.admin-viewing) #tabs [data-tab=stats],body.is-admin:not(.admin-viewing) #tabs [data-tab=me]{display:none}
 body .tag{background:var(--lime);color:#0a0e12;border-radius:2px;font-weight:900;transform:skewX(-12deg);box-shadow:0 0 12px rgba(200,255,46,.45)}
 .adm-hero{position:relative;margin:0 0 14px;padding:16px 16px 14px 18px;border-left:4px solid var(--lime);clip-path:polygon(0 0,calc(100% - 26px) 0,100% 26px,100% 100%,0 100%);
-  background:repeating-linear-gradient(115deg,rgba(255,255,255,.04) 0 2px,transparent 2px 10px),radial-gradient(110% 120% at 0 0,rgba(200,255,46,.22),transparent 60%),#0e151c}
+  background:radial-gradient(110% 120% at 0 0,rgba(200,255,46,.22),transparent 60%),#0e151c}
 .adm-k{font-weight:900;font-size:13px;letter-spacing:.32em;color:var(--lime)}
 .adm-n{font-weight:900;font-size:40px;line-height:1;color:#fff;margin:6px 0 14px;text-shadow:0 0 22px rgba(200,255,46,.4)}
 .adm-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -260,10 +260,10 @@ body .tag{background:var(--lime);color:#0a0e12;border-radius:2px;font-weight:900
 .podium{gap:6px;filter:drop-shadow(0 8px 22px color-mix(in srgb,var(--pc) 24%,transparent))}
 .pd{border:0;border-left:3px solid var(--c);border-radius:0;padding:14px 10px 12px 13px;
   clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,14px 100%,0 calc(100% - 14px));
-  background:repeating-linear-gradient(115deg,rgba(255,255,255,.04) 0 2px,transparent 2px 10px),linear-gradient(170deg,#1d2a36,#0e151c 78%)}
+  background:linear-gradient(170deg,#1d2a36,#0e151c 78%)}
 .pd::before{content:"";position:absolute;left:0;top:0;right:22px;height:4px;background:var(--c)}
 .pd.p1{border-left-width:4px;
-  background:repeating-linear-gradient(115deg,rgba(255,255,255,.05) 0 2px,transparent 2px 10px),radial-gradient(120% 80% at 50% 0%,color-mix(in srgb,var(--c) 26%,transparent),transparent 70%),linear-gradient(170deg,#1f2d3a,#0e151c 78%)}
+  background:radial-gradient(120% 80% at 50% 0%,color-mix(in srgb,var(--c) 26%,transparent),transparent 70%),linear-gradient(170deg,#1f2d3a,#0e151c 78%)}
 .pd.p1::before{height:6px}
 .pd .rk{font-size:13px;font-weight:800;letter-spacing:.2em}
 .pd .nm{font-size:16px;font-weight:800;margin-top:10px}
@@ -4287,9 +4287,14 @@ function seg(id, key) {
 seg('segRange', 'range');
 $('#demoBox').onclick = () => { DEMO = !DEMO; animRows = true; renderBoard(); };
 $$('#segCat button').forEach(b => b.onclick = () => {
+  const bs = $$('#segCat button'), dir = Math.sign(bs.indexOf(b) - bs.findIndex(x => x.getAttribute('aria-pressed') === 'true'));
   F.cat = b.dataset.v; $$('#segCat button').forEach(x => x.setAttribute('aria-pressed', x === b));
   if (F.cat === 'reps' && F.range === 'all') { F.range = 'day'; $$('#segRange button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === 'day')); }   // most reps: today by default
   renderBoard();
+  if (dir && !matchMedia('(prefers-reduced-motion: reduce)').matches) {          // quick slide between Fastest / Hand speed / Most reps
+    const l = $('#boardList'); l.getAnimations().forEach(x => x.cancel());
+    l.animate([{ opacity: 0, transform: 'translateX(' + dir * 34 + 'px)' }, { opacity: 1, transform: 'none' }], { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }
 });
 $$('#segStats button').forEach(b => b.onclick = () => { SF.range = b.dataset.v; $$('#segStats button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderStats(); });
 $$('#segWho button').forEach(b => b.onclick = () => { SF.who = b.dataset.v; $$('#segWho button').forEach(x => x.setAttribute('aria-pressed', x === b)); if (SF.who === 'profiles') PROF.open = null; renderStats(); });
