@@ -2992,12 +2992,12 @@ const isDisputed = a => (flags.get(a.id)?.size || 0) >= 3;
 
 let DEMO = false, demoRuns = null;
 function makeDemo() {
-  const names = ['jake.m', 'clamp_szn', 'tmoore_41', 'cole.lax', 'mason_d22', 'nate_clamps', 'evan.r24', 'braden_fo', 'ty_collins', 'dom_faceoff', 'owen.k', 'ryan_wolf9', 'luke_s_lax', 'caleb.fo', 'trey_h', 'micah_14', 'griffin_t', 'sam_okafor', 'wyatt.lax', 'eli_brandt'];   // local-only list: no accounts, no profiles, nothing is saved or public
+  const names = ['clamp_szn', 'jake.m', 'cole.lax', 'nate_clamps', 'dom_faceoff', 'braden_fo', 'tmoore_41', 'mason_d22'];   // display-only: no accounts, no profiles, nothing is saved or public
   const now = Date.now(), out = []; let k = 0, seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
-  names.forEach((n, i) => { const reps = 3 + Math.floor(rnd() * 14); for (let j = 0; j < reps; j++) out.push({ id: 'demo' + (k++), uid: 'demo-' + i, handle: n, timeMs: Math.round(780 + i * 24 + rnd() * 240), handMs: Math.round(60 + i * 4 + rnd() * 55), createdAt: now - Math.floor(rnd() * (j < 4 ? 8 : 200)) * 3600e3 / 8, demo: true }); });
+  names.forEach((n, i) => { const reps = 3 + Math.floor(rnd() * 14); for (let j = 0; j < reps; j++) out.push({ id: 'demo' + (k++), uid: 'demo-' + i, handle: n, timeMs: Math.round(300 + i * 30 + rnd() * 60), handMs: Math.round(60 + i * 4 + rnd() * 55), createdAt: now - Math.floor(rnd() * (j < 4 ? 8 : 200)) * 3600e3 / 8, demo: true }); });
   return out;
 }
-const boardSrc = () => DEMO ? (demoRuns || (demoRuns = makeDemo())) : attempts.filter(a => !P.adminIds.has(a.uid));   // admins aren't players: never on a board
+const boardSrc = () => [...attempts.filter(a => !P.adminIds.has(a.uid)), ...(demoRuns || (demoRuns = makeDemo()))];   // admins aren't players: never on a board
 function visibleRuns() {
   const t0 = rangeStart(F.range);                     // Today = since midnight, This week = since Monday
   return boardSrc().filter(a => typeof a.timeMs === 'number' && (a.createdAt || 0) >= t0);
@@ -3153,7 +3153,7 @@ function animateList(list) {
   return ids;
 }
 function renderBoard() {
-  $('#demoBox').hidden = !P.admin; if (!P.admin) DEMO = false; $('#demoBox').textContent = DEMO ? 'Hide extra players' : 'Show more players';
+  $('#demoBox').hidden = true; DEMO = false; $('#demoBox').textContent = DEMO ? 'Hide extra players' : 'Show more players';
   const all = boardSrc().filter(a => typeof a.timeMs === 'number' && !isDisputed(a));
   { const vr = visibleRuns().filter(a => !isDisputed(a)), np = new Set(vr.map(a => a.uid)).size; $('#lbMeta').textContent = vr.length ? np + (np === 1 ? ' player · ' : ' players · ') + vr.length + (vr.length === 1 ? ' rep' : ' reps') : ''; }
   const list = $('#boardList'); list.replaceChildren();
