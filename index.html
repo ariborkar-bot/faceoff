@@ -235,6 +235,18 @@ nav .nav-pill{transition:left .42s var(--spring),width .42s var(--spring),opacit
 .lbr .vl span{display:block;font-size:11.5px;color:var(--mute);margin-top:2px}
 .demo-link{display:block;margin:16px auto 0;font-size:13px}
 .lbl.anim{animation:lbIn .45s cubic-bezier(.2,.8,.2,1) both;animation-delay:var(--d,0ms)}@keyframes lbIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* admin: console, not a player */
+.admin-only{display:none}body.is-admin .admin-only{display:inline-block}
+body.is-admin:not(.admin-viewing) #tabs [data-tab=run],body.is-admin:not(.admin-viewing) #tabs [data-tab=react],body.is-admin:not(.admin-viewing) #tabs [data-tab=stats],body.is-admin:not(.admin-viewing) #tabs [data-tab=me]{display:none}
+body .tag{background:var(--lime);color:#0a0e12;border-radius:2px;font-weight:900;transform:skewX(-12deg);box-shadow:0 0 12px rgba(200,255,46,.45)}
+.adm-hero{position:relative;margin:0 0 14px;padding:16px 16px 14px 18px;border-left:4px solid var(--lime);clip-path:polygon(0 0,calc(100% - 26px) 0,100% 26px,100% 100%,0 100%);
+  background:repeating-linear-gradient(115deg,rgba(255,255,255,.04) 0 2px,transparent 2px 10px),radial-gradient(110% 120% at 0 0,rgba(200,255,46,.22),transparent 60%),#0e151c}
+.adm-k{font-weight:900;font-size:13px;letter-spacing:.32em;color:var(--lime)}
+.adm-n{font-weight:900;font-size:40px;line-height:1;color:#fff;margin:6px 0 14px;text-shadow:0 0 22px rgba(200,255,46,.4)}
+.adm-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.adm-t{background:rgba(255,255,255,.06);padding:9px 10px 8px;clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%)}
+.adm-t b{display:block;font-size:28px;font-weight:900;color:var(--ink);line-height:1}
+.adm-t span{font-size:10.5px;letter-spacing:.16em;color:var(--mute);text-transform:uppercase;font-weight:800}
 /* leaderboard: aggressive sports restyle */
 .lbtabs{border-bottom:2px solid var(--line)}
 .lbtabs button{font-size:20px;letter-spacing:.06em;padding:13px 4px 12px}
@@ -681,6 +693,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
     <button role="tab" data-tab="board" aria-selected="true">Board</button>
     <button role="tab" data-tab="stats" aria-selected="false">Stats</button>
     <button role="tab" data-tab="me" aria-selected="false">Mine</button>
+    <button role="tab" data-tab="settings" class="admin-only" aria-selected="false">Admin</button>
   </nav>
 
   <div id="notice" class="notice" hidden></div>
@@ -846,6 +859,8 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
     </div>
     
 <div class="card" id="adminCard" hidden>
+      <div class="adm-hero"><div class="adm-k">ADMIN CONSOLE</div><div class="adm-n" id="admName">@admin</div>
+        <div class="adm-tiles"><div class="adm-t"><b id="admP">–</b><span>Players</span></div><div class="adm-t"><b id="admR">–</b><span>Reps</span></div><div class="adm-t"><b id="admT">–</b><span>Today</span></div></div></div>
       <h2 class="hinfo">Admin · Users<span class="info" data-info="Only admins see this. Every account, with its email and reps. Open one to see or delete their reps."></span></h2>
       <input type="search" id="admSearch" placeholder="Search username or email" autocomplete="off" style="width:100%;box-sizing:border-box;margin:6px 0 4px">
       <div class="small muted" id="admCount"></div>
@@ -2888,6 +2903,7 @@ async function post() {
   const ms = S.ms;
   const msg = $('#postMsg'); msg.className = 'small muted';
   if (ms == null || S.beep == null || S.control == null) { msg.textContent = 'This rep has no time to post.'; msg.classList.add('err'); return; }
+  if (P.admin && !P.viewAs) { msg.textContent = 'Admin accounts don’t post reps.'; msg.classList.add('err'); return; }
   const me = acct(), club = $('#club').value.trim();
   if (!me && P.user && P.user.account) { openAccount('signup', 'Create a free account to save this rep to the leaderboard.', () => post()); return; }
   const handle = me ? me.username : (lsGet('fo-handle') || 'Player');
@@ -2981,7 +2997,7 @@ function makeDemo() {
   names.forEach((n, i) => { const reps = 3 + Math.floor(rnd() * 14); for (let j = 0; j < reps; j++) out.push({ id: 'demo' + (k++), uid: 'demo-' + i, handle: n, timeMs: Math.round(780 + i * 24 + rnd() * 240), handMs: Math.round(60 + i * 4 + rnd() * 55), createdAt: now - Math.floor(rnd() * (j < 4 ? 8 : 200)) * 3600e3 / 8, demo: true }); });
   return out;
 }
-const boardSrc = () => DEMO ? (demoRuns || (demoRuns = makeDemo())) : attempts;
+const boardSrc = () => DEMO ? (demoRuns || (demoRuns = makeDemo())) : attempts.filter(a => !P.adminIds.has(a.uid));   // admins aren't players: never on a board
 function visibleRuns() {
   const t0 = rangeStart(F.range);                     // Today = since midnight, This week = since Monday
   return boardSrc().filter(a => typeof a.timeMs === 'number' && (a.createdAt || 0) >= t0);
@@ -3316,7 +3332,7 @@ async function loadRxBoard() {
     : (myProf && !myProf.is_public) ? 'Your profile is private, so your times stay off the board. Make it public in Mine to join.' : '';
   if (!P.user || !P.user.reaction) { box.replaceChildren(h('div', { class: 'nodata', text: 'Leaderboard unavailable.' })); return; }
   try {
-    const rows = await P.user.reaction.board(mode);
+    const rows = (await P.user.reaction.board(mode)).filter(r => !P.adminIds.has(r.user_id));
     if (mode !== rxMode()) return;
     box.replaceChildren(...(rows.length ? rows.map((r, i) => h('div', { class: 'rxb-row' + (me && r.user_id === me.id ? ' me' : '') },
       h('div', { class: 'rk', text: i + 1 }), h('div', { class: 'nm' }, '@' + (r.username || 'player'), adminTag(r.user_id)), h('div', { class: 'ms', text: r.best_ms + ' ms' })))
@@ -3324,7 +3340,7 @@ async function loadRxBoard() {
   } catch { box.replaceChildren(h('div', { class: 'nodata', text: 'Couldn’t load the leaderboard.' })); }
 }
 async function rxSubmit(ms) {
-  if (!acct() || !P.user || !P.user.reaction || ms < 100) return;
+  if (!acct() || !P.user || !P.user.reaction || ms < 100 || (P.admin && !P.viewAs)) return;
   if (await P.user.reaction.submit(ms, rxMode())) loadRxBoard();
 }
 function rxStats() {
@@ -3438,8 +3454,15 @@ let admUsers = null, admOpen = null;
 async function loadAdminUsers() {
   if (!P.admin || !P.user.adminUsers) return;
   $('#admCount').textContent = 'Loading…';
-  try { admUsers = await P.user.adminUsers(); renderAdmin(); }
+  try { admUsers = await P.user.adminUsers(); renderAdmin(); adminHero(); }
   catch (e) { $('#admCount').textContent = 'Couldn’t load users' + (e && e.message ? ': ' + e.message : '.'); }
+}
+function adminHero() {                                      // the admin console header: the app's numbers, not the admin's own
+  const me = acct(); if (me && $('#admName')) $('#admName').textContent = '@' + me.username;
+  if (!admUsers) return;
+  const pl = admUsers.filter(u => !u.is_admin), d0 = new Date(); d0.setHours(0, 0, 0, 0);
+  $('#admP').textContent = pl.length; $('#admR').textContent = pl.reduce((n, u) => n + (u.reps || 0), 0);
+  $('#admT').textContent = attempts.filter(a => !P.adminIds.has(a.uid) && (a.createdAt || 0) >= d0.getTime()).length;
 }
 const fmtDate = ts => ts ? new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never';
 async function admDeleteRep(a) {
@@ -3502,7 +3525,7 @@ function viewAs(u) {
   if (!P.admin) return;
   if (!P.viewAs) P.real = { uid: P.uid, uids: P.uids };
   P.viewAs = { id: u.id, username: u.username || 'player' };
-  P.uid = u.id; P.uids = new Set([u.id]);
+  P.uid = u.id; P.uids = new Set([u.id]); document.body.classList.add('admin-viewing');
   $('#viewAsName').textContent = '@' + P.viewAs.username; $('#viewAs').hidden = false;
   $('#acctCard').hidden = true;
   animRows = true; renderBoard(); switchTab('me'); toast('Viewing as @' + P.viewAs.username);
@@ -3511,6 +3534,7 @@ function exitViewAs() {
   if (!P.viewAs) return;
   const name = P.viewAs.username; P.viewAs = null;
   if (P.real) { P.uid = P.real.uid; P.uids = P.real.uids; P.real = null; }
+  document.body.classList.remove('admin-viewing'); if (P.admin) switchTab('board');
   $('#viewAs').hidden = true; renderAccount(); animRows = true; renderBoard(); renderStats(); toast('Back to your account');
 }
 $('#btnViewAsExit').onclick = exitViewAs;
@@ -3525,6 +3549,8 @@ const adminTag = id => id && P.adminIds.has(id) ? h('span', { class: 'tag', text
 async function checkAdmin() {
   try { P.admin = !!(P.user && P.user.isAdmin && await P.user.isAdmin()); } catch { P.admin = false; }
   document.body.classList.toggle('is-admin', P.admin);
+  if (P.admin) { const st = $('#v-settings'), ac = $('#adminCard'); if (st && ac && st.firstElementChild !== ac) st.prepend(ac); adminHero();
+    if (!P.viewAs && ['run', 'react', 'stats', 'me'].includes($('#tabs button[aria-selected=true]')?.dataset.tab)) switchTab('board'); }
   $('#adminCard').hidden = !P.admin;
   if (!P.admin && P.viewAs) exitViewAs();
 }
@@ -3860,7 +3886,7 @@ function rangeStart(r) {
   if (r === 'month') { d.setDate(1); return +d; }
   return -Infinity;
 }
-const allRuns = () => attempts.filter(a => typeof a.timeMs === 'number' && !isDisputed(a));
+const allRuns = () => attempts.filter(a => typeof a.timeMs === 'number' && !isDisputed(a) && !P.adminIds.has(a.uid));
 function statRuns(range) { const t0 = rangeStart(range); return allRuns().filter(a => (a.createdAt || 0) >= t0); }
 /* a session: 10+ reps by one player, less than 45 minutes between reps */
 const SESSION_GAP = 45 * 60e3, SESSION_MIN = 5;
