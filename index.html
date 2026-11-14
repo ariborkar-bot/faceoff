@@ -13,9 +13,29 @@
 <title>FO &amp; GO</title>
 <meta name="apple-mobile-web-app-title" content="FO &amp; GO">
 <meta name="application-name" content="FO &amp; GO">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts/fonts.css">
+<script>
+/* iOS app shell (Capacitor). On the website none of this runs. */
+(function () {
+  var C = window.Capacitor;
+  if (!C || !C.isNativePlatform || !C.isNativePlatform()) return;
+  // iPhone ignores navigator.vibrate, so send it to the native haptic engine
+  try {
+    var H = C.Plugins && C.Plugins.Haptics;
+    if (H) navigator.vibrate = function (ms) {
+      try { var d = Array.isArray(ms) ? ms[0] : ms; H.impact({ style: d >= 25 ? 'MEDIUM' : 'LIGHT' }); } catch (e) {}
+      return true;
+    };
+  } catch (e) {}
+  // The app ships with a copy of the site (works offline). When there's a connection, open the live site so every update shows up without a new App Store release.
+  if (location.protocol !== 'capacitor:') return;
+  var LIVE = 'https://ariborkar-bot.github.io/faceoff/';
+  var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { if (ctl) ctl.abort(); }, 2500);
+  fetch(LIVE + 'manifest.webmanifest', { cache: 'no-store', mode: 'no-cors', signal: ctl ? ctl.signal : undefined })
+    .then(function () { clearTimeout(t); location.replace(LIVE); })
+    .catch(function () { clearTimeout(t); });
+})();
+</script>
 <style>
 :root{
   --bg:#0a0e12; --panel:#121921; --panel2:#18222c; --line:#243140;
@@ -893,6 +913,7 @@ details.more[open] summary{margin-bottom:10px;color:var(--ink)}
       <label for="linkIn" style="display:block;margin-top:12px">Code from your other device</label>
       <div class="row" style="gap:8px"><input id="linkIn" placeholder="xxxxxxxx-xxxxxxxx-…" autocomplete="off" style="flex:1"><button class="btn primary" id="btnLink">Link</button></div>
     </details>
+    <p class="muted small" style="text-align:center;margin:22px 0 4px"><a href="privacy.html" style="color:inherit;text-decoration:underline">Privacy policy</a></p>
   </section>
 </div>
 
