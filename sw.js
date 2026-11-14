@@ -1,8 +1,8 @@
 /* FO & GO service worker: lets the app open from the home screen (and offline).
    The page itself is always fetched fresh when there's a connection, so updates show up right away;
    the saved copy is only used when you're offline. Leaderboard data and videos are never cached. */
-const CACHE = 'fogo-v70';
-const SHELL = ['./', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'fonts/fonts.css', 'fonts/barlow-condensed-latin-600-italic.woff2', 'fonts/barlow-condensed-latin-700-italic.woff2', 'fonts/barlow-condensed-latin-800-italic.woff2', 'fonts/barlow-condensed-latin-900-italic.woff2', 'privacy.html'];
+const CACHE = 'fogo-v69';
+const SHELL = ['./', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
